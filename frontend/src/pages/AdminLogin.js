@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../index.css';
 
-const ADMIN_PASSWORD = 'aisha2026admin'; // Bu parolni .env dan olish kerak — hozircha shunday
+const ADMIN_PASSWORD = process.env.REACT_APP_ADMIN_PASSWORD; 
 
 export default function AdminLogin() {
   const [password, setPassword] = useState('');
