@@ -69,9 +69,8 @@ app.delete('/api/admin/reviews/:id', adminGuard, contentController.deleteReview)
 // ============================================================
 // SERVER ISHGA TUSHIRISH
 // ============================================================
-app.get('/', (req, res) => {
-  res.send('API ishlamoqda. /api/leaderboard/:groupId, /api/results, /api/reviews endpointlarini tekshiring.');
-});
+const path = require('path');
+app.use(express.static(path.join(__dirname, '../frontend')));
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, '0.0.0.0', async () => {
   console.log(`🚀 API Server localhost:${PORT} portida ishlamoqda`);
