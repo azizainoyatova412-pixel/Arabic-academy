@@ -69,9 +69,13 @@ app.delete('/api/admin/reviews/:id', adminGuard, contentController.deleteReview)
 // ============================================================
 // SERVER ISHGA TUSHIRISH
 // ============================================================
-app.use(express.static(path.join(__dirname, '../../ frontend')));
-app.get('/{*splat}', (req, res) => {
-  res.sendFile(path.join(__dirname, '../../ frontend', 'index.html'));
+// app.use(express.static(path.join(__dirname, '../../ frontend')));
+// app.get('/{*splat}', (req, res) => {
+//   res.sendFile(path.join(__dirname, '../../ frontend', 'index.html'));
+// });
+app.use(express.static(path.join(__dirname, '..', '...', 'frontend')));
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', '...', 'frontend', 'index.html'));
 });
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', async () => {
