@@ -70,19 +70,18 @@ app.delete('/api/admin/reviews/:id', adminGuard, contentController.deleteReview)
 // SERVER ISHGA TUSHIRISH
 // ============================================================
 app.use(express.static(path.join(__dirname, '../../ frontend')));
-const PORT = process.env.PORT || 5000;
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../../ frontend', 'index.html'));
+});
 app.listen(PORT, '0.0.0.0', async () => {
-  console.log(`🚀 API Server localhost:${PORT} portida ishlamoqda`);
+  console.log(` Api server localhost:${PORT} portida ishga tushdi`);
   await db.initDb();
+});
+const token = process.env.BOT_TOKEN || '';
+bot.start()
+ .then(() => {
 
-  const token = process.env.BOT_TOKEN || '';
-  if (token && !token.includes('EXAMPLE') && token.includes(':')) {
-    bot.start().then(() => {
-      console.log('🤖 Telegram Bot muvaffaqiyatli ishga tushdi!');
-    }).catch(err => {
-      console.error('❌ Botda xatolik:', err.message || err);
-    });
-  } else {
-    console.log('ℹ️ Eslatma: Haqiqiy BOT_TOKEN kiritilmagan. Bot hozircha ishga tushirilmadi.');
-  }
+console.log('🤖 Telegram bot ishga tushdi!'); })
+.catch((err) => {
+  console.error('❌ Telegram bot ishga tushmadi:', err.message);
 });
