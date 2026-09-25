@@ -1,0 +1,31 @@
+services:
+  - type: web
+    name: aisha-uzbikiyya-api
+    env: node
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: npm run render:start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: BOT_TOKEN
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: ADMIN_TELEGRAM_ID
+        sync: false
+      - key: TELEGRAM_GROUP_ID
+        sync: false
+
+  - type: static
+    name: aisha-uzbikiyya-frontend
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: build
+    envVars:
+      - key: REACT_APP_API_URL
+        value: https://aisha-uzbikiyya-api.onrender.com
