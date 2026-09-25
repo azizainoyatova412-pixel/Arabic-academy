@@ -97,17 +97,53 @@ if (fs.existsSync(frontendBuildPath)) {
   });
 } else {
   app.get('/', (req, res) => {
-    res.json({
-      ok: true,
-      message: 'API server is running. Frontend build not found yet; run npm run build in the frontend or use the Render start script.'
-    });
+    res.type('html').send(`
+      <!doctype html>
+      <html lang="uz">
+      <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Uzbikiyya | App is starting</title>
+        <style>
+          body { font-family: Arial, sans-serif; background: #f7efe9; color: #3d200f; display: grid; place-items: center; min-height: 100vh; margin: 0; }
+          .box { background: white; padding: 32px 28px; border-radius: 18px; box-shadow: 0 12px 28px rgba(61,32,15,.08); text-align: center; max-width: 620px; }
+          h1 { margin-bottom: 12px; font-size: 2rem; }
+          p { color: #6e4f39; line-height: 1.6; }
+        </style>
+      </head>
+      <body>
+        <div class="box">
+          <h1>Sayt tayyorlanmoqda</h1>
+          <p>Frontend build hali tayyorlanmoqda. Server ishlayapti, lekin web sahifa allaqachon yuklanmayapti. Iltimos, Render build tugagach qayta yuklang.</p>
+        </div>
+      </body>
+      </html>
+    `);
   });
 
   app.get(/^(?!\/api).*/, (req, res) => {
-    res.status(404).json({
-      ok: false,
-      message: 'Frontend build not found. Run the frontend build before visiting the root route.'
-    });
+    res.type('html').send(`
+      <!doctype html>
+      <html lang="uz">
+      <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Uzbikiyya | App is starting</title>
+        <style>
+          body { font-family: Arial, sans-serif; background: #f7efe9; color: #3d200f; display: grid; place-items: center; min-height: 100vh; margin: 0; }
+          .box { background: white; padding: 32px 28px; border-radius: 18px; box-shadow: 0 12px 28px rgba(61,32,15,.08); text-align: center; max-width: 620px; }
+          h1 { margin-bottom: 12px; font-size: 2rem; }
+          p { color: #6e4f39; line-height: 1.6; }
+        </style>
+      </head>
+      <body>
+        <div class="box">
+          <h1>Frontend build topilmadi</h1>
+          <p>Render ishlayotgan serverda build hali tugamagan yoki build yo'li noto'g'ri. Iltimos, deployni qayta ishga tushiring.</p>
+        </div>
+      </body>
+      </html>
+    `);
   });
 }
 
