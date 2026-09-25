@@ -158,7 +158,7 @@ export default function AdminDashboard() {
           </div>
 
           <div className="quick-stat-card">
-            <div className="stat-icon-wrap" style={{ background: 'rgba(59, 130, 246, 0.12)', color: '#3B82F6' }}>
+            <div className="stat-icon-wrap" style={{ background: 'rgba(197, 152, 88, 0.18)', color: '#8C5A3C' }}>
               💬
             </div>
             <div>

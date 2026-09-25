@@ -20,6 +20,8 @@ services:
         sync: false
       - key: TELEGRAM_GROUP_ID
         sync: false
+      - key: SELF_PING_URL
+        value: https://aisha-uzbikiyya-api.onrender.com
 
   - type: static
     name: aisha-uzbikiyya-frontend

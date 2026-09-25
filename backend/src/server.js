@@ -33,6 +33,22 @@ const storage = multer.diskStorage({
 const upload = multer({ storage, limits: { fileSize: 5 * 1024 * 1024 } });
 
 // ============================================================
+// HEALTH CHECK VA ANTI-SLEEP PING ENDPOINTLARI
+// ============================================================
+app.get('/api/health', (req, res) => {
+  res.status(200).json({
+    status: 'ok',
+    message: 'Server faol va ishlamoqda',
+    uptimeSeconds: Math.floor(process.uptime()),
+    timestamp: new Date().toISOString()
+  });
+});
+
+app.get('/api/ping', (req, res) => {
+  res.status(200).send('pong');
+});
+
+// ============================================================
 // ODDIY FOYDALANUVCHI (o'quvchi) API endpointlari
 // ============================================================
 app.get('/api/leaderboard/:groupId', leaderboardController.getLeaderboard);
@@ -97,8 +113,30 @@ if (fs.existsSync(frontendBuildPath)) {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', async () => {
-  console.log(` Api server localhost:${PORT} portida ishga tushdi`);
+  console.log(`🚀 Api server localhost:${PORT} portida ishga tushdi`);
   await db.initDb();
+
+  // ============================================================
+  // ANTI-SLEEP AUTO SELF-PING (Render 15 daqiqada uxlab qolmasligi uchun)
+  // ============================================================
+  const PING_INTERVAL_MS = 12 * 60 * 1000; // Har 12 daqiqada ping yuborish
+  const selfUrl = process.env.RENDER_EXTERNAL_URL || process.env.SELF_PING_URL || 'https://aisha-uzbikiyya-api.onrender.com';
+
+  if (selfUrl) {
+    const pingTarget = `${selfUrl.replace(/\/$/, '')}/api/health`;
+    console.log(`⏱️ Anti-sleep self-ping sozlandi: ${pingTarget} har 12 daqiqada uyg'otib turiladi.`);
+
+    setInterval(async () => {
+      try {
+        const response = await fetch(pingTarget);
+        if (response.ok) {
+          console.log(`💓 [Anti-Sleep] Self-ping muvaffaqiyatli: ${response.status} (${new Date().toLocaleTimeString()})`);
+        }
+      } catch (err) {
+        console.warn(`⚠️ [Anti-Sleep] Ping urinishida ogohlantirish:`, err.message);
+      }
+    }, PING_INTERVAL_MS);
+  }
 });
 
 const token = process.env.BOT_TOKEN || '';

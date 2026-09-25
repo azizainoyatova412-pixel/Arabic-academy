@@ -21,7 +21,7 @@ export default function AdminLogin() {
       sessionStorage.setItem('admin_auth', ADMIN_PASSWORD);
       navigate('/admin/dashboard');
     } else {
-      setError("Kiritilgan parol noto'g'ri. Iltimos, tekshirib qaytadan kiriting.");
+      setError("Kiritilgan parol noto'g'ri. Iltimos, qaytadan urinib ko'ring.");
     }
     setLoading(false);
   };
@@ -34,8 +34,8 @@ export default function AdminLogin() {
           <img src="/logo.jpg" alt="Aisha Uzbikiyya" />
         </div>
 
-        <span className="admin-login-badge">Xavfsiz Boshqaruv</span>
-        <h1>Admin Tizimi</h1>
+        <span className="admin-login-badge">Boshqaruv Tizimi</span>
+        <h1>Admin Kirish</h1>
         <p className="admin-login-sub">Aisha Uzbikiyya Akademiyasi</p>
 
         <form onSubmit={handleLogin} className="admin-login-form">
@@ -68,10 +68,6 @@ export default function AdminLogin() {
             {loading ? 'Tekshirilmoqda...' : 'Tizimga kirish →'}
           </button>
         </form>
-
-        <div className="admin-login-hint">
-          <small>Standart parol: <code>admint</code></small>
-        </div>
 
         <a href="/" className="admin-back-link">
           ← Asosiy saytga qaytish
