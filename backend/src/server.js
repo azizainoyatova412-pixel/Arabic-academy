@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs');
 const multer = require('multer');
 const db = require('./db/index');
 const bot = require('./bot/bot');
@@ -69,24 +70,32 @@ app.delete('/api/admin/reviews/:id', adminGuard, contentController.deleteReview)
 // ============================================================
 // SERVER ISHGA TUSHIRISH
 // ============================================================
-// app.use(express.static(path.join(__dirname, '../../ frontend')));
-// app.get('/{*splat}', (req, res) => {
-//   res.sendFile(path.join(__dirname, '../../ frontend', 'index.html'));
-// });
-app.use(express.static(path.join(__dirname, '..', '...', 'frontend')));
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '..', '...', 'frontend', 'index.html'));
-});
+const frontendBuildPath = path.join(__dirname, '..', '..', 'frontend', 'build');
+const frontendIndexPath = path.join(frontendBuildPath, 'index.html');
+
+if (fs.existsSync(frontendBuildPath)) {
+  app.use(express.static(frontendBuildPath));
+  app.get(/^(?!\/api).*/, (req, res, next) => {
+    if (req.path.startsWith('/api')) return next();
+    res.sendFile(frontendIndexPath);
+  });
+}
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', async () => {
   console.log(` Api server localhost:${PORT} portida ishga tushdi`);
   await db.initDb();
 });
-const token = process.env.BOT_TOKEN || '';
-bot.start()
- .then(() => {
 
-console.log('🤖 Telegram bot ishga tushdi!'); })
-.catch((err) => {
-  console.error('❌ Telegram bot ishga tushmadi:', err.message);
-});
+const token = process.env.BOT_TOKEN || '';
+if (token && token.includes(':')) {
+  bot.start()
+    .then(() => {
+      console.log('🤖 Telegram bot ishga tushdi!');
+    })
+    .catch((err) => {
+      console.error('❌ Telegram bot ishga tushmadi:', err.message);
+    });
+} else {
+  console.log('ℹ️ Telegram BOT_TOKEN topilmadi yoki yaroqsiz. Bot o‘chirilgan holda ishlaydi.');
+}
