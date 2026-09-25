@@ -79,6 +79,20 @@ if (fs.existsSync(frontendBuildPath)) {
     if (req.path.startsWith('/api')) return next();
     res.sendFile(frontendIndexPath);
   });
+} else {
+  app.get('/', (req, res) => {
+    res.json({
+      ok: true,
+      message: 'API server is running. Frontend build not found yet; run npm run build in the frontend or use the Render start script.'
+    });
+  });
+
+  app.get(/^(?!\/api).*/, (req, res) => {
+    res.status(404).json({
+      ok: false,
+      message: 'Frontend build not found. Run the frontend build before visiting the root route.'
+    });
+  });
 }
 
 const PORT = process.env.PORT || 3000;

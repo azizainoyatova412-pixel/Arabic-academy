@@ -10,61 +10,63 @@ const content = {
       { name: 'Darslar', href: '#courses' },
       { name: 'Maqsadlar', href: '#goals' },
       { name: 'Ustoz', href: '#mentor' },
+      { name: 'Natijalar', href: '#results' },
+      { name: 'Sharhlar', href: '#reviews' },
       { name: 'Aloqa', href: '#contact' },
     ],
     brandName: 'Aisha Uzbikiyya',
-    brandSub: '\u0627\u0644\u0623\u064E\u0643\u064E\u0627\u062F\u064A\u0645\u064A\u0651\u064E\u0629\u064F \u0627\u0644\u0623\u064F\u0648\u0632\u0652\u0628\u064E\u0643\u064A\u0651\u064E\u0629',
-    heroArabicBanner: '\u0627\u0644\u0623\u064E\u0643\u064E\u0627\u062F\u064A\u0645\u064A\u0651\u064E\u0629\u064F \u0627\u0644\u0623\u064F\u0648\u0632\u0652\u0628\u064E\u0643\u064A\u0651\u064E\u0629 \u0644\u0650\u062A\u064E\u0639\u0652\u0644\u064A\u0645\u0650 \u0627\u0644\u0644\u0651\u064F\u063A\u064E\u0629\u0650 \u0627\u0644\u0639\u064E\u0631\u064E\u0628\u064A\u0651\u064E\u0629\u0650',
+    brandSub: 'الأَكاديمِيَّةُ الأُوزْبَكِيَّة',
+    heroArabicBanner: 'الأَكاديمِيَّةُ الأُوزْبَكِيَّة لِتَعْليمِ اللُّغَةِ العَرَبِيَّةِ',
     heroEyebrow: 'Arab tili akademiyasi',
     heroTitlePrefix: 'Biz sizga ',
     heroTitleHighlight: 'arab tilini',
-    heroArabicWord: '\u00AB \u0627\u0644\u0644\u0651\u064F\u063A\u064E\u0629\u064F \u0627\u0644\u0639\u064E\u0631\u064E\u0628\u064A\u0651\u064E\u0629\u064F \u00BB',
-    heroTitleSuffix: "professional darajada o\u2018rgatamiz",
-    heroDesc: "Aisha Uzbikiyya \u2014 o\u2018qitishning izchil, zamonaviy va amaliy tizimi bilan ishlaydigan akademiya. Kichik guruhlar, individual mashg\u2018ulotlar va amaliy nutq mashqlari uyg\u2018unlikda olib boriladi. Arab tilini C1\u2013C2 darajasiga olib chiqadigan ustoz bilan ishlaysiz.",
+    heroArabicWord: '« اللُّغَةُ العَرَبِيَّةُ »',
+    heroTitleSuffix: "professional darajada o‘rgatamiz",
+    heroDesc: "Aisha Uzbikiyya — o‘qitishning izchil, zamonaviy va amaliy tizimi bilan ishlaydigan akademiya. Kichik guruhlar, individual mashg‘ulotlar va amaliy nutq mashqlari uyg‘unlikda olib boriladi. Arab tilini C1–C2 darajasiga olib chiqadigan ustoz bilan ishlaysiz.",
     enrollBtn: 'Kursga yoziling',
-    telegramBtn: "Telegram bilan bog\u2018lanish",
+    telegramBtn: "Telegram bilan bog‘lanish",
     heroCards: {
       topLabel: 'Darslar',
       topVal: '4 bosqich',
     },
     about: {
       eyebrow: 'Biz haqimizda',
-      title: "Til o\u2018rganishni aniq, qulay va samarali qilishga e\u2018tibor qaratamiz",
+      title: "Til o‘rganishni aniq, qulay va samarali qilishga e‘tibor qaratamiz",
       card1Title: 'Bizning yondashuv',
-      card1Desc: 'Har bir o\u2018quvchi bilan individual ishlanadi. Yordamchi ustoz mavjud, darsga kira olmasangiz yoki tushunmay qolsangiz, ularga murojat qilasiz. Darslar haftada 3 kun, jonli efirda olib boriladi.',
+      card1Desc: 'Har bir o‘quvchi bilan individual ishlanadi. Yordamchi ustoz mavjud, darsga kira olmasangiz yoki tushunmay qolsangiz, ularga murojat qilasiz. Darslar haftada 3 kun, jonli efirda olib boriladi.',
       card2Title: 'Qanday natija',
-      card2Desc: 'Oylik to\u2018lov 12 ta darsni o\u2018z ichiga oladi. Kurslar natijaga s\u2018izib borishni xohlaganlar uchun tizimlashtirilgan bo\u2018lib, 40 ga yaqin o\u2018quvchida sertifikat olingan.',
+      card2Desc: 'Oylik to‘lov 12 ta darsni o‘z ichiga oladi. Kurslar natijaga sizib borishni xohlaganlar uchun tizimlashtirilgan bo‘lib, 40 ga yaqin o‘quvchida sertifikat olingan.',
     },
     courses: {
       eyebrow: 'Darslar',
-      title: "O\u2018quv dasturlarimiz va kurslarimiz",
+      title: "O‘quv dasturlarimiz va kurslarimiz",
       btn: 'Batafsil',
       items: [
         {
           title: 'A1 Darajasi',
-          arabicSubtitle: '\u00AB \u0627\u0644\u0645\u064F\u0633\u0652\u062A\u064E\u0648\u0649 \u0627\u0644\u062A\u0651\u064E\u0645\u0652\u0647\u064A\u062F\u0650\u064A\u0651\u064F A1 \u00BB',
-          subtitle: "Alifbo, to\u2018g\u2018ri tovushlar va maxrajlar, o\u2018qish-yozish qoidalari hamda boshlang\u2018ich asosiy so\u2018z boyligi. Dastlabki bir oyda 150+ so\u2018z yodlaysiz, grammatik qoidalar bilan.",
-          tag: "A1 Boshlang\u2018ich",
+          arabicSubtitle: '« المُسْتَوى التَّمْهيدِيُّ A1 »',
+          subtitle: "Alifbo, to‘g‘ri tovushlar va maxrajlar, o‘qish-yozish qoidalari hamda boshlang‘ich asosiy so‘z boyligi. Dastlabki bir oyda 150+ so‘z yodlaysiz, grammatik qoidalar bilan.",
+          tag: "A1 Boshlang‘ich",
           tone: 'navy',
         },
         {
           title: 'A2 Darajasi',
-          arabicSubtitle: '\u00AB \u0627\u0644\u0645\u064F\u0633\u0652\u062A\u064E\u0648\u0649 \u0627\u0644\u0623\u064E\u0633\u064E\u0627\u0633\u0650\u064A\u0651\u064F A2 \u00BB',
-          subtitle: 'Sodda gap tuzilmalari, kundalik muloqot, asosiy grammatika va mustaqil matnlarni tushunish ko\u2018nikmalari.',
+          arabicSubtitle: '« المُسْتَوى الأَسَاسِيُّ A2 »',
+          subtitle: 'Sodda gap tuzilmalari, kundalik muloqot, asosiy grammatika va mustaqil matnlarni tushunish ko‘nikmalari.',
           tag: 'A2 Elementar',
           tone: 'slate',
         },
         {
-          title: 'B1 \u2013 B2 Darajasi',
-          arabicSubtitle: '\u00AB \u0627\u0644\u0645\u064F\u0633\u0652\u062A\u064E\u0648\u0649 \u0627\u0644\u0645\u064F\u062A\u064E\u0648\u064E\u0633\u0651\u0650\u0637\u064F B1-B2 \u00BB',
-          subtitle: 'Sarf, nahv, ravon nutq, akademik matnlar va amaliy suhbat ko\u2018nikmalari bilan ishlanadi.',
-          tag: "B1-B2 O\u2018rta",
+          title: 'B1 – B2 Darajasi',
+          arabicSubtitle: '« المُسْتَوى المُتَوَسِّطُ B1-B2 »',
+          subtitle: 'Sarf, nahv, ravon nutq, akademik matnlar va amaliy suhbat ko‘nikmalari bilan ishlanadi.',
+          tag: "B1-B2 O‘rta",
           tone: 'gold',
         },
         {
           title: 'CEFR va Attanat C2 Tayyorgarlik',
-          arabicSubtitle: '\u00AB \u0627\u0650\u062E\u0652\u062A\u0650\u0628\u064E\u0627\u0631\u064E\u0627\u062A\u064F CEFR \u0648\u064E\u0627\u0644\u062A\u0651\u064E\u0627\u0646\u064E\u0627\u0644 C2 \u00BB',
-          subtitle: ' 40 ga yaqin o\u2018quvchi sertifikat olgan.',
+          arabicSubtitle: '« اِخْتِبَارَاتُ CEFR وَالتَّانَال C2 »',
+          subtitle: ' 40 ga yaqin o‘quvchi sertifikat olgan.',
           tag: 'CEFR & Attanat C2',
           tone: 'gold',
         },
@@ -72,46 +74,65 @@ const content = {
     },
     goals: {
       eyebrow: 'Real maqsadlar',
-      title: "Arab tilini o\u2018rganib nimalarga erishasiz?",
-      desc: "Arab tili dunyo bo\u2018ylab 300 milliondan ortiq insonlar uchun asosiy til. Islom madaniyati, ilmiy meros va xalqaro muloqot uchun asosiy vositadir.",
+      title: "Arab tilini o‘rganib nimalarga erishasiz?",
+      desc: "Arab tili dunyo bo‘ylab 300 milliondan ortiq insonlar uchun asosiy til. Islom madaniyati, ilmiy meros va xalqaro muloqot uchun asosiy vositadir.",
       items: [
         {
-          icon: '\uD83C\uDF93',
-          title: "Arab tili o\u2018qituvchisi",
-          desc: "Maktab, akademiya yoki xususiy darslar orqali arab tilini o\u2018rgatuvchi professional mutaxassis bo\u2018ling.",
+          icon: '🎓',
+          title: "Arab tili o‘qituvchisi",
+          desc: "Maktab, akademiya yoki xususiy darslar orqali arab tilini o‘rgatuvchi professional mutaxassis bo‘ling.",
         },
         {
-          icon: '\uD83C\uDF10',
+          icon: '🌐',
           title: 'Tarjimon',
-          desc: "Arab tilidan o\u2018zbek yoki rus tiliga og\u2018zaki va yozma tarjima qiluvchi xalqaro darajadagi tarjimon bo\u2018ling.",
+          desc: "Arab tilidan o‘zbek yoki rus tiliga og‘zaki va yozma tarjima qiluvchi xalqaro darajadagi tarjimon bo‘ling.",
         },
-      
         {
-          icon: '\u2708\uFE0F',
+          icon: '✈️',
           title: 'Xalqaro karyera',
-          desc: "Diplomatiya, xalqaro tashkilotlar, savdo va turizm sohalarida arab tilini bilib keng imkoniyatlarga ega bo\u2018ling.",
+          desc: "Diplomatiya, xalqaro tashkilotlar, savdo va turizm sohalarida arab tilini bilib keng imkoniyatlarga ega bo‘ling.",
         },
       ],
     },
     mentor: {
       eyebrow: 'Ustoz haqida',
-      title: "Arab tili o\u2018qitishda tajriba va to\u2018g\u2018ri uslub muhim",
+      title: "Arab tili o‘qitishda tajriba va to‘g‘ri uslub muhim",
       name: 'Aisha Ahmad',
-      role: "Arab zamonaviy tili o\u2018qituvchisi \u2022 Bookblogger",
-      arabicName: '\u0639\u064E\u0627\u0626\u0650\u0634\u064E\u0629 \u0623\u064E\u062D\u0652\u0645\u064E\u062F',
-      arabicRole: '\u00AB \u0645\u064F\u0639\u064E\u0644\u0651\u0650\u0645\u064E\u0629\u064F \u0627\u0644\u0644\u0651\u064F\u063A\u064E\u0629\u0650 \u0627\u0644\u0639\u064E\u0631\u064E\u0628\u064A\u0651\u064E\u0629\u0650 \u0627\u0644\u0645\u064F\u0639\u064E\u0627\u0635\u0650\u0631\u064E\u0629\u0650 \u0648\u064E\u0645\u064F\u062F\u064E\u0648\u0651\u0650\u0646\u064E\u0629\u064F \u0643\u064F\u062A\u064F\u0628\u064D \u00BB',
-      desc: "Arab zamonaviy tili (Fusha) o\u2018qituvchisi hamda bookblogger. O\u2018quvchilarga arab tilini zamonaviy interaktiv metodika, boy kitoblar mutolaasi va chuqur muhabbat bilan o\u2018rgatadi.",
+      role: "Arab zamonaviy tili o‘qituvchisi • Bookblogger",
+      arabicName: 'عَائِشَة أَحْمَد',
+      arabicRole: '« مُعَلِّمَةُ اللُّغَةِ العَرَبِيَّةِ المُعَاصِرَةِ وَمُدَوِّنَةُ كُتُبٍ »',
+      desc: "Arab zamonaviy tili (Fusha) o‘qituvchisi hamda bookblogger. O‘quvchilarga arab tilini zamonaviy interaktiv metodika, boy kitoblar mutolaasi va chuqur muhabbat bilan o‘rgatadi.",
       videosLabel: 'Ustozdan lavhalar',
       videosNote: "Ustozimizning Telegram kanalidan lavhalar",
-      telegramChannelBtn: "Telegram kanalga o\u2018tish",
+      telegramChannelBtn: "Telegram kanalga o‘tish",
+    },
+    resultsSection: {
+      eyebrow: 'Muvaffaqiyatlar',
+      title: "O'quvchilarimiz natijalari va yutuqlari",
+      desc: "Akademiyamizda tahsil olgan talabalarimizning qo'lga kiritgan sertifikatlari va imtihon natijalari.",
+      empty: "Tez kunda yangi natijalar e'lon qilinadi.",
+    },
+    reviewsSection: {
+      eyebrow: 'Fikrlar va sharhlar',
+      title: "O'quvchilarimiz akademiyamiz haqida",
+      desc: "Darslarimizda ishtirok etgan o'quvchilarning samimiy taassurotlari.",
+      empty: "Sharhlar tez orada qo'shiladi.",
+    },
+    gradesSection: {
+      eyebrow: 'Reyting tizimi',
+      title: "Guruh o'quvchilari reytingi",
+      desc: "Guruh ID kodini kiritib, darsdagi ballar va natijalarni tekshiring.",
+      inputPlaceholder: "Guruh ID sini kiriting (masalan: 1)",
+      checkBtn: "Reytingni ko'rish",
+      notFound: "Ushbu guruh topilmadi yoki hali o'quvchilar baholanmagan.",
     },
     contact: {
       eyebrow: 'Telegram admin',
-      title: 'Ma\u2018lumotlarni bot orqali olasiz',
-      desc: 'Guruhlar haqida batafsil ma\u2018lumot Telegram bot orqali beriladi. Dars jadvali va imkoniyatlar haqida bir zumda xabar olasiz.',
-      btn: 'Telegram botga o\u2018tish',
+      title: 'Ma‘lumotlarni bot orqali olasiz',
+      desc: 'Guruhlar haqida batafsil ma‘lumot Telegram bot orqali beriladi. Dars jadvali va imkoniyatlar haqida bir zumda xabar olasiz.',
+      btn: 'Telegram botga o‘tish',
     },
-    footer: '\u00A9 2026 Aisha Uzbikiyya. Barcha huquqlar himoyalangan.',
+    footer: '© 2026 Aisha Uzbikiyya. Barcha huquqlar himoyalangan.',
   },
   EN: {
     nav: [
@@ -119,15 +140,17 @@ const content = {
       { name: 'Courses', href: '#courses' },
       { name: 'Goals', href: '#goals' },
       { name: 'Mentor', href: '#mentor' },
+      { name: 'Results', href: '#results' },
+      { name: 'Reviews', href: '#reviews' },
       { name: 'Contact', href: '#contact' },
     ],
     brandName: 'Aisha Uzbikiyya',
-    brandSub: '\u0627\u0644\u0623\u064E\u0643\u064E\u0627\u062F\u064A\u0645\u064A\u0651\u064E\u0629\u064F \u0627\u0644\u0623\u064F\u0648\u0632\u0652\u0628\u064E\u0643\u064A\u0651\u064E\u0629',
-    heroArabicBanner: '\u0627\u0644\u0623\u064E\u0643\u064E\u0627\u062F\u064A\u0645\u064A\u0651\u064E\u0629\u064F \u0627\u0644\u0623\u064F\u0648\u0632\u0652\u0628\u064E\u0643\u064A\u0651\u064E\u0629 \u0644\u0650\u062A\u064E\u0639\u0652\u0644\u064A\u0645\u0650 \u0627\u0644\u0644\u0651\u064F\u063A\u064E\u0629\u0650 \u0627\u0644\u0639\u064E\u0631\u064E\u0628\u064A\u0651\u064E\u0629\u0650',
+    brandSub: 'الأَكاديمِيَّةُ الأُوزْبَكِيَّة',
+    heroArabicBanner: 'الأَكاديمِيَّةُ الأُوزْبَكِيَّة لِتَعْليمِ اللُّغَةِ العَرَبِيَّةِ',
     heroEyebrow: 'Arabic Language Academy',
     heroTitlePrefix: 'We teach you ',
     heroTitleHighlight: 'Arabic',
-    heroArabicWord: '\u00AB \u0627\u0644\u0644\u0651\u064F\u063A\u064E\u0629\u064F \u0627\u0644\u0639\u064E\u0631\u064E\u0628\u064A\u0651\u064E\u0629\u064F \u00BB',
+    heroArabicWord: '« اللُّغَةُ العَرَبِيَّةُ »',
     heroTitleSuffix: 'at a professional level',
     heroDesc: 'Aisha Uzbikiyya is an academy built upon a structured, modern, and highly practical teaching methodology. Small interactive groups, personalized tutoring, and live conversational practice.',
     enrollBtn: 'Enroll Now',
@@ -151,28 +174,28 @@ const content = {
       items: [
         {
           title: 'A1 Level',
-          arabicSubtitle: '\u00AB \u0627\u0644\u0645\u064F\u0633\u0652\u062A\u064E\u0648\u0649 \u0627\u0644\u062A\u0651\u064E\u0645\u0652\u0647\u064A\u062F\u0650\u064A\u0651\u064F A1 \u00BB',
+          arabicSubtitle: '« المُسْتَوى التَّمْهيدِيُّ A1 »',
           subtitle: 'Alphabet, correct phonetics and articulation, reading fundamentals, and everyday core vocabulary.',
           tag: 'A1 Beginner',
           tone: 'navy',
         },
         {
           title: 'A2 Level',
-          arabicSubtitle: '\u00AB \u0627\u0644\u0645\u064F\u0633\u0652\u062A\u064E\u0648\u0649 \u0627\u0644\u0623\u064E\u0633\u064E\u0627\u0633\u0650\u064A\u0651\u064F A2 \u00BB',
+          arabicSubtitle: '« المُسْتَوى الأَسَاسِيُّ A2 »',
           subtitle: 'Sentence building, foundational grammar patterns, daily conversation, and reading comprehension.',
           tag: 'A2 Elementary',
           tone: 'slate',
         },
         {
-          title: 'B1 \u2013 B2 Level',
-          arabicSubtitle: '\u00AB \u0627\u0644\u0645\u064F\u0633\u0652\u062A\u064E\u0648\u0649 \u0627\u0644\u0645\u064F\u062A\u064E\u0648\u064E\u0633\u0651\u0650\u0637\u064F B1-B2 \u00BB',
+          title: 'B1 – B2 Level',
+          arabicSubtitle: '« المُسْتَوى المُتَوَسِّطُ B1-B2 »',
           subtitle: 'Advanced morphology (sarf), syntax (nahw), fluent communicative practice, and authentic text analysis.',
           tag: 'B1-B2 Intermediate',
           tone: 'gold',
         },
         {
           title: 'CEFR & Attanat C2 Prep',
-          arabicSubtitle: '\u00AB \u0627\u0650\u062E\u0652\u062A\u0650\u0628\u064E\u0627\u0631\u064E\u0627\u062A\u064F CEFR \u0648\u064E\u0627\u0644\u062A\u0651\u064E\u0627\u0646\u064E\u0627\u0644 C2 \u00BB',
+          arabicSubtitle: '« اِخْتِبَارَاتُ CEFR وَالتَّانَال C2 »',
           subtitle: 'Targeted preparation for National CEFR and International Attanat C2 proficiency credentials. Earn your certificate from zero.',
           tag: 'CEFR & Attanat C2',
           tone: 'gold',
@@ -184,23 +207,42 @@ const content = {
       title: 'What can you achieve by learning Arabic?',
       desc: 'Spoken by more than 300 million people worldwide. Arabic is the key to Islamic heritage, science and international communication.',
       items: [
-        { icon: '\uD83C\uDF93', title: 'Arabic Language Teacher', desc: 'Become a professional Arabic educator teaching in schools, academies, or private lessons.' },
-        { icon: '\uD83C\uDF10', title: 'Translator / Interpreter', desc: 'Work as a professional translator from Arabic to English or other languages at an international level.' },
-        { icon: '\uD83D\uDCDC', title: 'Islamic Studies', desc: 'Read and understand the Quran, Hadith, and classical Fiqh directly from their original Arabic sources.' },
-        { icon: '\u2708\uFE0F', title: 'International Career', desc: 'Open doors to diplomacy, international organizations, trade, and travel with Arabic fluency.' },
+        { icon: '🎓', title: 'Arabic Language Teacher', desc: 'Become a professional Arabic educator teaching in schools, academies, or private lessons.' },
+        { icon: '🌐', title: 'Translator / Interpreter', desc: 'Work as a professional translator from Arabic to English or other languages at an international level.' },
+        { icon: '✈️', title: 'International Career', desc: 'Open doors to diplomacy, international organizations, trade, and travel with Arabic fluency.' },
       ],
     },
     mentor: {
       eyebrow: 'Your Instructor',
       title: 'Years of Dedicated Guidance in Classical Arabic',
       name: 'Aisha Ahmad',
-      role: 'Modern Standard Arabic Teacher \u2022 Bookblogger',
-      arabicName: '\u0639\u064E\u0627\u0626\u0650\u0634\u064E\u0629 \u0623\u064E\u062D\u0652\u0645\u064E\u062F',
-      arabicRole: '\u00AB \u0645\u064F\u0639\u064E\u0644\u0651\u0650\u0645\u064E\u0629\u064F \u0627\u0644\u0644\u0651\u064F\u063A\u064E\u0629\u0650 \u0627\u0644\u0639\u064E\u0631\u064E\u0628\u064A\u0651\u064E\u0629\u0650 \u0627\u0644\u0645\u064F\u0639\u064E\u0627\u0635\u0650\u0631\u064E\u0629\u0650 \u0648\u064E\u0645\u064F\u062F\u064E\u0648\u0651\u0650\u0646\u064E\u0629\u064F \u0643\u064F\u062A\u064F\u0628\u064D \u00BB',
+      role: 'Modern Standard Arabic Teacher • Bookblogger',
+      arabicName: 'عَائِشَة أَحْمَد',
+      arabicRole: '« مُعَلِّمَةُ اللُّغَةِ العَرَبِيَّةِ المُعَاصِرَةِ وَمُدَوِّنَةُ كُتُبٍ »',
       desc: 'Modern Standard Arabic educator and bookblogger. Inspiring students through modern communicative methodologies and a genuine love for reading.',
       videosLabel: 'From the Instructor',
       videosNote: "Clips from the instructor's Telegram channel",
       telegramChannelBtn: 'Visit Telegram Channel',
+    },
+    resultsSection: {
+      eyebrow: 'Showcase',
+      title: 'Student Achievements & Certificates',
+      desc: 'Real credentials and CEFR milestones earned by our academy learners.',
+      empty: 'New results will be posted soon.',
+    },
+    reviewsSection: {
+      eyebrow: 'Testimonials',
+      title: 'What Our Students Say',
+      desc: 'Genuine feedback from our participants.',
+      empty: 'Reviews will appear soon.',
+    },
+    gradesSection: {
+      eyebrow: 'Leaderboard',
+      title: 'Student Performance & Grades',
+      desc: 'Enter your Group ID to inspect rankings and scores.',
+      inputPlaceholder: 'Enter Group ID (e.g. 1)',
+      checkBtn: 'Check Leaderboard',
+      notFound: 'Group not found or no students rated yet.',
     },
     contact: {
       eyebrow: 'Telegram Admin',
@@ -208,7 +250,7 @@ const content = {
       desc: 'Detailed information about groups and schedules is shared through the Telegram bot. You will get the latest details quickly and clearly.',
       btn: 'Open Telegram Bot',
     },
-    footer: '\u00A9 2026 Aisha Uzbikiyya Academy. All rights reserved.',
+    footer: '© 2026 Aisha Uzbikiyya Academy. All rights reserved.',
   },
   RU: {
     nav: [
@@ -216,15 +258,17 @@ const content = {
       { name: 'Курсы', href: '#courses' },
       { name: 'Цели', href: '#goals' },
       { name: 'Преподаватель', href: '#mentor' },
+      { name: 'Результаты', href: '#results' },
+      { name: 'Отзывы', href: '#reviews' },
       { name: 'Контакты', href: '#contact' },
     ],
     brandName: 'Aisha Uzbikiyya',
-    brandSub: '\u0627\u0644\u0623\u064E\u0643\u064E\u0627\u062F\u064A\u0645\u064A\u0651\u064E\u0629\u064F \u0627\u0644\u0623\u064F\u0648\u0632\u0652\u0628\u064E\u0643\u064A\u0651\u064E\u0629',
-    heroArabicBanner: '\u0627\u0644\u0623\u064E\u0643\u064E\u0627\u062F\u064A\u0645\u064A\u0651\u064E\u0629\u064F \u0627\u0644\u0623\u064F\u0648\u0632\u0652\u0628\u064E\u0643\u064A\u0651\u064E\u0629 \u0644\u0650\u062A\u064E\u0639\u0652\u0644\u064A\u0645\u0650 \u0627\u0644\u0644\u0651\u064F\u063A\u064E\u0629\u0650 \u0627\u0644\u0639\u064E\u0631\u064E\u0628\u064A\u0651\u064E\u0629\u0650',
+    brandSub: 'الأَكاديمِيَّةُ الأُوزْبَكِيَّة',
+    heroArabicBanner: 'الأَكاديمِيَّةُ الأُوزْبَكِيَّة لِتَعْليمِ اللُّغَةِ العَرَبِيَّةِ',
     heroEyebrow: 'Академия арабского языка',
     heroTitlePrefix: 'Обучаем вас ',
     heroTitleHighlight: 'арабскому языку',
-    heroArabicWord: '\u00AB \u0627\u0644\u0644\u0651\u064F\u063A\u064E\u0629\u064F \u0627\u0644\u0639\u064E\u0631\u064E\u0628\u064A\u0651\u064E\u0629\u064F \u00BB',
+    heroArabicWord: '« اللُّغَةُ العَرَبِيَّةُ »',
     heroTitleSuffix: 'на профессиональном уровне',
     heroDesc: 'Aisha Uzbikiyya — академия с последовательной, современной и практической методикой обучения. Занятия в малых группах, индивидуальный подход и постоянная речевая практика.',
     enrollBtn: 'Записаться на курс',
@@ -246,10 +290,10 @@ const content = {
       title: 'Наши учебные программы',
       btn: 'Подробнее',
       items: [
-        { title: 'Уровень A1', arabicSubtitle: '\u00AB \u0627\u0644\u0645\u064F\u0633\u0652\u062A\u064E\u0648\u0649 \u0627\u0644\u062A\u0651\u064E\u0645\u0652\u0647\u064A\u062F\u0650\u064A\u0651\u064F A1 \u00BB', subtitle: 'Алфавит, постановка махраджа, правила чтения и базовый словарь.', tag: 'A1 Начальный', tone: 'navy' },
-        { title: 'Уровень A2', arabicSubtitle: '\u00AB \u0627\u0644\u0645\u064F\u0633\u0652\u062A\u064E\u0648\u0649 \u0627\u0644\u0623\u064E\u0633\u064E\u0627\u0633\u0650\u064A\u0651\u064F A2 \u00BB', subtitle: 'Базовая грамматика, бытовые диалоги и чтение текстов.', tag: 'A2 Элементарный', tone: 'slate' },
-        { title: 'Уровень B1 \u2013 B2', arabicSubtitle: '\u00AB \u0627\u0644\u0645\u064F\u0633\u0652\u062A\u064E\u0648\u0649 \u0627\u0644\u0645\u064F\u062A\u064E\u0648\u064E\u0633\u0651\u0650\u0637\u064F B1-B2 \u00BB', subtitle: 'Грамматика (сарф и нахву), разговорная речь и чтение литературы.', tag: 'B1-B2 Средний', tone: 'gold' },
-        { title: 'Подготовка CEFR и Attanat C2', arabicSubtitle: '\u00AB \u0627\u0650\u062E\u0652\u062A\u0650\u0628\u064E\u0627\u0631\u064E\u0627\u062A\u064F CEFR \u0648\u064E\u0627\u0644\u062A\u0651\u064E\u0627\u0646\u064E\u0627\u0644 C2 \u00BB', subtitle: 'Интенсивная подготовка к CEFR и Attanat C2. Возможность получить сертификат с нуля.', tag: 'CEFR & Attanat C2', tone: 'gold' },
+        { title: 'Уровень A1', arabicSubtitle: '« المُسْتَوى التَّمْهيدِيُّ A1 »', subtitle: 'Алфавит, постановка махраджа, правила чтения и базовый словарь.', tag: 'A1 Начальный', tone: 'navy' },
+        { title: 'Уровень A2', arabicSubtitle: '« المُسْتَوى الأَسَاسِيُّ A2 »', subtitle: 'Базовая грамматика, бытовые диалоги и чтение текстов.', tag: 'A2 Элементарный', tone: 'slate' },
+        { title: 'Уровень B1 – B2', arabicSubtitle: '« المُسْتَوى المُتَوَسِّطُ B1-B2 »', subtitle: 'Грамматика (сарф и нахву), разговорная речь и чтение литературы.', tag: 'B1-B2 Средний', tone: 'gold' },
+        { title: 'Подготовка CEFR и Attanat C2', arabicSubtitle: '« اِخْتِبَارَاتُ CEFR وَالتَّانَال C2 »', subtitle: 'Интенсивная подготовка к CEFR и Attanat C2. Возможность получить сертификат с нуля.', tag: 'CEFR & Attanat C2', tone: 'gold' },
       ],
     },
     goals: {
@@ -257,10 +301,9 @@ const content = {
       title: 'Чего вы достигнете, изучив арабский?',
       desc: 'Один из ведущих мировых языков — более 300 млн носителей.',
       items: [
-        { icon: '\uD83C\uDF93', title: 'Преподаватель арабского', desc: 'Профессиональный педагог в школах или частной практике.' },
-        { icon: '\uD83C\uDF10', title: 'Переводчик / Синхронист', desc: 'Профессиональный переводчик на международном уровне.' },
-        { icon: '\uD83D\uDCDC', title: 'Исламские науки', desc: 'Читайте Коран, Хадисы на языке оригинала.' },
-        { icon: '\u2708\uFE0F', title: 'Международная карьера', desc: 'Дипломатия, организации, бизнес и туризм.' },
+        { icon: '🎓', title: 'Преподаватель арабского', desc: 'Профессиональный педагог в школах или частной практике.' },
+        { icon: '🌐', title: 'Переводчик / Синхронист', desc: 'Профессиональный переводчик на международном уровне.' },
+        { icon: '✈️', title: 'Международная карьера', desc: 'Дипломатия, организации, бизнес и туризм.' },
       ],
     },
     mentor: {
@@ -268,12 +311,32 @@ const content = {
       title: 'Опыт и правильная методика — основа успеха',
       name: 'Aisha Ahmad',
       role: 'Преподаватель арабского языка • Букблогер',
-      arabicName: '\u0639\u064E\u0627\u0626\u0650\u0634\u064E\u0629 \u0623\u064E\u062D\u0652\u0645\u064E\u062F',
-      arabicRole: '\u00AB \u0645\u064F\u0639\u064E\u0644\u0651\u0650\u0645\u064E\u0629\u064F \u0627\u0644\u0644\u0651\u064F\u063A\u064E\u0629\u0650 \u0627\u0644\u0639\u064E\u0631\u064E\u0628\u064A\u0651\u064E\u0629\u0650 \u0627\u0644\u0645\u064F\u0639\u064E\u0627\u0635\u0650\u0631\u064E\u0629\u0650 \u0648\u064E\u0645\u064F\u062F\u064E\u0648\u0651\u0650\u0646\u064E\u0629\u064F \u0643\u064F\u062A\u064F\u0628\u064D \u00BB',
+      arabicName: 'عَائِشَة أَحْمَد',
+      arabicRole: '« مُعَلِّمَةُ اللُّغَةِ العَرَبِيَّةِ المُعَاصِرَةِ وَمُدَوِّنَةُ كُتُبٍ »',
       desc: 'Преподаватель современного арабского языка и книжный блогер.',
       videosLabel: 'От преподавателя',
       videosNote: 'Видео из Telegram-канала преподавателя',
       telegramChannelBtn: 'Перейти в Telegram-канал',
+    },
+    resultsSection: {
+      eyebrow: 'Достижения',
+      title: 'Результаты и сертификаты студентов',
+      desc: 'Сертификаты CEFR и успехи наших учеников.',
+      empty: 'Результаты будут опубликованы в ближайшее время.',
+    },
+    reviewsSection: {
+      eyebrow: 'Отзывы',
+      title: 'Что говорят наши ученики',
+      desc: 'Искренние отзывы участников наших курсов.',
+      empty: 'Отзывы скоро появятся.',
+    },
+    gradesSection: {
+      eyebrow: 'Рейтинг',
+      title: 'Рейтинг успеваемости групп',
+      desc: 'Введите номер группы, чтобы проверить баллы.',
+      inputPlaceholder: 'Введите ID группы (например: 1)',
+      checkBtn: 'Посмотреть рейтинг',
+      notFound: 'Группа не найдена или баллы еще не выставлены.',
     },
     contact: {
       eyebrow: 'Telegram администратор',
@@ -281,14 +344,16 @@ const content = {
       desc: 'Подробности о группах и расписании отправляются через Telegram-бота. Вы быстро получите актуальные данные.',
       btn: 'Перейти в Telegram-бот',
     },
-    footer: '\u00A9 2026 Aisha Uzbikiyya Academy. Все права защищены.',
+    footer: '© 2026 Aisha Uzbikiyya Academy. Все права защищены.',
   },
 };
 
 const languageOptions = ['UZ', 'EN', 'RU'];
 
 const TELEGRAM_CHANNEL_URL = 'https://t.me/aisha_uzbikiyya';
-const TELEGRAM_BOT_URL = 'https://t.me/aishauzbikiyya_bot';const INSTAGRAM_URL = 'https://instagram.com/aisha_uzbikiyya';
+const TELEGRAM_BOT_URL = 'https://t.me/aishauzbikiyya_bot';
+const INSTAGRAM_URL = 'https://instagram.com/aisha_uzbikiyya';
+
 const mentorVideos = [
   { videoUrl: 'https://t.me/aisha_uzbikiyya/265', id: 1 },
   { videoUrl: 'https://t.me/aisha_uzbikiyya/135', id: 2 },
@@ -298,6 +363,57 @@ const mentorVideos = [
 function Landing() {
   const [lang, setLang] = useState('UZ');
   const t = content[lang] || content.UZ;
+
+  // Dinamik ma'lumotlar
+  const [resultsList, setResultsList] = useState([]);
+  const [reviewsList, setReviewsList] = useState([]);
+
+  // Leaderboard qidiruvi
+  const [groupIdInput, setGroupIdInput] = useState('');
+  const [leaderboardData, setLeaderboardData] = useState(null);
+  const [leaderboardError, setLeaderboardError] = useState('');
+  const [leaderboardLoading, setLeaderboardLoading] = useState(false);
+
+  // Natijalar va sharhlarni serverdan yuklash
+  useEffect(() => {
+    // Natijalar
+    fetch(`${API}/api/results`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data && data.results) setResultsList(data.results);
+      })
+      .catch(() => {});
+
+    // Sharhlar
+    fetch(`${API}/api/reviews`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data && data.reviews) setReviewsList(data.reviews);
+      })
+      .catch(() => {});
+  }, []);
+
+  const handleLookupLeaderboard = async (e) => {
+    e.preventDefault();
+    if (!groupIdInput.trim()) return;
+    setLeaderboardLoading(true);
+    setLeaderboardError('');
+    setLeaderboardData(null);
+
+    try {
+      const res = await fetch(`${API}/api/leaderboard/${encodeURIComponent(groupIdInput.trim())}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || t.gradesSection.notFound);
+      if (!data.leaderboard || data.leaderboard.length === 0) {
+        setLeaderboardError(t.gradesSection.notFound);
+      } else {
+        setLeaderboardData(data.leaderboard);
+      }
+    } catch (err) {
+      setLeaderboardError(err.message || t.gradesSection.notFound);
+    }
+    setLeaderboardLoading(false);
+  };
 
   const videoLabel = (num) => {
     if (lang === 'UZ') return 'Video ' + num;
@@ -312,7 +428,7 @@ function Landing() {
       {/* Full-width sticky navigatsiya */}
       <header className="topbar-wrapper">
         <div className="container topbar-container">
-          <div className="brand-wrap" aria-label="Aisha Uzbikiyya logo">
+          <a href="/" className="brand-wrap" aria-label="Aisha Uzbikiyya logo">
             <div className="brand-logo-frame">
               <img
                 src="/logo.jpg"
@@ -324,7 +440,7 @@ function Landing() {
               <span className="brand-name">{t.brandName}</span>
               <span className="brand-sub">{t.brandSub}</span>
             </div>
-          </div>
+          </a>
 
           <nav className="main-nav" aria-label="Asosiy navigatsiya">
             {t.nav.map((item) => (
@@ -356,9 +472,9 @@ function Landing() {
           <div className="container hero-container">
             <div className="hero-copy">
               <div className="hero-arabic-banner">
-                <span className="banner-icon">&#10022;</span>
+                <span className="banner-icon">✦</span>
                 <span className="academy-arabic">{t.heroArabicBanner}</span>
-                <span className="banner-icon">&#10022;</span>
+                <span className="banner-icon">✦</span>
               </div>
 
               <div className="eyebrow-wrap">
@@ -377,6 +493,14 @@ function Landing() {
 
               <p className="hero-desc">{t.heroDesc}</p>
 
+              <div className="hero-actions">
+                <a href={TELEGRAM_BOT_URL} target="_blank" rel="noreferrer" className="btn-primary">
+                  {t.enrollBtn} →
+                </a>
+                <a href={TELEGRAM_CHANNEL_URL} target="_blank" rel="noreferrer" className="btn-secondary">
+                  {t.telegramBtn}
+                </a>
+              </div>
             </div>
 
             <div className="hero-panel">
@@ -449,7 +573,7 @@ function Landing() {
                   <h3>{course.title}</h3>
                   <p>{course.subtitle}</p>
                   <a href={TELEGRAM_CHANNEL_URL} target="_blank" rel="noreferrer" className="course-btn">
-                    {t.courses.btn} &#8594;
+                    {t.courses.btn} →
                   </a>
                 </article>
               ))}
@@ -492,7 +616,7 @@ function Landing() {
             <div className="mentor-layout">
               <div className="mentor-profile">
                 <div className="mentor-avatar-wrap">
-                  <div className="mentor-avatar">&#1593;</div>
+                  <div className="mentor-avatar">ع</div>
                 </div>
                 <div className="mentor-info">
                   <div className="mentor-badges">
@@ -545,7 +669,7 @@ function Landing() {
                   ))}
                 </div>
 
-                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginTop: '16px' }}>
                   <a
                     href={TELEGRAM_CHANNEL_URL}
                     target="_blank"
@@ -574,6 +698,143 @@ function Landing() {
           </div>
         </section>
 
+        {/* Natijalar bo'limi (Admin kiritgan natijalar) */}
+        <section className="results-section" id="results">
+          <div className="container">
+            <div className="section-header">
+              <div className="section-title-wrap">
+                <span className="eyebrow eyebrow-dark">{t.resultsSection.eyebrow}</span>
+              </div>
+              <h2>{t.resultsSection.title}</h2>
+              <p className="goals-desc">{t.resultsSection.desc}</p>
+            </div>
+
+            {resultsList.length === 0 ? (
+              <div className="admin-empty-state" style={{ background: '#fff', borderRadius: '16px', padding: '36px' }}>
+                <span className="empty-icon">🏆</span>
+                <p>{t.resultsSection.empty}</p>
+              </div>
+            ) : (
+              <div className="results-gallery">
+                {resultsList.map((item) => (
+                  <div className="result-card" key={item.id}>
+                    <img
+                      src={`${API}/uploads/${item.filename}`}
+                      alt={item.caption || "O'quvchi natijasi"}
+                      loading="lazy"
+                      onError={(e) => {
+                        e.target.src = '/logo.jpg';
+                      }}
+                    />
+                    {item.caption && <div className="result-caption">{item.caption}</div>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+
+        {/* Sharhlar bo'limi (Admin kiritgan sharhlar) */}
+        <section className="reviews-section" id="reviews">
+          <div className="container">
+            <div className="section-header">
+              <div className="section-title-wrap">
+                <span className="eyebrow eyebrow-dark">{t.reviewsSection.eyebrow}</span>
+              </div>
+              <h2>{t.reviewsSection.title}</h2>
+              <p className="goals-desc">{t.reviewsSection.desc}</p>
+            </div>
+
+            {reviewsList.length === 0 ? (
+              <div className="admin-empty-state" style={{ background: '#fff', borderRadius: '16px', padding: '36px' }}>
+                <span className="empty-icon">💬</span>
+                <p>{t.reviewsSection.empty}</p>
+              </div>
+            ) : (
+              <div className="reviews-grid">
+                {reviewsList.map((rev) => (
+                  <div className="review-card" key={rev.id}>
+                    <div className="review-stars">
+                      {'★'.repeat(rev.stars || 5)}
+                      {'☆'.repeat(5 - (rev.stars || 5))}
+                    </div>
+                    <p className="review-text">"{rev.text}"</p>
+                    <div className="review-author">
+                      <div className="review-avatar">
+                        {(rev.name || 'A').charAt(0).toUpperCase()}
+                      </div>
+                      <span>{rev.name}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+
+        {/* Guruh reytingini tekshirish bo'limi */}
+        <section className="grades-section" id="leaderboard">
+          <div className="container">
+            <div className="section-header">
+              <div className="section-title-wrap">
+                <span className="eyebrow eyebrow-dark">{t.gradesSection.eyebrow}</span>
+              </div>
+              <h2>{t.gradesSection.title}</h2>
+              <p className="goals-desc">{t.gradesSection.desc}</p>
+            </div>
+
+            <form onSubmit={handleLookupLeaderboard} className="grades-lookup-form">
+              <input
+                type="number"
+                placeholder={t.gradesSection.inputPlaceholder}
+                value={groupIdInput}
+                onChange={(e) => setGroupIdInput(e.target.value)}
+                className="grades-input"
+                min="1"
+                required
+              />
+              <button type="submit" className="btn-primary" disabled={leaderboardLoading}>
+                {leaderboardLoading ? 'Tekshirilmoqda...' : t.gradesSection.checkBtn}
+              </button>
+            </form>
+
+            {leaderboardError && (
+              <div className="grades-error">
+                <span>⚠️ {leaderboardError}</span>
+              </div>
+            )}
+
+            {leaderboardData && leaderboardData.length > 0 && (
+              <div className="grades-table-wrap">
+                <table className="grades-table">
+                  <thead>
+                    <tr>
+                      <th style={{ width: '60px' }}>#</th>
+                      <th>O'quvchi</th>
+                      <th style={{ textAlign: 'right' }}>Oylik ball</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {leaderboardData.map((st, idx) => (
+                      <tr key={st.telegram_id || idx} className={idx < 3 ? 'top-row' : ''}>
+                        <td className="rank-cell">
+                          {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : idx + 1}
+                        </td>
+                        <td>
+                          <strong>{st.full_name}</strong>
+                        </td>
+                        <td style={{ textAlign: 'right' }}>
+                          <span className="points-badge pub">{st.current_month_points || 0}</span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </section>
+
         {/* Bog'lanish bo'limi */}
         <section className="contact-section" id="contact">
           <div className="container">
@@ -584,9 +845,9 @@ function Landing() {
                 </div>
                 <h2>{t.contact.title}</h2>
                 <p className="contact-copy">{t.contact.desc}</p>
-                <div style={{ marginTop: '14px', display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
+                <div style={{ marginTop: '18px', display: 'flex', flexWrap: 'wrap', gap: '14px' }}>
                   <a href={TELEGRAM_BOT_URL} target="_blank" rel="noreferrer" className="telegram-btn">
-                    {t.contact.btn} &#10022;
+                    {t.contact.btn} ✦
                   </a>
                   <a href={INSTAGRAM_URL} target="_blank" rel="noreferrer" className="secondary-link">
                     Instagram sahifa
@@ -598,13 +859,22 @@ function Landing() {
         </section>
       </main>
 
-      {/* Footer */}
+      {/* Footer (Admin tizimiga o'tish linki bilan) */}
       <footer className="site-footer">
         <div className="container footer-container">
-          <span>{t.footer}</span>
-          <span className="footer-arabic-motto">
-            &#1575;&#1604;&#1571;&#1614;&#1603;&#1614;&#1575;&#1583;&#1610;&#1605;&#1610;&#1617;&#1614;&#1577;&#1615; &#1575;&#1604;&#1571;&#1615;&#1608;&#1586;&#1618;&#1576;&#1614;&#1603;&#1610;&#1617;&#1614;&#1577; &#8212; &#1576;&#1616;&#1573;&#1616;&#1578;&#1618;&#1602;&#1614;&#1575;&#1606;&#1613; &#1608;&#1614;&#1575;&#1581;&#1618;&#1578;&#1616;&#1585;&#1614;&#1575;&#1601;&#1616;&#1610;&#1617;&#1614;&#1577;&#1613;
-          </span>
+          <div className="footer-left">
+            <span>{t.footer}</span>
+            <span className="footer-arabic-motto">
+              الأَكاديمِيَّةُ الأُوزْبَكِيَّة — بِإِتْقَانٍ وَاحْتِرَافِيَّةٍ
+            </span>
+          </div>
+
+          <div className="footer-right">
+            <a href="/admin" className="admin-footer-btn" title="Admin boshqaruv tizimiga kirish">
+              <span className="admin-lock-icon">🔒</span>
+              <span>Admin kirish</span>
+            </a>
+          </div>
         </div>
       </footer>
     </div>

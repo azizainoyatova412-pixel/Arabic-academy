@@ -4,12 +4,10 @@ import '../index.css';
 
 const API = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
-// =====================================================================
-// ADMIN DASHBOARD
-// =====================================================================
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('grades');
+  const [stats, setStats] = useState({ groups: 0, students: 0, results: 0, reviews: 0 });
 
   useEffect(() => {
     if (!sessionStorage.getItem('admin_auth')) {
@@ -22,87 +20,242 @@ export default function AdminDashboard() {
     navigate('/admin');
   };
 
+  // Umumiy statistika yuklash
+  const loadGlobalStats = async () => {
+    const authKey = sessionStorage.getItem('admin_auth') || '';
+    try {
+      const [resG, resR, resRev] = await Promise.allSettled([
+        fetch(`${API}/api/admin/groups`, { headers: { 'x-admin-key': authKey } }).then(r => r.json()),
+        fetch(`${API}/api/results`).then(r => r.json()),
+        fetch(`${API}/api/reviews`).then(r => r.json()),
+      ]);
+
+      let groupCount = 0;
+      if (resG.status === 'fulfilled' && resG.value.groups) {
+        groupCount = resG.value.groups.length;
+      }
+      let resultsCount = 0;
+      if (resR.status === 'fulfilled' && resR.value.results) {
+        resultsCount = resR.value.results.length;
+      }
+      let reviewsCount = 0;
+      if (resRev.status === 'fulfilled' && resRev.value.reviews) {
+        reviewsCount = resRev.value.reviews.length;
+      }
+
+      setStats({
+        groups: groupCount,
+        students: 0, // guruh ichida hisoblanadi
+        results: resultsCount,
+        reviews: reviewsCount,
+      });
+    } catch {
+      // xatolik yuz bersa ham dashboard ishlayveradi
+    }
+  };
+
+  useEffect(() => {
+    loadGlobalStats();
+  }, []);
+
   return (
     <div className="admin-layout">
-      {/* Sidebar */}
+      {/* Mobil Header (faqat kichik ekranlarda ko'rinadi) */}
+      <header className="admin-mobile-header">
+        <div className="admin-mobile-brand">
+          <img src="/logo.jpg" alt="Logo" className="admin-mobile-logo" />
+          <div>
+            <strong>Aisha Uzbikiyya</strong>
+            <span className="admin-mobile-role">Admin Boshqaruvi</span>
+          </div>
+        </div>
+        <div className="admin-mobile-actions">
+          <a href="/" target="_blank" rel="noreferrer" className="admin-top-link" title="Saytni ochish">
+            🌐 Sayt
+          </a>
+          <button onClick={handleLogout} className="admin-mobile-logout" title="Chiqish">
+            🚪 Chiqish
+          </button>
+        </div>
+      </header>
+
+      {/* Desktop Sidebar */}
       <aside className="admin-sidebar">
         <div className="admin-sidebar-brand">
           <img src="/logo.jpg" alt="Logo" className="admin-sidebar-logo" />
-          <span>Admin Panel</span>
+          <div className="admin-sidebar-brand-text">
+            <span>Aisha Uzbikiyya</span>
+            <small>Admin Boshqaruv Paneli</small>
+          </div>
         </div>
+
         <nav className="admin-sidebar-nav">
           <button
             className={'admin-nav-item' + (activeTab === 'grades' ? ' active' : '')}
             onClick={() => setActiveTab('grades')}
           >
-            &#128218; Baholar & Guruhlar
+            <span className="admin-nav-icon">📚</span>
+            <span>Baholar & Guruhlar</span>
           </button>
+
           <button
             className={'admin-nav-item' + (activeTab === 'results' ? ' active' : '')}
             onClick={() => setActiveTab('results')}
           >
-            &#127942; Natijalar
+            <span className="admin-nav-icon">🏆</span>
+            <span>Natijalar (Skrinshot)</span>
           </button>
+
           <button
             className={'admin-nav-item' + (activeTab === 'reviews' ? ' active' : '')}
             onClick={() => setActiveTab('reviews')}
           >
-            &#128172; Sharhlar
+            <span className="admin-nav-icon">💬</span>
+            <span>O'quvchilar Sharhlari</span>
           </button>
+
           <button
             className={'admin-nav-item' + (activeTab === 'videos' ? ' active' : '')}
             onClick={() => setActiveTab('videos')}
           >
-            &#127916; Videolar
+            <span className="admin-nav-icon">🎬</span>
+            <span>Videolar & Qo'llanma</span>
           </button>
         </nav>
-        <button className="admin-logout-btn" onClick={handleLogout}>
-          Chiqish &#8594;
-        </button>
+
+        <div className="admin-sidebar-footer">
+          <a href="/" target="_blank" rel="noreferrer" className="admin-view-site-btn">
+            🌐 Saytni ko'rish
+          </a>
+          <button className="admin-logout-btn" onClick={handleLogout}>
+            <span>🚪 Chiqish</span>
+          </button>
+        </div>
       </aside>
 
-      {/* Main content */}
+      {/* Asosiy kontent maydoni */}
       <main className="admin-main">
-        {activeTab === 'grades' && <GradesSection />}
-        {activeTab === 'results' && <ResultsSection />}
-        {activeTab === 'reviews' && <ReviewsSection />}
-        {activeTab === 'videos' && <VideosSection />}
+        {/* Yuqori Tezkor Statistika */}
+        <section className="admin-quick-stats">
+          <div className="quick-stat-card">
+            <div className="stat-icon-wrap" style={{ background: 'rgba(26, 122, 94, 0.12)', color: '#1A7A5E' }}>
+              📚
+            </div>
+            <div>
+              <span className="stat-label">Guruhlar</span>
+              <strong className="stat-num">{stats.groups} ta</strong>
+            </div>
+          </div>
+
+          <div className="quick-stat-card">
+            <div className="stat-icon-wrap" style={{ background: 'rgba(217, 119, 6, 0.12)', color: '#D97706' }}>
+              🏆
+            </div>
+            <div>
+              <span className="stat-label">Yuklangan Natijalar</span>
+              <strong className="stat-num">{stats.results} ta</strong>
+            </div>
+          </div>
+
+          <div className="quick-stat-card">
+            <div className="stat-icon-wrap" style={{ background: 'rgba(59, 130, 246, 0.12)', color: '#3B82F6' }}>
+              💬
+            </div>
+            <div>
+              <span className="stat-label">Sayt Sharhlari</span>
+              <strong className="stat-num">{stats.reviews} ta</strong>
+            </div>
+          </div>
+        </section>
+
+        {/* Tab kontentlari */}
+        <div className="admin-content-card-wrap">
+          {activeTab === 'grades' && <GradesSection onDataChange={loadGlobalStats} />}
+          {activeTab === 'results' && <ResultsSection onDataChange={loadGlobalStats} />}
+          {activeTab === 'reviews' && <ReviewsSection onDataChange={loadGlobalStats} />}
+          {activeTab === 'videos' && <VideosSection />}
+        </div>
       </main>
+
+      {/* Mobil pastki Navigation Bar */}
+      <nav className="admin-bottom-nav">
+        <button
+          className={'admin-bottom-item' + (activeTab === 'grades' ? ' active' : '')}
+          onClick={() => setActiveTab('grades')}
+        >
+          <span className="bottom-icon">📚</span>
+          <span>Baholar</span>
+        </button>
+
+        <button
+          className={'admin-bottom-item' + (activeTab === 'results' ? ' active' : '')}
+          onClick={() => setActiveTab('results')}
+        >
+          <span className="bottom-icon">🏆</span>
+          <span>Natijalar</span>
+        </button>
+
+        <button
+          className={'admin-bottom-item' + (activeTab === 'reviews' ? ' active' : '')}
+          onClick={() => setActiveTab('reviews')}
+        >
+          <span className="bottom-icon">💬</span>
+          <span>Sharhlar</span>
+        </button>
+
+        <button
+          className={'admin-bottom-item' + (activeTab === 'videos' ? ' active' : '')}
+          onClick={() => setActiveTab('videos')}
+        >
+          <span className="bottom-icon">🎬</span>
+          <span>Qo'llanma</span>
+        </button>
+      </nav>
     </div>
   );
 }
 
 // =====================================================================
-// BAHOLAR & GURUHLAR bo'limi
+// BAHOLAR & GURUHLAR BO'LIMI
 // =====================================================================
-function GradesSection() {
+function GradesSection({ onDataChange }) {
   const [groups, setGroups] = useState([]);
   const [selectedGroup, setSelectedGroup] = useState(null);
   const [students, setStudents] = useState([]);
   const [newGroupName, setNewGroupName] = useState('');
   const [newStudentName, setNewStudentName] = useState('');
   const [newStudentTg, setNewStudentTg] = useState('');
-  const [msg, setMsg] = useState('');
+  const [msg, setMsg] = useState({ text: '', type: 'success' });
   const [loading, setLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
-  // Guruhlarni yuklash
+  const showToast = (text, type = 'success') => {
+    setMsg({ text, type });
+    setTimeout(() => setMsg({ text: '', type: 'success' }), 3500);
+  };
+
   const loadGroups = async () => {
     try {
       const res = await fetch(`${API}/api/admin/groups`, {
         headers: { 'x-admin-key': sessionStorage.getItem('admin_auth') || '' }
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Admin ma’lumotlarini olishda xatolik');
-      setGroups(data.groups || []);
+      if (!res.ok) throw new Error(data.error || 'Guruhlarni yuklashda xatolik');
+      const grps = data.groups || [];
+      setGroups(grps);
+      if (onDataChange) onDataChange();
+      // Birinchi guruhni avtomatik tanlash (agar tanlanmagan bo'lsa)
+      if (grps.length > 0 && !selectedGroup) {
+        loadStudents(grps[0].id);
+      }
     } catch (err) {
-      setGroups([]);
-      setMsg(err.message || 'Server bilan bog‘lanishda xatolik');
+      showToast(err.message || 'Server bilan bog‘lanishda xatolik', 'error');
     }
   };
 
-  // Guruh o'quvchilarini yuklash
   const loadStudents = async (groupId) => {
     setSelectedGroup(groupId);
+    setLoading(true);
     try {
       const res = await fetch(`${API}/api/admin/groups/${groupId}/students`, {
         headers: { 'x-admin-key': sessionStorage.getItem('admin_auth') || '' }
@@ -112,232 +265,345 @@ function GradesSection() {
       setStudents(data.students || []);
     } catch (err) {
       setStudents([]);
-      setMsg(err.message || 'Server bilan bog‘lanishda xatolik');
+      showToast(err.message || 'O‘quvchilarni olishda xatolik', 'error');
     }
+    setLoading(false);
   };
 
-  useEffect(() => { loadGroups(); }, []);
+  useEffect(() => {
+    loadGroups();
+  }, []);
 
-  const createGroup = async () => {
-    if (!newGroupName.trim()) return;
+  const createGroup = async (e) => {
+    if (e) e.preventDefault();
+    if (!newGroupName.trim()) {
+      showToast('Guruh nomini kiriting!', 'error');
+      return;
+    }
     setLoading(true);
     try {
       const res = await fetch(`${API}/api/admin/groups`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-admin-key': sessionStorage.getItem('admin_auth') || '' },
-        body: JSON.stringify({ name: newGroupName })
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-key': sessionStorage.getItem('admin_auth') || ''
+        },
+        body: JSON.stringify({ name: newGroupName.trim() })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Guruh yaratishda xatolik');
       setNewGroupName('');
-      setMsg('Guruh qo\'shildi!');
-      loadGroups();
+      showToast('Yangi guruh muvaffaqiyatli yaratildi!');
+      await loadGroups();
+      if (data.group && data.group.id) {
+        loadStudents(data.group.id);
+      }
     } catch (err) {
-      setMsg(err.message || 'Xatolik yuz berdi');
+      showToast(err.message || 'Xatolik yuz berdi', 'error');
     }
     setLoading(false);
-    setTimeout(() => setMsg(''), 3000);
   };
 
-  const addStudent = async () => {
-    if (!newStudentName.trim() || !selectedGroup) return;
+  const addStudent = async (e) => {
+    if (e) e.preventDefault();
+    if (!newStudentName.trim() || !selectedGroup) {
+      showToast("O'quvchi ismini kiriting!", 'error');
+      return;
+    }
     setLoading(true);
     try {
       const res = await fetch(`${API}/api/admin/groups/${selectedGroup}/students`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-admin-key': sessionStorage.getItem('admin_auth') || '' },
-        body: JSON.stringify({ full_name: newStudentName, telegram_id: newStudentTg || null })
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-key': sessionStorage.getItem('admin_auth') || ''
+        },
+        body: JSON.stringify({
+          full_name: newStudentName.trim(),
+          telegram_id: newStudentTg.trim() ? parseInt(newStudentTg.trim()) || null : null
+        })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'O‘quvchi qo‘shishda xatolik');
       setNewStudentName('');
       setNewStudentTg('');
-      setMsg('O\'quvchi qo\'shildi!');
+      showToast("O'quvchi guruhga qo'shildi!");
       loadStudents(selectedGroup);
     } catch (err) {
-      setMsg(err.message || 'Xatolik yuz berdi');
+      showToast(err.message || 'Xatolik yuz berdi', 'error');
     }
     setLoading(false);
-    setTimeout(() => setMsg(''), 3000);
   };
 
   const updatePoints = async (studentId, points) => {
+    const numericPoints = Math.max(0, parseInt(points, 10) || 0);
     try {
       const res = await fetch(`${API}/api/admin/students/${studentId}/grade`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'x-admin-key': sessionStorage.getItem('admin_auth') || '' },
-        body: JSON.stringify({ group_id: selectedGroup, points: parseInt(points) || 0 })
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-key': sessionStorage.getItem('admin_auth') || ''
+        },
+        body: JSON.stringify({ group_id: selectedGroup, points: numericPoints })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Bahoni saqlashda xatolik');
+      showToast('Ball muvaffaqiyatli saqlandi!');
       loadStudents(selectedGroup);
     } catch (err) {
-      setMsg(err.message || 'Bahoni saqlashda xatolik');
+      showToast(err.message || 'Bahoni saqlashda xatolik', 'error');
     }
   };
+
+  const currentGroupObj = groups.find((g) => g.id === selectedGroup);
+
+  const filteredStudents = students.filter((s) =>
+    (s.full_name || '').toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
     <div className="admin-section">
       <div className="admin-section-header">
-        <h2>&#128218; Baholar & Guruhlar</h2>
-        <p className="admin-section-desc">Yangi guruh yarating, o'quvchilarni qo'shing va ball bering.</p>
-      </div>
-
-      {msg && <div className="admin-success-msg">{msg}</div>}
-
-      {/* Yangi guruh */}
-      <div className="admin-card">
-        <h3>Yangi guruh qo'shish</h3>
-        <div className="admin-row">
-          <input
-            type="text"
-            placeholder="Guruh nomi (masalan: A1 — 2026 Sentabr)"
-            value={newGroupName}
-            onChange={(e) => setNewGroupName(e.target.value)}
-            className="admin-input"
-          />
-          <button className="admin-btn primary" onClick={createGroup} disabled={loading}>
-            + Guruh yaratish
-          </button>
+        <div>
+          <h2>📚 Baholar & O'quvchilar Reytingi</h2>
+          <p className="admin-section-desc">
+            Guruhlar yarating, o'quvchilarni qo'shing va oylik ballarni belgilang.
+          </p>
         </div>
       </div>
 
-      {/* Guruhlar ro'yxati */}
+      {msg.text && (
+        <div className={`admin-alert ${msg.type === 'error' ? 'alert-danger' : 'alert-success'}`}>
+          <span>{msg.type === 'error' ? '⚠️' : '✅'}</span>
+          <span>{msg.text}</span>
+        </div>
+      )}
+
+      {/* Guruh qo'shish kartasi */}
       <div className="admin-card">
-        <h3>Guruhlar</h3>
-        {groups.length === 0 ? (
-          <p className="admin-empty">Hali guruh yo'q. Yuqoridan qo'shing.</p>
-        ) : (
-          <div className="groups-list">
-            {groups.map((g) => (
-              <div
-                key={g.id}
-                className={'group-item' + (selectedGroup === g.id ? ' selected' : '')}
-                onClick={() => loadStudents(g.id)}
-              >
-                <div className="group-item-info">
-                  <span className="group-name">{g.name}</span>
-                  <span className="group-code">ID: {g.id}</span>
-                </div>
-                <span className="group-arrow">&#8594;</span>
-              </div>
-            ))}
-          </div>
-        )}
+        <h3 className="admin-card-title">
+          <span>➕ Yangi guruh qo'shish</span>
+        </h3>
+        <form onSubmit={createGroup} className="admin-flex-row">
+          <input
+            type="text"
+            placeholder="Guruh nomi (masalan: Arab tili — A1 Guruhi)"
+            value={newGroupName}
+            onChange={(e) => setNewGroupName(e.target.value)}
+            className="admin-input"
+            required
+          />
+          <button type="submit" className="admin-btn primary" disabled={loading}>
+            {loading ? 'Yaratilmoqda...' : '+ Guruh yaratish'}
+          </button>
+        </form>
       </div>
 
-      {/* Tanlangan guruh o'quvchilari */}
-      {selectedGroup && (
-        <div className="admin-card">
-          <h3>
-            O'quvchilar — {groups.find(g => g.id === selectedGroup)?.name || 'Guruh'}
-            <span className="group-code-badge">Guruh ID: {selectedGroup}</span>
+      {/* Asosiy 2 ustunli / Mobil mos blok */}
+      <div className="admin-two-cols">
+        {/* Chap ustun: Guruhlar ro'yxati */}
+        <div className="admin-card col-groups">
+          <h3 className="admin-card-title">
+            <span>📋 Guruhlar ro'yxati</span>
+            <span className="badge-count">{groups.length} ta</span>
           </h3>
 
-          {/* Yangi o'quvchi qo'shish */}
-          <div className="admin-row" style={{ marginBottom: '24px' }}>
-            <input
-              type="text"
-              placeholder="To'liq ism"
-              value={newStudentName}
-              onChange={(e) => setNewStudentName(e.target.value)}
-              className="admin-input"
-            />
-            <input
-              type="text"
-              placeholder="Telegram ID (ixtiyoriy)"
-              value={newStudentTg}
-              onChange={(e) => setNewStudentTg(e.target.value)}
-              className="admin-input"
-              style={{ maxWidth: '200px' }}
-            />
-            <button className="admin-btn primary" onClick={addStudent} disabled={loading}>
-              + O'quvchi
-            </button>
-          </div>
-
-          {/* O'quvchilar jadvali */}
-          {students.length === 0 ? (
-            <p className="admin-empty">Bu guruhda hali o'quvchi yo'q.</p>
+          {groups.length === 0 ? (
+            <div className="admin-empty-state">
+              <span className="empty-icon">📂</span>
+              <p>Hozircha guruhlar mavjud emas.</p>
+              <small>Yuqoridagi formadan birinchi guruhni qo'shing.</small>
+            </div>
           ) : (
-            <div className="students-table-wrap">
-              <table className="students-table">
-                <thead>
-                  <tr>
-                    <th>#</th>
-                    <th>Ism</th>
-                    <th>Ball</th>
-                    <th>Tahrirlash</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {students.sort((a, b) => b.current_month_points - a.current_month_points).map((s, idx) => (
-                    <tr key={s.telegram_id}>
-                      <td className="rank-cell">
-                        {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : idx + 1}
-                      </td>
-                      <td>{s.full_name}</td>
-                      <td>
-                        <span className="points-badge">{s.current_month_points}</span>
-                      </td>
-                      <td>
-                        <div className="grade-edit-row">
+            <div className="groups-list">
+              {groups.map((g) => {
+                const isSelected = selectedGroup === g.id;
+                return (
+                  <button
+                    key={g.id}
+                    type="button"
+                    className={`group-item ${isSelected ? 'selected' : ''}`}
+                    onClick={() => loadStudents(g.id)}
+                  >
+                    <div className="group-item-info">
+                      <span className="group-name">{g.name}</span>
+                      <span className="group-code">Guruh ID: #{g.id}</span>
+                    </div>
+                    <span className="group-item-chevron">{isSelected ? '●' : '→'}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* O'ng ustun: Tanlangan guruh o'quvchilari */}
+        <div className="admin-card col-students">
+          {selectedGroup ? (
+            <>
+              <div className="students-header-bar">
+                <div>
+                  <h3 className="admin-card-title" style={{ margin: 0 }}>
+                    <span>👥 {currentGroupObj ? currentGroupObj.name : 'Guruh'}</span>
+                  </h3>
+                  <span className="group-id-pill">Guruh kodi: ID #{selectedGroup}</span>
+                </div>
+                <span className="badge-count">{students.length} nafar o'quvchi</span>
+              </div>
+
+              {/* Yangi o'quvchi qo'shish shakli */}
+              <form onSubmit={addStudent} className="add-student-form">
+                <input
+                  type="text"
+                  placeholder="O'quvchi ismi familiyasi *"
+                  value={newStudentName}
+                  onChange={(e) => setNewStudentName(e.target.value)}
+                  className="admin-input"
+                  required
+                />
+                <input
+                  type="number"
+                  placeholder="Telegram ID (ixtiyoriy)"
+                  value={newStudentTg}
+                  onChange={(e) => setNewStudentTg(e.target.value)}
+                  className="admin-input"
+                  style={{ maxWidth: '180px' }}
+                />
+                <button type="submit" className="admin-btn primary" disabled={loading}>
+                  + Qo'shish
+                </button>
+              </form>
+
+              {/* Qidirish */}
+              {students.length > 3 && (
+                <div style={{ marginBottom: '16px' }}>
+                  <input
+                    type="text"
+                    placeholder="🔍 O'quvchi ismidan qidirish..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="admin-input search-input"
+                  />
+                </div>
+              )}
+
+              {/* O'quvchilar ro'yxati / Reyting */}
+              {filteredStudents.length === 0 ? (
+                <div className="admin-empty-state">
+                  <span className="empty-icon">👨‍🎓</span>
+                  <p>Bu guruhda hali o'quvchilar yo'q.</p>
+                  <small>Yuqoridagi shakldan o'quvchini qo'shing.</small>
+                </div>
+              ) : (
+                <div className="students-cards-container">
+                  {filteredStudents
+                    .sort((a, b) => (b.current_month_points || 0) - (a.current_month_points || 0))
+                    .map((s, idx) => (
+                      <div className="student-row-card" key={s.telegram_id || idx}>
+                        <div className="student-main-info">
+                          <span className={`rank-badge rank-${idx + 1}`}>
+                            {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `#${idx + 1}`}
+                          </span>
+                          <div>
+                            <strong className="student-name">{s.full_name}</strong>
+                            <div className="student-meta">
+                              {s.telegram_id && <span>TG ID: {s.telegram_id}</span>}
+                              <span className="current-pts">Joriy ball: {s.current_month_points || 0}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="student-actions">
                           <input
                             type="number"
-                            defaultValue={s.current_month_points}
-                            min="0" max="100"
-                            className="grade-input"
-                            id={`grade-${s.telegram_id}`}
+                            min="0"
+                            max="100"
+                            defaultValue={s.current_month_points || 0}
+                            id={`pts-${s.telegram_id}`}
+                            className="grade-num-input"
                           />
                           <button
-                            className="admin-btn small"
+                            type="button"
+                            className="admin-btn small primary"
                             onClick={() => {
-                              const val = document.getElementById(`grade-${s.telegram_id}`).value;
-                              updatePoints(s.telegram_id, val);
+                              const el = document.getElementById(`pts-${s.telegram_id}`);
+                              if (el) updatePoints(s.telegram_id, el.value);
                             }}
                           >
                             Saqlash
                           </button>
                         </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                      </div>
+                    ))}
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="admin-empty-state" style={{ padding: '60px 20px' }}>
+              <span className="empty-icon">👈</span>
+              <p>O'quvchilarini ko'rish uchun chap tomondan guruhni tanlang.</p>
             </div>
           )}
         </div>
-      )}
+      </div>
     </div>
   );
 }
 
 // =====================================================================
-// NATIJALAR bo'limi
+// NATIJALAR (SKRINSHOTLAR) BO'LIMI
 // =====================================================================
-function ResultsSection() {
+function ResultsSection({ onDataChange }) {
   const [results, setResults] = useState([]);
   const [file, setFile] = useState(null);
   const [caption, setCaption] = useState('');
-  const [msg, setMsg] = useState('');
+  const [msg, setMsg] = useState({ text: '', type: 'success' });
   const [loading, setLoading] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState('');
+
+  const showToast = (text, type = 'success') => {
+    setMsg({ text, type });
+    setTimeout(() => setMsg({ text: '', type: 'success' }), 3500);
+  };
 
   const loadResults = async () => {
     try {
       const res = await fetch(`${API}/api/results`);
       const data = await res.json();
       setResults(data.results || []);
-    } catch { setResults([]); }
+      if (onDataChange) onDataChange();
+    } catch {
+      setResults([]);
+    }
   };
 
-  useEffect(() => { loadResults(); }, []);
+  useEffect(() => {
+    loadResults();
+  }, []);
 
-  const uploadResult = async () => {
-    if (!file) return;
+  const handleFileChange = (e) => {
+    const selected = e.target.files && e.target.files[0];
+    if (selected) {
+      if (selected.size > 5 * 1024 * 1024) {
+        showToast('Rasm hajmi 5MB dan oshmasligi kerak!', 'error');
+        return;
+      }
+      setFile(selected);
+      setPreviewUrl(URL.createObjectURL(selected));
+    }
+  };
+
+  const uploadResult = async (e) => {
+    if (e) e.preventDefault();
+    if (!file) {
+      showToast('Iltimos, rasm yoki skrinshot tanlang!', 'error');
+      return;
+    }
     setLoading(true);
     const form = new FormData();
     form.append('image', file);
-    form.append('caption', caption);
+    form.append('caption', caption.trim());
+
     try {
       const res = await fetch(`${API}/api/admin/results`, {
         method: 'POST',
@@ -347,87 +613,135 @@ function ResultsSection() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Natija yuklashda xatolik');
       setFile(null);
+      setPreviewUrl('');
       setCaption('');
-      setMsg('Natija qo\'shildi!');
+      showToast('Skrinshot muvaffaqiyatli yuklandi!');
       loadResults();
     } catch (err) {
-      setMsg(err.message || 'Xatolik!');
+      showToast(err.message || 'Xatolik yuz berdi!', 'error');
     }
     setLoading(false);
-    setTimeout(() => setMsg(''), 3000);
   };
 
   const deleteResult = async (id) => {
-    if (!window.confirm('Rostdan ham o\'chirmoqchimisiz?')) return;
+    if (!window.confirm("Haqiqatan ham ushbu natijani o'chirmoqchimisiz?")) return;
     try {
       const res = await fetch(`${API}/api/admin/results/${id}`, {
         method: 'DELETE',
         headers: { 'x-admin-key': sessionStorage.getItem('admin_auth') || '' }
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Natija o‘chirishda xatolik');
+      if (!res.ok) throw new Error(data.error || 'Natijani o‘chirishda xatolik');
+      showToast("Natija o'chirildi!");
       loadResults();
     } catch (err) {
-      setMsg(err.message || 'Natija o‘chirishda xatolik');
+      showToast(err.message || 'O‘chirishda xatolik', 'error');
     }
   };
 
   return (
     <div className="admin-section">
       <div className="admin-section-header">
-        <h2>&#127942; Natijalar (Skrinshotlar)</h2>
-        <p className="admin-section-desc">O'quvchilaring natijalarini skrinshot sifatida yuklang — saytda avtomatik ko'rinadi.</p>
-      </div>
-
-      {msg && <div className="admin-success-msg">{msg}</div>}
-
-      <div className="admin-card">
-        <h3>Yangi natija yuklash</h3>
-        <div className="upload-zone" onClick={() => document.getElementById('result-file').click()}>
-          {file ? (
-            <div className="upload-preview">
-              <img src={URL.createObjectURL(file)} alt="preview" />
-              <span>{file.name}</span>
-            </div>
-          ) : (
-            <>
-              <div className="upload-icon">&#128247;</div>
-              <p>Skrinshot tanlash uchun bosing</p>
-              <small>JPG, PNG — max 5MB</small>
-            </>
-          )}
+        <div>
+          <h2>🏆 O'quvchilar Natijalari (Skrinshotlar)</h2>
+          <p className="admin-section-desc">
+            Sertifikatlar, imtihon natijalari yoki chat xabarlarini yuklang — ular saytda chiroyli ko'rsatiladi.
+          </p>
         </div>
-        <input
-          id="result-file"
-          type="file"
-          accept="image/*"
-          style={{ display: 'none' }}
-          onChange={(e) => setFile(e.target.files[0])}
-        />
-        <input
-          type="text"
-          placeholder="Izoh (masalan: Ali — A1 sertifikati oldi)"
-          value={caption}
-          onChange={(e) => setCaption(e.target.value)}
-          className="admin-input"
-          style={{ marginTop: '14px' }}
-        />
-        <button className="admin-btn primary" onClick={uploadResult} disabled={loading || !file} style={{ marginTop: '12px' }}>
-          {loading ? 'Yuklanmoqda...' : '&#8679; Yuklash'}
-        </button>
       </div>
 
+      {msg.text && (
+        <div className={`admin-alert ${msg.type === 'error' ? 'alert-danger' : 'alert-success'}`}>
+          <span>{msg.type === 'error' ? '⚠️' : '✅'}</span>
+          <span>{msg.text}</span>
+        </div>
+      )}
+
+      {/* Yuklash kartasi */}
       <div className="admin-card">
-        <h3>Yuklangan natijalar</h3>
+        <h3 className="admin-card-title">➕ Yangi natija yoki sertifikat yuklash</h3>
+        <form onSubmit={uploadResult}>
+          <div
+            className={`admin-dropzone ${previewUrl ? 'has-preview' : ''}`}
+            onClick={() => document.getElementById('result-file-input').click()}
+          >
+            {previewUrl ? (
+              <div className="dropzone-preview">
+                <img src={previewUrl} alt="Tanlangan rasm" />
+                <span>O'zgartirish uchun bosing ({file && file.name})</span>
+              </div>
+            ) : (
+              <div className="dropzone-placeholder">
+                <span className="dropzone-icon">📷</span>
+                <strong>Skrinshot yoki sertifikat rasmini tanlash</strong>
+                <small>PNG, JPG, JPEG (Maksimal hajm: 5MB)</small>
+              </div>
+            )}
+          </div>
+
+          <input
+            id="result-file-input"
+            type="file"
+            accept="image/*"
+            style={{ display: 'none' }}
+            onChange={handleFileChange}
+          />
+
+          <div className="admin-flex-row" style={{ marginTop: '16px' }}>
+            <input
+              type="text"
+              placeholder="Izoh (masalan: Ali Valiyev — C1 daraja sertifikati)"
+              value={caption}
+              onChange={(e) => setCaption(e.target.value)}
+              className="admin-input"
+            />
+            <button
+              type="submit"
+              className="admin-btn primary"
+              disabled={loading || !file}
+            >
+              {loading ? 'Yuklanmoqda...' : '⬆️ Saytga yuklash'}
+            </button>
+          </div>
+        </form>
+      </div>
+
+      {/* Yuklangan natijalar */}
+      <div className="admin-card">
+        <h3 className="admin-card-title">
+          <span>Yuklangan natijalar galereyasi</span>
+          <span className="badge-count">{results.length} ta</span>
+        </h3>
+
         {results.length === 0 ? (
-          <p className="admin-empty">Hali natija yuklanmagan.</p>
+          <div className="admin-empty-state">
+            <span className="empty-icon">🖼️</span>
+            <p>Hozircha natijalar yuklanmagan.</p>
+            <small>Birinchi natijani yuqoridagi maydon orqali yuklang.</small>
+          </div>
         ) : (
-          <div className="results-grid-admin">
+          <div className="results-admin-grid">
             {results.map((r) => (
-              <div key={r.id} className="result-item-admin">
-                <img src={`${API}/uploads/${r.filename}`} alt={r.caption} />
-                <p>{r.caption}</p>
-                <button className="admin-btn danger small" onClick={() => deleteResult(r.id)}>O'chirish</button>
+              <div key={r.id} className="result-admin-card">
+                <div className="result-img-wrapper">
+                  <img
+                    src={`${API}/uploads/${r.filename}`}
+                    alt={r.caption || 'Natija'}
+                    onError={(e) => {
+                      e.target.src = '/logo.jpg';
+                    }}
+                  />
+                </div>
+                <div className="result-card-info">
+                  <p className="result-card-caption">{r.caption || "Izohsiz natija"}</p>
+                  <button
+                    type="button"
+                    className="admin-btn danger small full-w"
+                    onClick={() => deleteResult(r.id)}
+                  >
+                    🗑️ O'chirish
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -438,49 +752,67 @@ function ResultsSection() {
 }
 
 // =====================================================================
-// SHARHLAR bo'limi
+// SHARHLAR BO'LIMI
 // =====================================================================
-function ReviewsSection() {
+function ReviewsSection({ onDataChange }) {
   const [reviews, setReviews] = useState([]);
   const [name, setName] = useState('');
   const [text, setText] = useState('');
   const [stars, setStars] = useState(5);
-  const [msg, setMsg] = useState('');
+  const [msg, setMsg] = useState({ text: '', type: 'success' });
   const [loading, setLoading] = useState(false);
+
+  const showToast = (text, type = 'success') => {
+    setMsg({ text, type });
+    setTimeout(() => setMsg({ text: '', type: 'success' }), 3500);
+  };
 
   const loadReviews = async () => {
     try {
       const res = await fetch(`${API}/api/reviews`);
       const data = await res.json();
       setReviews(data.reviews || []);
-    } catch { setReviews([]); }
+      if (onDataChange) onDataChange();
+    } catch {
+      setReviews([]);
+    }
   };
 
-  useEffect(() => { loadReviews(); }, []);
+  useEffect(() => {
+    loadReviews();
+  }, []);
 
-  const addReview = async () => {
-    if (!name.trim() || !text.trim()) return;
+  const addReview = async (e) => {
+    if (e) e.preventDefault();
+    if (!name.trim() || !text.trim()) {
+      showToast("O'quvchi ismi va sharh matnini to'ldiring!", 'error');
+      return;
+    }
     setLoading(true);
     try {
       const res = await fetch(`${API}/api/admin/reviews`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-admin-key': sessionStorage.getItem('admin_auth') || '' },
-        body: JSON.stringify({ name, text, stars })
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-key': sessionStorage.getItem('admin_auth') || ''
+        },
+        body: JSON.stringify({ name: name.trim(), text: text.trim(), stars })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Sharh qo‘shishda xatolik');
-      setName(''); setText(''); setStars(5);
-      setMsg('Sharh qo\'shildi!');
+      setName('');
+      setText('');
+      setStars(5);
+      showToast('Sharh muvaffaqiyatli qo‘shildi!');
       loadReviews();
     } catch (err) {
-      setMsg(err.message || 'Xatolik!');
+      showToast(err.message || 'Xatolik yuz berdi!', 'error');
     }
     setLoading(false);
-    setTimeout(() => setMsg(''), 3000);
   };
 
   const deleteReview = async (id) => {
-    if (!window.confirm('O\'chirmoqchimisiz?')) return;
+    if (!window.confirm("Haqiqatan ham ushbu sharhni o'chirmoqchimisiz?")) return;
     try {
       const res = await fetch(`${API}/api/admin/reviews/${id}`, {
         method: 'DELETE',
@@ -488,52 +820,112 @@ function ReviewsSection() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Sharh o‘chirishda xatolik');
+      showToast("Sharh o'chirildi!");
       loadReviews();
     } catch (err) {
-      setMsg(err.message || 'Sharh o‘chirishda xatolik');
+      showToast(err.message || 'O‘chirishda xatolik', 'error');
     }
   };
 
   return (
     <div className="admin-section">
       <div className="admin-section-header">
-        <h2>&#128172; Sharhlar</h2>
-        <p className="admin-section-desc">O'quvchilar sharhini qo'shing — saytda ko'rinadi.</p>
-      </div>
-
-      {msg && <div className="admin-success-msg">{msg}</div>}
-
-      <div className="admin-card">
-        <h3>Yangi sharh qo'shish</h3>
-        <div className="admin-row" style={{ flexDirection: 'column', gap: '12px' }}>
-          <input type="text" placeholder="O'quvchi ismi" value={name} onChange={(e) => setName(e.target.value)} className="admin-input" />
-          <textarea placeholder="Sharh matni..." value={text} onChange={(e) => setText(e.target.value)} className="admin-input admin-textarea" />
-          <div className="stars-select">
-            <label>Yulduzlar:</label>
-            {[1,2,3,4,5].map(n => (
-              <button key={n} className={'star-btn' + (stars >= n ? ' active' : '')} onClick={() => setStars(n)}>&#9733;</button>
-            ))}
-          </div>
-          <button className="admin-btn primary" onClick={addReview} disabled={loading}>
-            + Sharh qo'shish
-          </button>
+        <div>
+          <h2>💬 O'quvchilar Sharhlari</h2>
+          <p className="admin-section-desc">
+            O'quvchilarning haqiqiy fikr va xursandchiliklarini qo'shing — saytda dinamik ko'rsatiladi.
+          </p>
         </div>
       </div>
 
+      {msg.text && (
+        <div className={`admin-alert ${msg.type === 'error' ? 'alert-danger' : 'alert-success'}`}>
+          <span>{msg.type === 'error' ? '⚠️' : '✅'}</span>
+          <span>{msg.text}</span>
+        </div>
+      )}
+
+      {/* Yangi sharh formasi */}
       <div className="admin-card">
-        <h3>Mavjud sharhlar</h3>
+        <h3 className="admin-card-title">➕ Yangi sharh qo'shish</h3>
+        <form onSubmit={addReview} className="admin-form-col">
+          <div className="admin-flex-row">
+            <input
+              type="text"
+              placeholder="O'quvchi ismi familiyasi *"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="admin-input"
+              required
+            />
+            <div className="star-picker">
+              <label>Baholash:</label>
+              <div className="stars-btns-wrap">
+                {[1, 2, 3, 4, 5].map((num) => (
+                  <button
+                    key={num}
+                    type="button"
+                    className={`star-choice-btn ${stars >= num ? 'filled' : ''}`}
+                    onClick={() => setStars(num)}
+                  >
+                    ★
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <textarea
+            placeholder="O'quvchining kursi haqidagi samimiy fikri yoki sharhi... *"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            className="admin-input admin-textarea"
+            rows="3"
+            required
+          />
+
+          <button type="submit" className="admin-btn primary" disabled={loading}>
+            {loading ? 'Qo‘shilmoqda...' : '+ Sharhni saytga chiqarish'}
+          </button>
+        </form>
+      </div>
+
+      {/* Sharhlar ro'yxati */}
+      <div className="admin-card">
+        <h3 className="admin-card-title">
+          <span>Mavjud sharhlar</span>
+          <span className="badge-count">{reviews.length} ta</span>
+        </h3>
+
         {reviews.length === 0 ? (
-          <p className="admin-empty">Hali sharh yo'q.</p>
+          <div className="admin-empty-state">
+            <span className="empty-icon">💭</span>
+            <p>Hozircha hech qanday sharh kiritilmagan.</p>
+          </div>
         ) : (
-          <div className="reviews-list-admin">
-            {reviews.map((r) => (
-              <div key={r.id} className="review-item-admin">
-                <div className="review-header-admin">
-                  <strong>{r.name}</strong>
-                  <span>{'★'.repeat(r.stars)}{'☆'.repeat(5 - r.stars)}</span>
+          <div className="reviews-admin-grid">
+            {reviews.map((rev) => (
+              <div key={rev.id} className="review-admin-card">
+                <div className="review-admin-header">
+                  <div className="review-admin-user">
+                    <span className="avatar-circle">{rev.name.charAt(0).toUpperCase()}</span>
+                    <strong>{rev.name}</strong>
+                  </div>
+                  <span className="stars-gold">
+                    {'★'.repeat(rev.stars || 5)}
+                    {'☆'.repeat(5 - (rev.stars || 5))}
+                  </span>
                 </div>
-                <p>{r.text}</p>
-                <button className="admin-btn danger small" onClick={() => deleteReview(r.id)}>O'chirish</button>
+                <p className="review-admin-text">"{rev.text}"</p>
+                <div className="review-admin-footer">
+                  <button
+                    type="button"
+                    className="admin-btn danger small"
+                    onClick={() => deleteReview(rev.id)}
+                  >
+                    🗑️ O'chirish
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -544,57 +936,48 @@ function ReviewsSection() {
 }
 
 // =====================================================================
-// VIDEOLAR bo'limi
+// VIDEOLAR & QO'LLANMA BO'LIMI
 // =====================================================================
 function VideosSection() {
   return (
     <div className="admin-section">
       <div className="admin-section-header">
-        <h2>&#127916; Videolarni qo'shish — Yo'riqnoma</h2>
-        <p className="admin-section-desc">Ustozdan lavhalar bo'limiga video qo'shish uchun quyidagi ko'rsatmalarni bajaring.</p>
-      </div>
-
-      <div className="admin-card">
-        <h3>&#128249; 1-usul: YouTube video</h3>
-        <ol className="instructions-list">
-          <li>YouTube'ga videoni yuklang yoki kanal sahifasiga o'ting.</li>
-          <li>Video ostidagi <strong>Ulashish (Share)</strong> tugmasini bosing.</li>
-          <li>Ko'rsatilgan havolani nusxa oling. Masalan: <code>https://youtu.be/AbCdEfGhIjK</code></li>
-          <li><code>frontend/src/pages/Landing.js</code> faylini oching.</li>
-          <li>Fayl boshidagi <code>mentorVideos</code> massivini toping va <code>videoUrl</code> ni to'ldiring:</li>
-        </ol>
-        <div className="code-block">
-          <pre>{`const mentorVideos = [
-  { videoUrl: 'https://youtu.be/AbCdEfGhIjK', id: 1 },
-  { videoUrl: 'https://youtu.be/BBBBBBBBBBB', id: 2 },
-  { videoUrl: null, id: 3 }, // hali yo'q bo'lsa null
-];`}</pre>
+        <div>
+          <h2>🎬 Videolar & Admin Yo'riqnomasi</h2>
+          <p className="admin-section-desc">
+            Sayt va Telegram botni boshqarish bo'yicha to'liq qo'llanma.
+          </p>
         </div>
       </div>
 
       <div className="admin-card">
-        <h3>&#128226; 2-usul: Telegram havola</h3>
-        <ol className="instructions-list">
-          <li>Telegram kanalingizdagi videoni oching.</li>
-          <li>Video ustida o'ng tugma (yoki "..." menyu) bosing → <strong>Havolani nusxalash</strong>.</li>
-          <li>Havola shunday ko'rinadi: <code>https://t.me/yourChannel/123</code></li>
-          <li>Xuddi yuqoridagi kabi <code>mentorVideos</code> ichiga joylashtiring.</li>
+        <h3 className="admin-card-title">📱 Ustozdan lavhalar (Videolar)ni yangilash</h3>
+        <p style={{ color: '#4B5563', lineHeight: '1.7', marginBottom: '16px' }}>
+          Saytning "Ustoz haqida" bo'limidagi 3 ta videoga havola kiritish juda oson. Buning uchun Telegram kanalingizdagi video postning havolasini oling:
+        </p>
+
+        <ol className="admin-steps-list">
+          <li>
+            <strong>1-qadam:</strong> Telegram kanalingiz (<code>@aisha_uzbikiyya</code>) dagi kerakli videoni oching.
+          </li>
+          <li>
+            <strong>2-qadam:</strong> Video ustida sichqonchaning o'ng tugmasini (yoki telefonda "...") bosing va <strong>"Havolani nusxalash (Copy Link)"</strong> ni tanlang.
+          </li>
+          <li>
+            <strong>3-qadam:</strong> Nusxalangan havola ko'rinishi: <code>https://t.me/aisha_uzbikiyya/265</code>
+          </li>
+          <li>
+            <strong>4-qadam:</strong> <code>frontend/src/pages/Landing.js</code> dagi <code>mentorVideos</code> qatoriga qo'ying.
+          </li>
         </ol>
-        <div className="code-block">
-          <pre>{`{ videoUrl: 'https://t.me/aishauzbikiyya_admin/42', id: 1 }`}</pre>
-        </div>
       </div>
 
       <div className="admin-card">
-        <h3>&#128225; 3-usul: Telegram Post embed (to'liq)</h3>
-        <ol className="instructions-list">
-          <li>Kelajakda saytga bevosita Telegram post ulash mumkin.</li>
-          <li>Buning uchun admin kanaldagi postni <strong>public</strong> qiling.</li>
-          <li>Post havolasini <code>videoUrl</code> ga kiriting.</li>
-          <li>Sayt avtomatik "Telegramda ko'rish" tugmasini ko'rsatadi.</li>
-        </ol>
-        <div className="info-note">
-          &#9432; Hozir faqat havola ko'rsatiladi. Keyingi versiyada video thumbnailni avtomatik olish qo'shiladi.
+        <h3 className="admin-card-title">🔑 Render va Baza xavfsizligi bo'yicha muhim eslatma</h3>
+        <div className="admin-info-box">
+          <p>
+            <strong>Eslatma:</strong> Barcha guruhlar, o'quvchilar va baholar PostgreSQL ma'lumotlar bazasida doimiy saqlanadi. Render bepul rejasida yuklangan rasmlar (uploads) server qayta yonganida o'chmasligi uchun muhim natijalarni Telegram kanalda ham e'lon qilish tavsiya etiladi.
+          </p>
         </div>
       </div>
     </div>
