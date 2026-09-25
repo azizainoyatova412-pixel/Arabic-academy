@@ -89,12 +89,14 @@ function GradesSection() {
   const loadGroups = async () => {
     try {
       const res = await fetch(`${API}/api/admin/groups`, {
-        headers: { 'x-admin-key': sessionStorage.getItem('admin_auth') || '1' }
+        headers: { 'x-admin-key': sessionStorage.getItem('admin_auth') || '' }
       });
       const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Admin ma’lumotlarini olishda xatolik');
       setGroups(data.groups || []);
-    } catch {
+    } catch (err) {
       setGroups([]);
+      setMsg(err.message || 'Server bilan bog‘lanishda xatolik');
     }
   };
 
@@ -103,12 +105,14 @@ function GradesSection() {
     setSelectedGroup(groupId);
     try {
       const res = await fetch(`${API}/api/admin/groups/${groupId}/students`, {
-        headers: { 'x-admin-key': '1' }
+        headers: { 'x-admin-key': sessionStorage.getItem('admin_auth') || '' }
       });
       const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'O‘quvchilarni yuklashda xatolik');
       setStudents(data.students || []);
-    } catch {
+    } catch (err) {
       setStudents([]);
+      setMsg(err.message || 'Server bilan bog‘lanishda xatolik');
     }
   };
 
@@ -118,15 +122,19 @@ function GradesSection() {
     if (!newGroupName.trim()) return;
     setLoading(true);
     try {
-      await fetch(`${API}/api/admin/groups`, {
+      const res = await fetch(`${API}/api/admin/groups`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-admin-key': '1' },
+        headers: { 'Content-Type': 'application/json', 'x-admin-key': sessionStorage.getItem('admin_auth') || '' },
         body: JSON.stringify({ name: newGroupName })
       });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Guruh yaratishda xatolik');
       setNewGroupName('');
       setMsg('Guruh qo\'shildi!');
       loadGroups();
-    } catch { setMsg('Xatolik yuz berdi'); }
+    } catch (err) {
+      setMsg(err.message || 'Xatolik yuz berdi');
+    }
     setLoading(false);
     setTimeout(() => setMsg(''), 3000);
   };
@@ -135,29 +143,37 @@ function GradesSection() {
     if (!newStudentName.trim() || !selectedGroup) return;
     setLoading(true);
     try {
-      await fetch(`${API}/api/admin/groups/${selectedGroup}/students`, {
+      const res = await fetch(`${API}/api/admin/groups/${selectedGroup}/students`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-admin-key': '1' },
+        headers: { 'Content-Type': 'application/json', 'x-admin-key': sessionStorage.getItem('admin_auth') || '' },
         body: JSON.stringify({ full_name: newStudentName, telegram_id: newStudentTg || null })
       });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'O‘quvchi qo‘shishda xatolik');
       setNewStudentName('');
       setNewStudentTg('');
       setMsg('O\'quvchi qo\'shildi!');
       loadStudents(selectedGroup);
-    } catch { setMsg('Xatolik yuz berdi'); }
+    } catch (err) {
+      setMsg(err.message || 'Xatolik yuz berdi');
+    }
     setLoading(false);
     setTimeout(() => setMsg(''), 3000);
   };
 
   const updatePoints = async (studentId, points) => {
     try {
-      await fetch(`${API}/api/admin/students/${studentId}/grade`, {
+      const res = await fetch(`${API}/api/admin/students/${studentId}/grade`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'x-admin-key': '1' },
+        headers: { 'Content-Type': 'application/json', 'x-admin-key': sessionStorage.getItem('admin_auth') || '' },
         body: JSON.stringify({ group_id: selectedGroup, points: parseInt(points) || 0 })
       });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Bahoni saqlashda xatolik');
       loadStudents(selectedGroup);
-    } catch {}
+    } catch (err) {
+      setMsg(err.message || 'Bahoni saqlashda xatolik');
+    }
   };
 
   return (
@@ -323,27 +339,37 @@ function ResultsSection() {
     form.append('image', file);
     form.append('caption', caption);
     try {
-      await fetch(`${API}/api/admin/results`, {
+      const res = await fetch(`${API}/api/admin/results`, {
         method: 'POST',
-        headers: { 'x-admin-key': '1' },
+        headers: { 'x-admin-key': sessionStorage.getItem('admin_auth') || '' },
         body: form
       });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Natija yuklashda xatolik');
       setFile(null);
       setCaption('');
       setMsg('Natija qo\'shildi!');
       loadResults();
-    } catch { setMsg('Xatolik!'); }
+    } catch (err) {
+      setMsg(err.message || 'Xatolik!');
+    }
     setLoading(false);
     setTimeout(() => setMsg(''), 3000);
   };
 
   const deleteResult = async (id) => {
     if (!window.confirm('Rostdan ham o\'chirmoqchimisiz?')) return;
-    await fetch(`${API}/api/admin/results/${id}`, {
-      method: 'DELETE',
-      headers: { 'x-admin-key': '1' }
-    });
-    loadResults();
+    try {
+      const res = await fetch(`${API}/api/admin/results/${id}`, {
+        method: 'DELETE',
+        headers: { 'x-admin-key': sessionStorage.getItem('admin_auth') || '' }
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Natija o‘chirishda xatolik');
+      loadResults();
+    } catch (err) {
+      setMsg(err.message || 'Natija o‘chirishda xatolik');
+    }
   };
 
   return (
@@ -436,26 +462,36 @@ function ReviewsSection() {
     if (!name.trim() || !text.trim()) return;
     setLoading(true);
     try {
-      await fetch(`${API}/api/admin/reviews`, {
+      const res = await fetch(`${API}/api/admin/reviews`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-admin-key': '1' },
+        headers: { 'Content-Type': 'application/json', 'x-admin-key': sessionStorage.getItem('admin_auth') || '' },
         body: JSON.stringify({ name, text, stars })
       });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Sharh qo‘shishda xatolik');
       setName(''); setText(''); setStars(5);
       setMsg('Sharh qo\'shildi!');
       loadReviews();
-    } catch { setMsg('Xatolik!'); }
+    } catch (err) {
+      setMsg(err.message || 'Xatolik!');
+    }
     setLoading(false);
     setTimeout(() => setMsg(''), 3000);
   };
 
   const deleteReview = async (id) => {
     if (!window.confirm('O\'chirmoqchimisiz?')) return;
-    await fetch(`${API}/api/admin/reviews/${id}`, {
-      method: 'DELETE',
-      headers: { 'x-admin-key': '1' }
-    });
-    loadReviews();
+    try {
+      const res = await fetch(`${API}/api/admin/reviews/${id}`, {
+        method: 'DELETE',
+        headers: { 'x-admin-key': sessionStorage.getItem('admin_auth') || '' }
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Sharh o‘chirishda xatolik');
+      loadReviews();
+    } catch (err) {
+      setMsg(err.message || 'Sharh o‘chirishda xatolik');
+    }
   };
 
   return (

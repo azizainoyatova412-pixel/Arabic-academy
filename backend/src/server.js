@@ -42,8 +42,10 @@ app.get('/api/reviews', contentController.getReviews);
 // ADMIN API endpointlari (x-admin-key header bilan himoyalangan)
 // ============================================================
 const adminGuard = (req, res, next) => {
-  // Hozircha oddiy tekshiruv — kelajakda JWT bilan almashtiriladi
-  if (req.headers['x-admin-key']) return next();
+  const expectedKey = process.env.ADMIN_PASSWORD || 'admint';
+  const providedKey = req.headers['x-admin-key'];
+
+  if (providedKey && providedKey === expectedKey) return next();
   res.status(401).json({ error: 'Ruxsatsiz kirish' });
 };
 
@@ -67,8 +69,11 @@ app.delete('/api/admin/reviews/:id', adminGuard, contentController.deleteReview)
 // ============================================================
 // SERVER ISHGA TUSHIRISH
 // ============================================================
+app.get('/', (req, res) => {
+  res.send('API ishlamoqda. /api/leaderboard/:groupId, /api/results, /api/reviews endpointlarini tekshiring.');
+});
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, async () => {
+app.listen(PORT, '0.0.0.0', async () => {
   console.log(`🚀 API Server localhost:${PORT} portida ishlamoqda`);
   await db.initDb();
 

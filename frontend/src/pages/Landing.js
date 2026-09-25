@@ -20,7 +20,7 @@ const content = {
     heroTitleHighlight: 'arab tilini',
     heroArabicWord: '\u00AB \u0627\u0644\u0644\u0651\u064F\u063A\u064E\u0629\u064F \u0627\u0644\u0639\u064E\u0631\u064E\u0628\u064A\u0651\u064E\u0629\u064F \u00BB',
     heroTitleSuffix: "professional darajada o\u2018rgatamiz",
-    heroDesc: "Aisha Uzbikiyya \u2014 o\u2018qitishning izchil, zamonaviy va amaliy tizimi bilan ishlaydigan akademiya. Kichik guruhlar, individual mashg\u2018ulotlar va amaliy nutq mashqlari uyg\u2018unlikda olib boriladi.",
+    heroDesc: "Aisha Uzbikiyya \u2014 o\u2018qitishning izchil, zamonaviy va amaliy tizimi bilan ishlaydigan akademiya. Kichik guruhlar, individual mashg\u2018ulotlar va amaliy nutq mashqlari uyg\u2018unlikda olib boriladi. Arab tilini C1\u2013C2 darajasiga olib chiqadigan ustoz bilan ishlaysiz.",
     enrollBtn: 'Kursga yoziling',
     telegramBtn: "Telegram bilan bog\u2018lanish",
     heroCards: {
@@ -31,9 +31,9 @@ const content = {
       eyebrow: 'Biz haqimizda',
       title: "Til o\u2018rganishni aniq, qulay va samarali qilishga e\u2018tibor qaratamiz",
       card1Title: 'Bizning yondashuv',
-      card1Desc: 'Darslar tezkor, maqsadli va real hayotga mos tarzda tashkil etiladi. Har bir mavzu tushuntirish, amaliy mashq va jonli nutq mashqlari bilan birga olib boriladi.',
+      card1Desc: 'Har bir o\u2018quvchi bilan individual ishlanadi. Yordamchi ustoz mavjud, darsga kira olmasangiz yoki tushunmay qolsangiz, ularga murojat qilasiz. Darslar haftada 3 kun, jonli efirda olib boriladi.',
       card2Title: 'Qanday natija',
-      card2Desc: "Talabalar tushunish va suhbat ko\u2018nikmalarini bosqichma-bosqich rivojlantiradi. Darsdan keyin mustahkamlash va amaliy foydalanish ta\u2018minlanadi.",
+      card2Desc: 'Oylik to\u2018lov 12 ta darsni o\u2018z ichiga oladi. Kurslar natijaga s\u2018izib borishni xohlaganlar uchun tizimlashtirilgan bo\u2018lib, 40 ga yaqin o\u2018quvchida sertifikat olingan.',
     },
     courses: {
       eyebrow: 'Darslar',
@@ -43,28 +43,28 @@ const content = {
         {
           title: 'A1 Darajasi',
           arabicSubtitle: '\u00AB \u0627\u0644\u0645\u064F\u0633\u0652\u062A\u064E\u0648\u0649 \u0627\u0644\u062A\u0651\u064E\u0645\u0652\u0647\u064A\u062F\u0650\u064A\u0651\u064F A1 \u00BB',
-          subtitle: "Alifbo, to\u2018g\u2018ri tovushlar va maxrajlar, o\u2018qish-yozish qoidalari hamda boshlang\u2018ich asosiy so\u2018z boyligi.",
+          subtitle: "Alifbo, to\u2018g\u2018ri tovushlar va maxrajlar, o\u2018qish-yozish qoidalari hamda boshlang\u2018ich asosiy so\u2018z boyligi. Dastlabki bir oyda 150+ so\u2018z yodlaysiz, grammatik qoidalar bilan.",
           tag: "A1 Boshlang\u2018ich",
           tone: 'navy',
         },
         {
           title: 'A2 Darajasi',
           arabicSubtitle: '\u00AB \u0627\u0644\u0645\u064F\u0633\u0652\u062A\u064E\u0648\u0649 \u0627\u0644\u0623\u064E\u0633\u064E\u0627\u0633\u0650\u064A\u0651\u064F A2 \u00BB',
-          subtitle: 'Sodda gap tuzilmalari, asosiy grammatika, kundalik turmush muloqoti va mustaqil matnlarni tushunish.',
+          subtitle: 'Sodda gap tuzilmalari, kundalik muloqot, asosiy grammatika va mustaqil matnlarni tushunish ko\u2018nikmalari.',
           tag: 'A2 Elementar',
           tone: 'slate',
         },
         {
           title: 'B1 \u2013 B2 Darajasi',
           arabicSubtitle: '\u00AB \u0627\u0644\u0645\u064F\u0633\u0652\u062A\u064E\u0648\u0649 \u0627\u0644\u0645\u064F\u062A\u064E\u0648\u064E\u0633\u0651\u0650\u0637\u064F B1-B2 \u00BB',
-          subtitle: 'Arab tili morfologiyasi (sarf) va sintaksisi (nahv), ravon jonli nutq va boy adabiyotlar tahlili.',
+          subtitle: 'Sarf, nahv, ravon nutq, akademik matnlar va amaliy suhbat ko\u2018nikmalari bilan ishlanadi.',
           tag: "B1-B2 O\u2018rta",
           tone: 'gold',
         },
         {
           title: 'CEFR va Attanat C2 Tayyorgarlik',
           arabicSubtitle: '\u00AB \u0627\u0650\u062E\u0652\u062A\u0650\u0628\u064E\u0627\u0631\u064E\u0627\u062A\u064F CEFR \u0648\u064E\u0627\u0644\u062A\u0651\u064E\u0627\u0646\u064E\u0627\u0644 C2 \u00BB',
-          subtitle: 'Davlat CEFR sertifikati va xalqaro Attanat C2 imtihonlariga ixtisoslashgan intensiv tayyorgarlik. Sefr va Attanat olish imkoni.',
+          subtitle: ' 40 ga yaqin o\u2018quvchi sertifikat olgan.',
           tag: 'CEFR & Attanat C2',
           tone: 'gold',
         },
@@ -85,7 +85,7 @@ const content = {
           title: 'Tarjimon',
           desc: "Arab tilidan o\u2018zbek yoki rus tiliga og\u2018zaki va yozma tarjima qiluvchi xalqaro darajadagi tarjimon bo\u2018ling.",
         },
-
+      
         {
           icon: '\u2708\uFE0F',
           title: 'Xalqaro karyera',
@@ -107,8 +107,9 @@ const content = {
     },
     contact: {
       eyebrow: 'Telegram admin',
-      title: "Yozing va o\u2018zingizga mos dars jadvalini tanlang",
-      btn: "Telegram orqali bog\u2018lanish",
+      title: 'Ma\u2018lumotlarni bot orqali olasiz',
+      desc: 'Guruhlar haqida batafsil ma\u2018lumot Telegram bot orqali beriladi. Dars jadvali va imkoniyatlar haqida bir zumda xabar olasiz.',
+      btn: 'Telegram botga o\u2018tish',
     },
     footer: '\u00A9 2026 Aisha Uzbikiyya. Barcha huquqlar himoyalangan.',
   },
@@ -203,8 +204,9 @@ const content = {
     },
     contact: {
       eyebrow: 'Telegram Admin',
-      title: 'Reach out to find the perfect learning schedule',
-      btn: 'Chat on Telegram',
+      title: 'You can receive information through the bot',
+      desc: 'Detailed information about groups and schedules is shared through the Telegram bot. You will get the latest details quickly and clearly.',
+      btn: 'Open Telegram Bot',
     },
     footer: '\u00A9 2026 Aisha Uzbikiyya Academy. All rights reserved.',
   },
@@ -275,8 +277,9 @@ const content = {
     },
     contact: {
       eyebrow: 'Telegram администратор',
-      title: 'Напишите нам и подберите подходящий график',
-      btn: 'Написать в Telegram',
+      title: 'Информацию вы получите через бота',
+      desc: 'Подробности о группах и расписании отправляются через Telegram-бота. Вы быстро получите актуальные данные.',
+      btn: 'Перейти в Telegram-бот',
     },
     footer: '\u00A9 2026 Aisha Uzbikiyya Academy. Все права защищены.',
   },
@@ -284,8 +287,8 @@ const content = {
 
 const languageOptions = ['UZ', 'EN', 'RU'];
 
-const TELEGRAM_CHANNEL_URL = 'https://t.me/aishauzbikiyya_admin';
-
+const TELEGRAM_CHANNEL_URL = 'https://t.me/aisha_uzbikiyya';
+const TELEGRAM_BOT_URL = 'https://t.me/aishauzbikiyya_bot';const INSTAGRAM_URL = 'https://instagram.com/aisha_uzbikiyya';
 const mentorVideos = [
   { videoUrl: 'https://t.me/aisha_uzbikiyya/265', id: 1 },
   { videoUrl: 'https://t.me/aisha_uzbikiyya/135', id: 2 },
@@ -295,49 +298,6 @@ const mentorVideos = [
 function Landing() {
   const [lang, setLang] = useState('UZ');
   const t = content[lang] || content.UZ;
-
-  // Natijalar va sharhlar
-  const [results, setResults] = useState([]);
-  const [reviews, setReviews] = useState([]);
-
-  // O'quvchi natijalari
-  const [gradeGroupId, setGradeGroupId] = useState('');
-  const [gradeStudents, setGradeStudents] = useState([]);
-  const [gradeLoading, setGradeLoading] = useState(false);
-  const [gradeError, setGradeError] = useState('');
-  const [gradeFetched, setGradeFetched] = useState(false);
-
-  useEffect(() => {
-    fetch(`${API}/api/results`)
-      .then(r => r.json())
-      .then(d => setResults(d.results || []))
-      .catch(() => setResults([]));
-    fetch(`${API}/api/reviews`)
-      .then(r => r.json())
-      .then(d => setReviews(d.reviews || []))
-      .catch(() => setReviews([]));
-  }, []);
-
-  const lookupGrades = async (e) => {
-    e.preventDefault();
-    if (!gradeGroupId.trim()) return;
-    setGradeLoading(true);
-    setGradeError('');
-    setGradeFetched(false);
-    try {
-      const res = await fetch(`${API}/api/leaderboard/${gradeGroupId}`);
-      const data = await res.json();
-      if (data.leaderboard && data.leaderboard.length > 0) {
-        setGradeStudents(data.leaderboard);
-        setGradeFetched(true);
-      } else {
-        setGradeError(lang === 'UZ' ? 'Bu ID bilan guruh topilmadi.' : lang === 'RU' ? 'Группа не найдена.' : 'Group not found.');
-      }
-    } catch {
-      setGradeError(lang === 'UZ' ? 'Server bilan ulanishda xatolik.' : 'Server error.');
-    }
-    setGradeLoading(false);
-  };
 
   const videoLabel = (num) => {
     if (lang === 'UZ') return 'Video ' + num;
@@ -417,14 +377,6 @@ function Landing() {
 
               <p className="hero-desc">{t.heroDesc}</p>
 
-              <div className="hero-actions">
-                <a href={TELEGRAM_CHANNEL_URL} target="_blank" rel="noreferrer" className="primary-btn">
-                  {t.enrollBtn}
-                </a>
-                <a href={TELEGRAM_CHANNEL_URL} target="_blank" rel="noreferrer" className="secondary-link">
-                  {t.telegramBtn} &#8594;
-                </a>
-              </div>
             </div>
 
             <div className="hero-panel">
@@ -438,11 +390,11 @@ function Landing() {
               <div className="hero-block">
                 <div className="stat-box">
                   <span className="small-label">Oylik</span>
-                  <strong>12 dars</strong>
+                  <strong>12 ta dars</strong>
                 </div>
                 <div className="stat-box accent">
-                  <span className="small-label">Daraja</span>
-                  <strong>Sefr &rarr; C2</strong>
+                  <span className="small-label">Jonli dars</span>
+                  <strong>3 kun / hafta</strong>
                 </div>
               </div>
 
@@ -450,7 +402,7 @@ function Landing() {
                 <div className="card-labels">
                   <span className="label">Sertifikat</span>
                 </div>
-                <strong>CEFR & Attanat</strong>
+                <strong>40+ o'quvchi</strong>
               </div>
             </div>
           </div>
@@ -593,133 +545,34 @@ function Landing() {
                   ))}
                 </div>
 
-                <a
-                  href={TELEGRAM_CHANNEL_URL}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="tg-channel-btn"
-                >
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.562 8.248l-2.03 9.57c-.148.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12l-6.871 4.326-2.962-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.893.651z" />
-                  </svg>
-                  {t.mentor.telegramChannelBtn}
-                </a>
+                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                  <a
+                    href={TELEGRAM_CHANNEL_URL}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="tg-channel-btn"
+                  >
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.562 8.248l-2.03 9.57c-.148.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12l-6.871 4.326-2.962-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.893.651z" />
+                    </svg>
+                    {t.mentor.telegramChannelBtn}
+                  </a>
+                  <a
+                    href={INSTAGRAM_URL}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="tg-channel-btn"
+                  >
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                      <path d="M7 2h10a5 5 0 0 1 5 5v10a5 5 0 0 1-5 5H7a5 5 0 0 1-5-5V7a5 5 0 0 1 5-5zm0 2a3 3 0 0 0-3 3v10a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3V7a3 3 0 0 0-3-3H7zm5 3.5A5.5 5.5 0 1 1 6.5 13 5.5 5.5 0 0 1 12 7.5zm0 2A3.5 3.5 0 1 0 15.5 13 3.5 3.5 0 0 0 12 9.5zm5.25-3.25a1.25 1.25 0 1 1-1.25 1.25 1.25 1.25 0 0 1 1.25-1.25z"/>
+                    </svg>
+                    Instagram
+                  </a>
+                </div>
               </div>
             </div>
           </div>
         </section>
-
-        {/* O'quvchi natijalari tekshirish bo'limi */}
-        <section className="grades-section" id="grades">
-          <div className="container">
-            <div className="section-header">
-              <div className="section-title-wrap">
-                <span className="eyebrow eyebrow-dark">
-                  {lang === 'UZ' ? 'Natijalarni ko‘rish' : lang === 'RU' ? 'Проверить результат' : 'Check Results'}
-                </span>
-              </div>
-              <h2>
-                {lang === 'UZ' ? 'Guruh ID orqali o‘z natijangizni ko‘ring' : lang === 'RU' ? 'Введите ID группы, чтобы увидеть рейтинг' : 'Enter your Group ID to see your ranking'}
-              </h2>
-              <p className="goals-desc">
-                {lang === 'UZ' ? 'Ustozingiz bergan guruh ID raqamini kiriting.' : lang === 'RU' ? 'Введите ID группы, выданный преподавателем.' : 'Enter the group ID provided by your instructor.'}
-              </p>
-            </div>
-            <form onSubmit={lookupGrades} className="grades-lookup-form">
-              <input
-                type="text"
-                className="grades-input"
-                placeholder={lang === 'UZ' ? 'Guruh ID raqami...' : lang === 'RU' ? 'ID группы...' : 'Group ID...'}
-                value={gradeGroupId}
-                onChange={e => setGradeGroupId(e.target.value)}
-              />
-              <button type="submit" className="primary-btn" disabled={gradeLoading}>
-                {gradeLoading ? '...' : lang === 'UZ' ? 'Ko‘rish' : lang === 'RU' ? 'Показать' : 'View'}
-              </button>
-            </form>
-            {gradeError && <p className="grades-error">{gradeError}</p>}
-            {gradeFetched && gradeStudents.length > 0 && (
-              <div className="grades-table-wrap">
-                <table className="grades-table">
-                  <thead>
-                    <tr>
-                      <th>#</th>
-                      <th>{lang === 'UZ' ? 'Ism' : lang === 'RU' ? 'Имя' : 'Name'}</th>
-                      <th>{lang === 'UZ' ? 'Ball' : lang === 'RU' ? 'Баллы' : 'Points'}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {gradeStudents.map((s, idx) => (
-                      <tr key={s.telegram_id} className={idx < 3 ? 'top-row' : ''}>
-                        <td className="rank-cell">
-                          {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : idx + 1}
-                        </td>
-                        <td>{s.full_name}</td>
-                        <td><span className="points-badge pub">{s.current_month_points}</span></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        </section>
-
-        {/* Natijalar (skrinshotlar) bo'limi */}
-        {results.length > 0 && (
-          <section className="results-section" id="results">
-            <div className="container">
-              <div className="section-header">
-                <div className="section-title-wrap">
-                  <span className="eyebrow eyebrow-dark">
-                    {lang === 'UZ' ? 'Haqiqiy natijalar' : lang === 'RU' ? 'Реальные результаты' : 'Real Results'}
-                  </span>
-                </div>
-                <h2>
-                  {lang === 'UZ' ? 'O‘quvchilarimizning muvaffaqiyatlari' : lang === 'RU' ? 'Достижения наших студентов' : 'Student Achievements'}
-                </h2>
-              </div>
-              <div className="results-gallery">
-                {results.map(r => (
-                  <div key={r.id} className="result-card">
-                    <img src={`${API}/uploads/${r.filename}`} alt={r.caption} />
-                    {r.caption && <p className="result-caption">{r.caption}</p>}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </section>
-        )}
-
-        {/* Sharhlar bo'limi */}
-        {reviews.length > 0 && (
-          <section className="reviews-section" id="reviews">
-            <div className="container">
-              <div className="section-header">
-                <div className="section-title-wrap">
-                  <span className="eyebrow eyebrow-dark">
-                    {lang === 'UZ' ? 'Sharhlar' : lang === 'RU' ? 'Отзывы' : 'Reviews'}
-                  </span>
-                </div>
-                <h2>
-                  {lang === 'UZ' ? 'O‘quvchilarimiz nima deydi' : lang === 'RU' ? 'Что говорят наши студенты' : 'What Our Students Say'}
-                </h2>
-              </div>
-              <div className="reviews-grid">
-                {reviews.map(r => (
-                  <div key={r.id} className="review-card">
-                    <div className="review-stars">{'★'.repeat(r.stars)}{'☆'.repeat(5 - r.stars)}</div>
-                    <p className="review-text">"{r.text}"</p>
-                    <div className="review-author">
-                      <div className="review-avatar">{r.name.charAt(0)}</div>
-                      <span>{r.name}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </section>
-        )}
 
         {/* Bog'lanish bo'limi */}
         <section className="contact-section" id="contact">
@@ -730,15 +583,16 @@ function Landing() {
                   <span className="eyebrow eyebrow-dark">{t.contact.eyebrow}</span>
                 </div>
                 <h2>{t.contact.title}</h2>
+                <p className="contact-copy">{t.contact.desc}</p>
+                <div style={{ marginTop: '14px', display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
+                  <a href={TELEGRAM_BOT_URL} target="_blank" rel="noreferrer" className="telegram-btn">
+                    {t.contact.btn} &#10022;
+                  </a>
+                  <a href={INSTAGRAM_URL} target="_blank" rel="noreferrer" className="secondary-link">
+                    Instagram sahifa
+                  </a>
+                </div>
               </div>
-              <a
-                href={TELEGRAM_CHANNEL_URL}
-                target="_blank"
-                rel="noreferrer"
-                className="telegram-btn"
-              >
-                {t.contact.btn} &#10022;
-              </a>
             </div>
           </div>
         </section>

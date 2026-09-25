@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../index.css';
 
-const ADMIN_PASSWORD = process.env.REACT_APP_ADMIN_PASSWORD; 
+const ADMIN_PASSWORD = process.env.REACT_APP_ADMIN_PASSWORD || 'admint';
 
 export default function AdminLogin() {
   const [password, setPassword] = useState('');
@@ -16,7 +16,7 @@ export default function AdminLogin() {
     setError('');
     // Oddiy parol tekshiruvi (real loyihada backend JWT bilan bo'ladi)
     if (password === ADMIN_PASSWORD) {
-      sessionStorage.setItem('admin_auth', '1');
+      sessionStorage.setItem('admin_auth', ADMIN_PASSWORD);
       navigate('/admin/dashboard');
     } else {
       setError("Parol noto'g'ri. Qaytadan urinib ko'ring.");
