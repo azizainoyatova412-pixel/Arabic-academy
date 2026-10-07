@@ -2,7 +2,7 @@
 export const translations = {
   uz: {
     academy: "UZBIKIYYA",
-    academySub: "Arab tili akademiyasi",
+    academySub: "Uzbikiyya akademiyasi",
     arabicMotto: "الأكاديمية الأوزبكية",
     title: "Guruh Reytingi",
     selectGroup: "Guruhni tanlang",
