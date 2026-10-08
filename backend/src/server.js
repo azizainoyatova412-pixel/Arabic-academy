@@ -189,7 +189,7 @@ app.listen(PORT, '0.0.0.0', async () => {
   // ANTI-SLEEP AUTO SELF-PING (Render 15 daqiqada uxlab qolmasligi uchun)
   // ============================================================
   const PING_INTERVAL_MS = 12 * 60 * 1000; // Har 12 daqiqada ping yuborish
-  const selfUrl = process.env.RENDER_EXTERNAL_URL || process.env.SELF_PING_URL || 'https://aisha-uzbikiyya-api.onrender.com';
+  const selfUrl = process.env.RENDER_EXTERNAL_URL || process.env.SELF_PING_URL || 'https://arabic-academy.onrender.com';
 
   if (selfUrl) {
     const pingTarget = `${selfUrl.replace(/\/$/, '')}/api/health`;

@@ -1,15 +1,12 @@
 services:
   - type: web
-    name: aisha-uzbikiyya-api
+    name: arabic-academy
     env: node
-    rootDir: backend
-    buildCommand: npm install && npm run render:build
-    startCommand: node src/server.js
+    buildCommand: npm --prefix backend ci && npm --prefix frontend ci && npm --prefix frontend run build
+    startCommand: npm --prefix backend start
     envVars:
       - key: NODE_ENV
         value: production
-      - key: PORT
-        value: 10000
       - key: BOT_TOKEN
         sync: false
       - key: DATABASE_URL
@@ -20,18 +17,3 @@ services:
         sync: false
       - key: TELEGRAM_GROUP_ID
         sync: false
-      - key: SELF_PING_URL
-        value: https://aisha-uzbikiyya-api.onrender.com
-
-  - type: static
-    name: aisha-uzbikiyya-frontend
-    rootDir: frontend
-    buildCommand: npm install && npm run build
-    staticPublishPath: build
-    routes:
-      - type: rewrite
-        source: /*
-        destination: /index.html
-    envVars:
-      - key: REACT_APP_API_URL
-        value: https://aisha-uzbikiyya-api.onrender.com
