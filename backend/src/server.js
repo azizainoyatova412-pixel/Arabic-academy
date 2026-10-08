@@ -143,8 +143,9 @@ if (frontendBuildPath) {
   app.use(express.static(frontendBuildPath));
 }
 
-// Barcha boshqa marshrutlar (SPA client-side routing)
-app.get('*', (req, res, next) => {
+// Barcha boshqa GET so'rovlar (SPA client-side routing) — Express 5 mosligi
+app.use((req, res, next) => {
+  if (req.method !== 'GET') return next();
   if (req.path.startsWith('/api') || req.path.startsWith('/uploads')) {
     return next();
   }
