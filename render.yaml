@@ -3,8 +3,8 @@ services:
     name: aisha-uzbikiyya-api
     env: node
     rootDir: backend
-    buildCommand: npm install
-    startCommand: npm run render:start
+    buildCommand: npm install && npm run render:build
+    startCommand: node src/server.js
     envVars:
       - key: NODE_ENV
         value: production

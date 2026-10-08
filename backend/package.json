@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node src/server.js",
     "render:build": "npm --prefix ../frontend install && npm --prefix ../frontend run build",
-    "render:start": "npm run render:build && node src/server.js",
+    "render:start": "node src/server.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
