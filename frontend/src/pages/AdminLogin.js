@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../index.css';
 
-const ADMIN_PASSWORD = process.env.REACT_APP_ADMIN_PASSWORD || 'admint';
+const API = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
 export default function AdminLogin() {
   const [password, setPassword] = useState('');
@@ -16,15 +16,25 @@ export default function AdminLogin() {
     setLoading(true);
     setError('');
 
-    // Parol tekshiruvi
-    if (password === ADMIN_PASSWORD) {
-      sessionStorage.setItem('admin_auth', ADMIN_PASSWORD);
-      navigate('/admin/dashboard');
-    } else {
-      setError("Kiritilgan parol noto'g'ri. Iltimos, qaytadan urinib ko'ring.");
+    try {
+      // Parolni backend orqali tekshirish
+      const res = await fetch(`${API}/api/admin/groups`, {
+        headers: { 'x-admin-key': password },
+      });
+
+      if (res.ok) {
+        sessionStorage.setItem('admin_auth', password);
+        navigate('/admin/dashboard');
+      } else {
+        setError("Kiritilgan parol noto'g'ri. Iltimos, qaytadan urinib ko'ring.");
+      }
+    } catch {
+      setError('Serverga ulanib bo\'lmadi. Backend ishlayotganini tekshiring.');
     }
+
     setLoading(false);
   };
+
 
   return (
     <div className="admin-login-page">

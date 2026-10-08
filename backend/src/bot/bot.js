@@ -1,6 +1,7 @@
 const { Bot, session } = require('grammy');
 const db = require('../db/index');
 const startCommand = require('./commands/start');
+const reviewCommand = require('./commands/review');
 const locales = require('./menus/locales');
 require('dotenv').config();
 
@@ -10,6 +11,7 @@ bot.use(session({ initial: () => ({ selectedGroupId: null }) }));
 
 // Komandalarni ulash
 bot.command('start', startCommand);
+bot.command('review', reviewCommand);
 
 // Til tanlash callback handling
 bot.callbackQuery(/^lang_(uz|ru|en)$/, async (ctx) => {

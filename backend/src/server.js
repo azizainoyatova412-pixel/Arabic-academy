@@ -58,22 +58,55 @@ app.get('/api/reviews', contentController.getReviews);
 // ============================================================
 // ADMIN API endpointlari (x-admin-key header bilan himoyalangan)
 // ============================================================
-const adminGuard = (req, res, next) => {
-  const expectedKey = process.env.ADMIN_PASSWORD || 'admint';
-  const providedKey = req.headers['x-admin-key'];
+// Runtime'da o'zgartiriladigan parol (server qayta ishga tushganda .env ga qaytadi)
+let runtimePassword = process.env.ADMIN_PASSWORD || 'admint';
 
-  if (providedKey && providedKey === expectedKey) return next();
+const adminGuard = (req, res, next) => {
+  const providedKey = req.headers['x-admin-key'];
+  if (providedKey && providedKey === runtimePassword) return next();
   res.status(401).json({ error: 'Ruxsatsiz kirish' });
 };
+
+// Parolni o'zgartirish endpointi
+app.put('/api/admin/change-password', adminGuard, (req, res) => {
+  const { newPassword } = req.body;
+  if (!newPassword || newPassword.trim().length < 6) {
+    return res.status(400).json({ error: 'Yangi parol kamida 6 ta belgidan iborat bo\'lishi kerak' });
+  }
+  runtimePassword = newPassword.trim();
+
+  // .env fayliga ham yozib qo'yish (server qayta yonganda ham saqlanishi uchun)
+  try {
+    const envPath = path.join(__dirname, '../.env');
+    if (fs.existsSync(envPath)) {
+      let envContent = fs.readFileSync(envPath, 'utf8');
+      if (envContent.includes('ADMIN_PASSWORD=')) {
+        envContent = envContent.replace(/ADMIN_PASSWORD=.*(\r?\n|$)/, `ADMIN_PASSWORD=${runtimePassword}$1`);
+      } else {
+        envContent += `\nADMIN_PASSWORD=${runtimePassword}\n`;
+      }
+      fs.writeFileSync(envPath, envContent, 'utf8');
+    }
+  } catch (err) {
+    console.error('.env yangilashda xato:', err.message);
+  }
+
+  res.json({ success: true, message: 'Parol muvaffaqiyatli o\'zgartirildi' });
+});
+
 
 // Guruhlar
 app.get('/api/admin/groups', adminGuard, adminController.getGroups);
 app.post('/api/admin/groups', adminGuard, adminController.createGroup);
+app.delete('/api/admin/groups/:groupId', adminGuard, adminController.deleteGroup);
 app.get('/api/admin/groups/:groupId/students', adminGuard, adminController.getStudents);
 app.post('/api/admin/groups/:groupId/students', adminGuard, adminController.addStudent);
+app.get('/api/admin/groups/:groupId/stats', adminGuard, adminController.getGroupStats);
 
 // Baholash
+app.put('/api/admin/students/:studentId/lesson-grade', adminGuard, adminController.updateLessonGrade);
 app.put('/api/admin/students/:studentId/grade', adminGuard, adminController.updateGrade);
+app.delete('/api/admin/groups/:groupId/students/:studentId', adminGuard, adminController.deleteStudent);
 
 // Natijalar (skrinshotlar)
 app.post('/api/admin/results', adminGuard, upload.single('image'), contentController.addResult);

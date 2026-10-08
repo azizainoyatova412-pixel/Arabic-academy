@@ -23,25 +23,26 @@ export default function AdminDashboard() {
   // Umumiy statistika yuklash
   const loadGlobalStats = async () => {
     const authKey = sessionStorage.getItem('admin_auth') || '';
+    if (!authKey) {
+      navigate('/admin');
+      return;
+    }
     try {
-      const [resG, resR, resRev] = await Promise.allSettled([
-        fetch(`${API}/api/admin/groups`, { headers: { 'x-admin-key': authKey } }).then(r => r.json()),
+      const resG = await fetch(`${API}/api/admin/groups`, { headers: { 'x-admin-key': authKey } });
+      if (resG.status === 401) {
+        sessionStorage.removeItem('admin_auth');
+        navigate('/admin');
+        return;
+      }
+      const groupsData = await resG.json();
+      const [resR, resRev] = await Promise.allSettled([
         fetch(`${API}/api/results`).then(r => r.json()),
         fetch(`${API}/api/reviews`).then(r => r.json()),
       ]);
 
-      let groupCount = 0;
-      if (resG.status === 'fulfilled' && resG.value.groups) {
-        groupCount = resG.value.groups.length;
-      }
-      let resultsCount = 0;
-      if (resR.status === 'fulfilled' && resR.value.results) {
-        resultsCount = resR.value.results.length;
-      }
-      let reviewsCount = 0;
-      if (resRev.status === 'fulfilled' && resRev.value.reviews) {
-        reviewsCount = resRev.value.reviews.length;
-      }
+      let groupCount = (groupsData && groupsData.groups) ? groupsData.groups.length : 0;
+      let resultsCount = (resR.status === 'fulfilled' && resR.value.results) ? resR.value.results.length : 0;
+      let reviewsCount = (resRev.status === 'fulfilled' && resRev.value.reviews) ? resRev.value.reviews.length : 0;
 
       setStats({
         groups: groupCount,
@@ -121,6 +122,14 @@ export default function AdminDashboard() {
             <span className="admin-nav-icon">🎬</span>
             <span>Videolar & Qo'llanma</span>
           </button>
+
+          <button
+            className={'admin-nav-item' + (activeTab === 'settings' ? ' active' : '')}
+            onClick={() => setActiveTab('settings')}
+          >
+            <span className="admin-nav-icon">⚙️</span>
+            <span>Sozlamalar</span>
+          </button>
         </nav>
 
         <div className="admin-sidebar-footer">
@@ -174,6 +183,7 @@ export default function AdminDashboard() {
           {activeTab === 'results' && <ResultsSection onDataChange={loadGlobalStats} />}
           {activeTab === 'reviews' && <ReviewsSection onDataChange={loadGlobalStats} />}
           {activeTab === 'videos' && <VideosSection />}
+          {activeTab === 'settings' && <SettingsSection />}
         </div>
       </main>
 
@@ -210,24 +220,57 @@ export default function AdminDashboard() {
           <span className="bottom-icon">🎬</span>
           <span>Qo'llanma</span>
         </button>
+
+        <button
+          className={'admin-bottom-item' + (activeTab === 'settings' ? ' active' : '')}
+          onClick={() => setActiveTab('settings')}
+        >
+          <span className="bottom-icon">⚙️</span>
+          <span>Sozlamalar</span>
+        </button>
       </nav>
     </div>
   );
 }
 
 // =====================================================================
-// BAHOLAR & GURUHLAR BO'LIMI
+// BAHOLAR & GURUHLAR BO'LIMI (12 Darslik Oylik Jurnal)
 // =====================================================================
 function GradesSection({ onDataChange }) {
+  const getCurrentMonthStr = () => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    return `${year}-${month}`;
+  };
+
   const [groups, setGroups] = useState([]);
   const [selectedGroup, setSelectedGroup] = useState(null);
   const [students, setStudents] = useState([]);
+  const [selectedMonth, setSelectedMonth] = useState(getCurrentMonthStr());
+  const [availableMonths, setAvailableMonths] = useState([getCurrentMonthStr()]);
+  const [newMonthInput, setNewMonthInput] = useState('');
+  const [showAddMonth, setShowAddMonth] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
   const [newStudentName, setNewStudentName] = useState('');
-  const [newStudentTg, setNewStudentTg] = useState('');
+  const [chart, setChart] = useState({ labels: [], values: [], averageScore: 0, highestScore: 0, maxValue: 0, lessonStats: [] });
   const [msg, setMsg] = useState({ text: '', type: 'success' });
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+
+  const formatMonthName = (mStr) => {
+    if (!mStr) return '';
+    const monthsMap = {
+      '01': 'Yanvar', '02': 'Fevral', '03': 'Mart', '04': 'Aprel',
+      '05': 'May', '06': 'Iyun', '07': 'Iyul', '08': 'Avgust',
+      '09': 'Sentyabr', '10': 'Oktyabr', '11': 'Noyabr', '12': 'Dekabr'
+    };
+    const parts = mStr.split('-');
+    if (parts.length === 2 && monthsMap[parts[1]]) {
+      return `${monthsMap[parts[1]]} ${parts[0]}`;
+    }
+    return mStr;
+  };
 
   const showToast = (text, type = 'success') => {
     setMsg({ text, type });
@@ -239,32 +282,50 @@ function GradesSection({ onDataChange }) {
       const res = await fetch(`${API}/api/admin/groups`, {
         headers: { 'x-admin-key': sessionStorage.getItem('admin_auth') || '' }
       });
+      if (res.status === 401) {
+        sessionStorage.removeItem('admin_auth');
+        window.location.href = '/admin';
+        return;
+      }
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Guruhlarni yuklashda xatolik');
       const grps = data.groups || [];
       setGroups(grps);
       if (onDataChange) onDataChange();
-      // Birinchi guruhni avtomatik tanlash (agar tanlanmagan bo'lsa)
+      // Birinchi guruhni avtomatik tanlash
       if (grps.length > 0 && !selectedGroup) {
-        loadStudents(grps[0].id);
+        loadStudents(grps[0].id, selectedMonth);
       }
     } catch (err) {
       showToast(err.message || 'Server bilan bog‘lanishda xatolik', 'error');
     }
   };
 
-  const loadStudents = async (groupId) => {
+  const loadStudents = async (groupId, month = selectedMonth) => {
     setSelectedGroup(groupId);
     setLoading(true);
     try {
-      const res = await fetch(`${API}/api/admin/groups/${groupId}/students`, {
+      const res = await fetch(`${API}/api/admin/groups/${groupId}/students?month=${encodeURIComponent(month)}`, {
         headers: { 'x-admin-key': sessionStorage.getItem('admin_auth') || '' }
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'O‘quvchilarni yuklashda xatolik');
       setStudents(data.students || []);
+      if (data.available_months && data.available_months.length > 0) {
+        setAvailableMonths(data.available_months);
+      }
+      if (groupId) {
+        const statsRes = await fetch(`${API}/api/admin/groups/${groupId}/stats?month=${encodeURIComponent(month)}`, {
+          headers: { 'x-admin-key': sessionStorage.getItem('admin_auth') || '' }
+        });
+        const statsData = await statsRes.json();
+        if (statsRes.ok && statsData.stats) {
+          setChart(statsData.stats);
+        }
+      }
     } catch (err) {
       setStudents([]);
+      setChart({ labels: [], values: [], averageScore: 0, highestScore: 0, maxValue: 0, lessonStats: [] });
       showToast(err.message || 'O‘quvchilarni olishda xatolik', 'error');
     }
     setLoading(false);
@@ -273,6 +334,28 @@ function GradesSection({ onDataChange }) {
   useEffect(() => {
     loadGroups();
   }, []);
+
+  const handleMonthSelect = (month) => {
+    setSelectedMonth(month);
+    if (selectedGroup) {
+      loadStudents(selectedGroup, month);
+    }
+  };
+
+  const handleAddNewMonth = (e) => {
+    if (e) e.preventDefault();
+    if (!newMonthInput.trim()) return;
+    const m = newMonthInput.trim();
+    if (!availableMonths.includes(m)) {
+      setAvailableMonths((prev) => [m, ...prev]);
+    }
+    setSelectedMonth(m);
+    setNewMonthInput('');
+    setShowAddMonth(false);
+    if (selectedGroup) {
+      loadStudents(selectedGroup, m);
+    }
+  };
 
   const createGroup = async (e) => {
     if (e) e.preventDefault();
@@ -296,8 +379,33 @@ function GradesSection({ onDataChange }) {
       showToast('Yangi guruh muvaffaqiyatli yaratildi!');
       await loadGroups();
       if (data.group && data.group.id) {
-        loadStudents(data.group.id);
+        loadStudents(data.group.id, selectedMonth);
       }
+    } catch (err) {
+      showToast(err.message || 'Xatolik yuz berdi', 'error');
+    }
+    setLoading(false);
+  };
+
+  const deleteGroup = async (groupId, groupName, e) => {
+    if (e) e.stopPropagation();
+    if (!window.confirm(`Haqiqatan ham "${groupName}" guruhini va uning barcha oylik baholarini butunlay o'chirmoqchimisiz?`)) {
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await fetch(`${API}/api/admin/groups/${groupId}`, {
+        method: 'DELETE',
+        headers: { 'x-admin-key': sessionStorage.getItem('admin_auth') || '' }
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Guruhni o‘chirishda xatolik');
+      showToast(`"${groupName}" guruhi muvaffaqiyatli o'chirildi!`);
+      if (selectedGroup === groupId) {
+        setSelectedGroup(null);
+        setStudents([]);
+      }
+      await loadGroups();
     } catch (err) {
       showToast(err.message || 'Xatolik yuz berdi', 'error');
     }
@@ -320,38 +428,91 @@ function GradesSection({ onDataChange }) {
         },
         body: JSON.stringify({
           full_name: newStudentName.trim(),
-          telegram_id: newStudentTg.trim() ? parseInt(newStudentTg.trim()) || null : null
+          month_key: selectedMonth
         })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'O‘quvchi qo‘shishda xatolik');
       setNewStudentName('');
-      setNewStudentTg('');
       showToast("O'quvchi guruhga qo'shildi!");
-      loadStudents(selectedGroup);
+      loadStudents(selectedGroup, selectedMonth);
     } catch (err) {
       showToast(err.message || 'Xatolik yuz berdi', 'error');
     }
     setLoading(false);
   };
 
-  const updatePoints = async (studentId, points) => {
-    const numericPoints = Math.max(0, parseInt(points, 10) || 0);
+  const updateLessonGrade = async (studentId, lessonNum, grade) => {
+    // Optimistic UI update
+    setStudents((prev) =>
+      prev.map((s) => {
+        const sId = s.telegram_id || s.id;
+        if (sId === studentId) {
+          const updatedGrades = { ...(s.lesson_grades || {}) };
+          if (grade === null || grade === '' || grade === undefined) {
+            delete updatedGrades[lessonNum];
+            delete updatedGrades[String(lessonNum)];
+          } else {
+            updatedGrades[String(lessonNum)] = Number(grade);
+          }
+          const validGrades = Object.values(updatedGrades).map(Number).filter((n) => Number.isFinite(n) && n >= 0 && n <= 5);
+          const newTotal = validGrades.reduce((a, b) => a + b, 0);
+          return {
+            ...s,
+            lesson_grades: updatedGrades,
+            current_month_points: newTotal,
+            total_points: newTotal,
+          };
+        }
+        return s;
+      })
+    );
+
     try {
-      const res = await fetch(`${API}/api/admin/students/${studentId}/grade`, {
+      const res = await fetch(`${API}/api/admin/students/${studentId}/lesson-grade`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           'x-admin-key': sessionStorage.getItem('admin_auth') || ''
         },
-        body: JSON.stringify({ group_id: selectedGroup, points: numericPoints })
+        body: JSON.stringify({
+          group_id: selectedGroup,
+          lesson_num: lessonNum,
+          grade: grade === '' || grade === undefined ? null : grade,
+          month_key: selectedMonth
+        })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Bahoni saqlashda xatolik');
-      showToast('Ball muvaffaqiyatli saqlandi!');
-      loadStudents(selectedGroup);
+      showToast(`${lessonNum}-dars bahosi saqlandi!`);
+      // Yangilangan statistikani qayta yuklash
+      if (selectedGroup) {
+        const statsRes = await fetch(`${API}/api/admin/groups/${selectedGroup}/stats?month=${encodeURIComponent(selectedMonth)}`, {
+          headers: { 'x-admin-key': sessionStorage.getItem('admin_auth') || '' }
+        });
+        const statsData = await statsRes.json();
+        if (statsRes.ok && statsData.stats) setChart(statsData.stats);
+      }
     } catch (err) {
       showToast(err.message || 'Bahoni saqlashda xatolik', 'error');
+      loadStudents(selectedGroup, selectedMonth);
+    }
+  };
+
+  const deleteStudent = async (studentId) => {
+    if (!window.confirm("Haqiqatan ham ushbu o'quvchini guruhdan o'chirmoqchimisiz?")) return;
+
+    try {
+      const res = await fetch(`${API}/api/admin/groups/${selectedGroup}/students/${studentId}`, {
+        method: 'DELETE',
+        headers: { 'x-admin-key': sessionStorage.getItem('admin_auth') || '' }
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'O‘quvchini o‘chirishda xatolik');
+      showToast("O'quvchi guruhdan muvaffaqiyatli o'chirildi!");
+      loadStudents(selectedGroup, selectedMonth);
+    } catch (err) {
+      showToast(err.message || 'O‘quvchini o‘chirishda xatolik', 'error');
     }
   };
 
@@ -365,9 +526,9 @@ function GradesSection({ onDataChange }) {
     <div className="admin-section">
       <div className="admin-section-header">
         <div>
-          <h2>📚 Baholar & O'quvchilar Reytingi</h2>
+          <h2>📚 Baholar & 12 Darslik Oylik Jurnal</h2>
           <p className="admin-section-desc">
-            Guruhlar yarating, o'quvchilarni qo'shing va oylik ballarni belgilang.
+            Guruhlar yarating, o'quvchilarni qo'shing va har bir oy uchun 12 ta dars bo'yicha baholang.
           </p>
         </div>
       </div>
@@ -399,7 +560,7 @@ function GradesSection({ onDataChange }) {
         </form>
       </div>
 
-      {/* Asosiy 2 ustunli / Mobil mos blok */}
+      {/* Asosiy 2 ustunli blok */}
       <div className="admin-two-cols">
         {/* Chap ustun: Guruhlar ro'yxati */}
         <div className="admin-card col-groups">
@@ -419,58 +580,117 @@ function GradesSection({ onDataChange }) {
               {groups.map((g) => {
                 const isSelected = selectedGroup === g.id;
                 return (
-                  <button
+                  <div
                     key={g.id}
-                    type="button"
                     className={`group-item ${isSelected ? 'selected' : ''}`}
-                    onClick={() => loadStudents(g.id)}
+                    onClick={() => loadStudents(g.id, selectedMonth)}
+                    style={{ cursor: 'pointer', position: 'relative' }}
                   >
                     <div className="group-item-info">
                       <span className="group-name">{g.name}</span>
-                      <span className="group-code">Guruh ID: #{g.id}</span>
+                      <span className="group-code">ID: #{g.id}</span>
                     </div>
-                    <span className="group-item-chevron">{isSelected ? '●' : '→'}</span>
-                  </button>
+                    <div className="group-item-actions" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <button
+                        type="button"
+                        className="group-delete-btn"
+                        onClick={(e) => deleteGroup(g.id, g.name, e)}
+                        title="Guruhni o'chirish"
+                      >
+                        🗑️
+                      </button>
+                      <span className="group-item-chevron">{isSelected ? '●' : '→'}</span>
+                    </div>
+                  </div>
                 );
               })}
             </div>
           )}
         </div>
 
-        {/* O'ng ustun: Tanlangan guruh o'quvchilari */}
+        {/* O'ng ustun: Tanlangan guruh o'quvchilari va 12 dars jurnali */}
         <div className="admin-card col-students">
           {selectedGroup ? (
             <>
+              {/* Guruh boshqaruv paneli */}
               <div className="students-header-bar">
                 <div>
                   <h3 className="admin-card-title" style={{ margin: 0 }}>
                     <span>👥 {currentGroupObj ? currentGroupObj.name : 'Guruh'}</span>
                   </h3>
-                  <span className="group-id-pill">Guruh kodi: ID #{selectedGroup}</span>
+                  <span className="group-id-pill">Guruh ID: #{selectedGroup}</span>
                 </div>
-                <span className="badge-count">{students.length} nafar o'quvchi</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span className="badge-count">{students.length} nafar o'quvchi</span>
+                  <button
+                    type="button"
+                    className="admin-btn small danger"
+                    onClick={(e) => deleteGroup(selectedGroup, currentGroupObj ? currentGroupObj.name : 'Guruh', e)}
+                    title="Shu guruhni o'chirish"
+                  >
+                    🗑️ Guruhni o'chirish
+                  </button>
+                </div>
               </div>
 
-              {/* Yangi o'quvchi qo'shish shakli */}
+              {/* OYLIK BAHOLASH VA OYNI TANLASH PANELI */}
+              <div className="month-selector-bar">
+                <div className="month-selector-header">
+                  <span className="month-selector-label">📅 Baholash Oyi:</span>
+                  <strong className="current-month-display">{formatMonthName(selectedMonth)}</strong>
+                </div>
+
+                <div className="month-pills-list">
+                  {availableMonths.map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      className={`month-pill-btn ${selectedMonth === m ? 'active' : ''}`}
+                      onClick={() => handleMonthSelect(m)}
+                    >
+                      {formatMonthName(m)}
+                      {m === getCurrentMonthStr() ? ' (Hozirgi)' : ''}
+                    </button>
+                  ))}
+
+                  {!showAddMonth ? (
+                    <button
+                      type="button"
+                      className="month-pill-btn add-new-month"
+                      onClick={() => setShowAddMonth(true)}
+                    >
+                      ➕ Boshqa oy qo'shish
+                    </button>
+                  ) : (
+                    <form onSubmit={handleAddNewMonth} className="add-month-inline-form">
+                      <input
+                        type="month"
+                        value={newMonthInput}
+                        onChange={(e) => setNewMonthInput(e.target.value)}
+                        className="admin-input-compact"
+                        required
+                        autoFocus
+                      />
+                      <button type="submit" className="admin-btn small primary">Ochish</button>
+                      <button type="button" className="admin-btn small" onClick={() => setShowAddMonth(false)}>✕</button>
+                    </form>
+                  )}
+                </div>
+              </div>
+
+              {/* Yangi o'quvchi qo'shish shakli — faqat ism */}
               <form onSubmit={addStudent} className="add-student-form">
                 <input
                   type="text"
-                  placeholder="O'quvchi ismi familiyasi *"
+                  placeholder="O'quvchi ismi (masalan: Fotima)... *"
                   value={newStudentName}
                   onChange={(e) => setNewStudentName(e.target.value)}
                   className="admin-input"
+                  style={{ flex: 1 }}
                   required
                 />
-                <input
-                  type="number"
-                  placeholder="Telegram ID (ixtiyoriy)"
-                  value={newStudentTg}
-                  onChange={(e) => setNewStudentTg(e.target.value)}
-                  className="admin-input"
-                  style={{ maxWidth: '180px' }}
-                />
                 <button type="submit" className="admin-btn primary" disabled={loading}>
-                  + Qo'shish
+                  + O'quvchi qo'shish
                 </button>
               </form>
 
@@ -487,54 +707,147 @@ function GradesSection({ onDataChange }) {
                 </div>
               )}
 
-              {/* O'quvchilar ro'yxati / Reyting */}
+              {/* Ustunli Diagramma / Column Chart — Shu guruhning 12 ta darsi bo'yicha */}
+              <div className="grade-chart-card">
+                <div className="grade-chart-header">
+                  <div>
+                    <h4>📊 {currentGroupObj ? currentGroupObj.name : 'Guruh'} — {formatMonthName(selectedMonth)} Statistikasi</h4>
+                    <p>{students.length} nafar o‘quvchining 12 ta dars bo‘yicha o‘zlashtirish ko‘rsatkichlari</p>
+                  </div>
+                  <div className="chart-stat-badges">
+                    <div className="mini-stat-badge">
+                      <span className="mini-stat-title">Oylik darslar</span>
+                      <strong className="mini-stat-val text-gold">12 ta</strong>
+                    </div>
+                    <div className="mini-stat-badge">
+                      <span className="mini-stat-title">Guruh o'rtacha</span>
+                      <strong className="mini-stat-val text-green">{chart.averageScore || 0} ball</strong>
+                    </div>
+                    <div className="mini-stat-badge">
+                      <span className="mini-stat-title">O'quvchilar</span>
+                      <strong className="mini-stat-val">{students.length} ta</strong>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="column-chart-wrapper">
+                  <div className="column-chart-grid" aria-label="12 ta dars ustunli diagrammasi" style={{ gridTemplateColumns: 'repeat(12, 1fr)', minWidth: '580px' }}>
+                    {(chart.lessonStats || Array.from({ length: 12 }, (_, i) => ({ lessonNum: i + 1, averageScore: 0, gradedCount: 0 }))).map((ls) => {
+                      const avg = ls.averageScore || 0;
+                      const heightPercent = avg > 0 ? Math.max(16, (avg / 5) * 100) : 0;
+                      
+                      let barBg = 'linear-gradient(180deg, #E5E7EB 0%, #D1D5DB 100%)';
+                      if (avg >= 4.5) barBg = 'linear-gradient(180deg, #34D399 0%, #10B981 100%)';
+                      else if (avg >= 3.5) barBg = 'linear-gradient(180deg, #D4AF37 0%, #8C5A3C 100%)';
+                      else if (avg >= 2.5) barBg = 'linear-gradient(180deg, #60A5FA 0%, #3B82F6 100%)';
+                      else if (avg > 0) barBg = 'linear-gradient(180deg, #FB923C 0%, #F97316 100%)';
+
+                      return (
+                        <div className="column-chart-item" key={ls.lessonNum}>
+                          <div className="column-value-tag" style={{ fontSize: '0.74rem' }}>
+                            {avg > 0 ? `${avg}` : '-'}
+                          </div>
+                          <div className="column-track" style={{ height: '110px' }}>
+                            <div
+                              className="column-bar"
+                              style={{
+                                height: `${heightPercent}%`,
+                                background: barBg,
+                              }}
+                            >
+                              {heightPercent >= 50 && <span className="bar-inner-percent">{avg}</span>}
+                            </div>
+                          </div>
+                          <div className="column-axis-label">
+                            <strong style={{ fontSize: '0.78rem' }}>{ls.lessonNum}-dars</strong>
+                            <small>{ls.gradedCount || 0} kishi</small>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              {/* O'quvchilar ro'yxati — 12 ta dars jurnali */}
               {filteredStudents.length === 0 ? (
                 <div className="admin-empty-state">
                   <span className="empty-icon">👨‍🎓</span>
-                  <p>Bu guruhda hali o'quvchilar yo'q.</p>
-                  <small>Yuqoridagi shakldan o'quvchini qo'shing.</small>
+                  <p>Bu guruhda {formatMonthName(selectedMonth)} uchun o'quvchilar topilmadi.</p>
+                  <small>Yuqoridagi shakldan o'quvchi ismini kiritib qo'shing.</small>
                 </div>
               ) : (
                 <div className="students-cards-container">
                   {filteredStudents
                     .sort((a, b) => (b.current_month_points || 0) - (a.current_month_points || 0))
-                    .map((s, idx) => (
-                      <div className="student-row-card" key={s.telegram_id || idx}>
-                        <div className="student-main-info">
-                          <span className={`rank-badge rank-${idx + 1}`}>
-                            {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `#${idx + 1}`}
-                          </span>
-                          <div>
-                            <strong className="student-name">{s.full_name}</strong>
-                            <div className="student-meta">
-                              {s.telegram_id && <span>TG ID: {s.telegram_id}</span>}
-                              <span className="current-pts">Joriy ball: {s.current_month_points || 0}</span>
+                    .map((s, idx) => {
+                      const sId = s.telegram_id || s.id || idx;
+                      const grades = s.lesson_grades || {};
+                      const gradedLessons = Object.values(grades).filter((v) => v !== null && v !== undefined && v !== '');
+                      const totalPts = s.current_month_points || 0;
+                      const avgGrade = gradedLessons.length > 0 ? (totalPts / gradedLessons.length).toFixed(1) : '0';
+
+                      return (
+                        <div className="student-journal-card" key={sId}>
+                          <div className="student-journal-top">
+                            <div className="student-main-info">
+                              <span className={`rank-badge rank-${idx + 1}`}>
+                                {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `#${idx + 1}`}
+                              </span>
+                              <div>
+                                <strong className="student-name">{s.full_name}</strong>
+                                <div className="student-journal-meta">
+                                  <span className="badge-total-pts">Jami: {totalPts} ball</span>
+                                  <span className="badge-avg-pts">O'rtacha: {avgGrade} ★</span>
+                                  <span className="badge-lessons-count">{gradedLessons.length}/12 dars baholandi</span>
+                                </div>
+                              </div>
                             </div>
+
+                            <button
+                              type="button"
+                              className="admin-btn-icon-delete"
+                              onClick={() => deleteStudent(sId)}
+                              title="O‘quvchini guruhdan o‘chirish"
+                            >
+                              🗑️
+                            </button>
+                          </div>
+
+                          {/* 12 ta Dars Katakchalari */}
+                          <div className="lessons-journal-grid">
+                            {Array.from({ length: 12 }, (_, i) => {
+                              const lessonNum = i + 1;
+                              const currentGrade = grades[lessonNum] ?? grades[String(lessonNum)];
+                              const hasGrade = currentGrade !== undefined && currentGrade !== null && currentGrade !== '';
+
+                              return (
+                                <div className={`lesson-cell ${hasGrade ? 'has-grade grade-' + currentGrade : 'empty'}`} key={lessonNum}>
+                                  <div className="lesson-cell-header">
+                                    <span className="lesson-cell-title">{lessonNum}-dars</span>
+                                    {hasGrade && <span className="lesson-score-pill">{currentGrade} ball</span>}
+                                  </div>
+                                  <select
+                                    className="lesson-grade-select"
+                                    value={hasGrade ? currentGrade : ''}
+                                    onChange={(e) => updateLessonGrade(sId, lessonNum, e.target.value)}
+                                    title={`${lessonNum}-dars bahosini tanlang (${formatMonthName(selectedMonth)})`}
+                                  >
+                                    <option value="">— (Bo'sh)</option>
+                                    <option value="5">5 ball ★★★★★</option>
+                                    <option value="4">4 ball ★★★★</option>
+                                    <option value="3">3 ball ★★★</option>
+                                    <option value="2">2 ball ★★</option>
+                                    <option value="1">1 ball ★</option>
+                                    <option value="0">0 ball (Qatnashmadi)</option>
+                                  </select>
+                                </div>
+                              );
+                            })}
                           </div>
                         </div>
-
-                        <div className="student-actions">
-                          <input
-                            type="number"
-                            min="0"
-                            max="100"
-                            defaultValue={s.current_month_points || 0}
-                            id={`pts-${s.telegram_id}`}
-                            className="grade-num-input"
-                          />
-                          <button
-                            type="button"
-                            className="admin-btn small primary"
-                            onClick={() => {
-                              const el = document.getElementById(`pts-${s.telegram_id}`);
-                              if (el) updatePoints(s.telegram_id, el.value);
-                            }}
-                          >
-                            Saqlash
-                          </button>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                 </div>
               )}
             </>
@@ -977,6 +1290,152 @@ function VideosSection() {
         <div className="admin-info-box">
           <p>
             <strong>Eslatma:</strong> Barcha guruhlar, o'quvchilar va baholar PostgreSQL ma'lumotlar bazasida doimiy saqlanadi. Render bepul rejasida yuklangan rasmlar (uploads) server qayta yonganida o'chmasligi uchun muhim natijalarni Telegram kanalda ham e'lon qilish tavsiya etiladi.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// =====================================================================
+// SOZLAMALAR BO'LIMI — Parolni o'zgartirish
+// =====================================================================
+function SettingsSection() {
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showCurrent, setShowCurrent] = useState(false);
+  const [showNew, setShowNew] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [msg, setMsg] = useState({ text: '', type: 'success' });
+
+  const showToast = (text, type = 'success') => {
+    setMsg({ text, type });
+    setTimeout(() => setMsg({ text: '', type: 'success' }), 4000);
+  };
+
+  const handleChangePassword = async (e) => {
+    e.preventDefault();
+    if (newPassword !== confirmPassword) {
+      showToast('Yangi parollar bir-biriga mos kelmadi!', 'error');
+      return;
+    }
+    if (newPassword.length < 6) {
+      showToast('Yangi parol kamida 6 ta belgidan iborat bo\'lishi kerak!', 'error');
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await fetch(`${API}/api/admin/change-password`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-key': currentPassword,
+        },
+        body: JSON.stringify({ newPassword }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Xatolik yuz berdi');
+      // sessionStorage da yangi parolni saqlash
+      sessionStorage.setItem('admin_auth', newPassword);
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      showToast('✅ Parol muvaffaqiyatli o\'zgartirildi! Keyingi kirishda yangi paroldan foydalaning.');
+    } catch (err) {
+      showToast(err.message || 'Server bilan bog\'lanishda xatolik', 'error');
+    }
+    setLoading(false);
+  };
+
+  return (
+    <div className="admin-section">
+      <div className="admin-section-header">
+        <div>
+          <h2>⚙️ Sozlamalar</h2>
+          <p className="admin-section-desc">Admin panel sozlamalari va xavfsizlik</p>
+        </div>
+      </div>
+
+      {msg.text && (
+        <div className={`admin-toast ${msg.type}`} style={{ marginBottom: '20px', position: 'relative', top: 0 }}>
+          {msg.text}
+        </div>
+      )}
+
+      <div className="admin-card" style={{ maxWidth: '520px' }}>
+        <h3 className="admin-card-title">🔑 Parolni o'zgartirish</h3>
+        <p style={{ color: '#6B7280', marginBottom: '20px', fontSize: '0.95rem', lineHeight: '1.6' }}>
+          Hozirgi parolni kiritib, yangi parol o'rnating. Server qayta ishga tushganda parol asl holatiga qaytadi — doimiy o'zgartirish uchun backend <code>.env</code> faylini yangilang.
+        </p>
+
+        <form onSubmit={handleChangePassword} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <div className="admin-field">
+            <label>Hozirgi parol</label>
+            <div className="password-input-wrap">
+              <input
+                type={showCurrent ? 'text' : 'password'}
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                placeholder="Hozirgi parolni kiriting"
+                className="admin-input"
+                required
+              />
+              <button type="button" className="toggle-password-btn" onClick={() => setShowCurrent(!showCurrent)}>
+                {showCurrent ? '👁️' : '🔒'}
+              </button>
+            </div>
+          </div>
+
+          <div className="admin-field">
+            <label>Yangi parol</label>
+            <div className="password-input-wrap">
+              <input
+                type={showNew ? 'text' : 'password'}
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="Yangi parol (kamida 6 ta belgi)"
+                className="admin-input"
+                minLength={6}
+                required
+              />
+              <button type="button" className="toggle-password-btn" onClick={() => setShowNew(!showNew)}>
+                {showNew ? '👁️' : '🔒'}
+              </button>
+            </div>
+          </div>
+
+          <div className="admin-field">
+            <label>Yangi parolni tasdiqlang</label>
+            <input
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="Yangi parolni qayta kiriting"
+              className="admin-input"
+              required
+            />
+          </div>
+
+          <button
+            type="submit"
+            className="admin-btn primary"
+            disabled={loading}
+            style={{ marginTop: '6px' }}
+          >
+            {loading ? 'O\'zgartirilmoqda...' : '🔑 Parolni o\'zgartirish'}
+          </button>
+        </form>
+      </div>
+
+      <div className="admin-card" style={{ maxWidth: '520px', marginTop: '20px' }}>
+        <h3 className="admin-card-title">ℹ️ Muhim eslatma</h3>
+        <div className="admin-info-box">
+          <p style={{ lineHeight: '1.7' }}>
+            <strong>Server qayta ishga tushganda</strong> parol <code>.env</code> faylidagi
+            <code> ADMIN_PASSWORD</code> qiymatiga qaytadi. Doimiy o'zgartirish uchun
+            Render dashboard yoki <code>backend/.env</code> faylida
+            <code> ADMIN_PASSWORD</code> ni yangilang.
           </p>
         </div>
       </div>

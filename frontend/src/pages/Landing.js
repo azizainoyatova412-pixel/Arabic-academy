@@ -118,8 +118,9 @@ const content = {
       desc: "Darslarimizda ishtirok etgan o'quvchilarning samimiy taassurotlari.",
       empty: "Sharhlar tez orada qo'shiladi.",
     },
-  
+
     contact: {
+
       eyebrow: 'Ma‘lumotlarni bot orqali olasiz,',
       title: 'Gap vaqtda emas, shunchaki arab tlini chin dildan xohlash kerak. Qolgani shunchaki ssilka.',
       desc: 'Guruhlar haqida batafsil ma‘lumot Telegram bot orqali beriladi. Dars jadvali va imkoniyatlar haqida bir zumda xabar olasiz.',
@@ -229,14 +230,6 @@ const content = {
       desc: 'Genuine feedback from our participants.',
       empty: 'Reviews will appear soon.',
     },
-    gradesSection: {
-      eyebrow: 'Leaderboard',
-      title: 'Student Performance & Grades',
-      desc: 'Enter your Group ID to inspect rankings and scores.',
-      inputPlaceholder: 'Enter Group ID (e.g. 1)',
-      checkBtn: 'Check Leaderboard',
-      notFound: 'Group not found or no students rated yet.',
-    },
     contact: {
       eyebrow: 'Telegram Admin',
       title: 'No deadlines on self-reinvention. Arabic is hitting deifferent now. ',
@@ -323,14 +316,6 @@ const content = {
       desc: 'Искренние отзывы участников наших курсов.',
       empty: 'Отзывы скоро появятся.',
     },
-    gradesSection: {
-      eyebrow: 'Рейтинг',
-      title: 'Рейтинг успеваемости групп',
-      desc: 'Введите номер группы, чтобы проверить баллы.',
-      inputPlaceholder: 'Введите ID группы (например: 1)',
-      checkBtn: 'Посмотреть рейтинг',
-      notFound: 'Группа не найдена или баллы еще не выставлены.',
-    },
     contact: {
       eyebrow: 'Telegram администратор',
       title: 'Информацию вы получите через бота',
@@ -361,12 +346,6 @@ function Landing() {
   const [resultsList, setResultsList] = useState([]);
   const [reviewsList, setReviewsList] = useState([]);
 
-  // Leaderboard qidiruvi
-  const [groupIdInput, setGroupIdInput] = useState('');
-  const [leaderboardData, setLeaderboardData] = useState(null);
-  const [leaderboardError, setLeaderboardError] = useState('');
-  const [leaderboardLoading, setLeaderboardLoading] = useState(false);
-
   // Natijalar va sharhlarni serverdan yuklash
   useEffect(() => {
     // Natijalar
@@ -385,28 +364,6 @@ function Landing() {
       })
       .catch(() => {});
   }, []);
-
-  const handleLookupLeaderboard = async (e) => {
-    e.preventDefault();
-    if (!groupIdInput.trim()) return;
-    setLeaderboardLoading(true);
-    setLeaderboardError('');
-    setLeaderboardData(null);
-
-    try {
-      const res = await fetch(`${API}/api/leaderboard/${encodeURIComponent(groupIdInput.trim())}`);
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || t.gradesSection.notFound);
-      if (!data.leaderboard || data.leaderboard.length === 0) {
-        setLeaderboardError(t.gradesSection.notFound);
-      } else {
-        setLeaderboardData(data.leaderboard);
-      }
-    } catch (err) {
-      setLeaderboardError(err.message || t.gradesSection.notFound);
-    }
-    setLeaderboardLoading(false);
-  };
 
   const videoLabel = (num) => {
     if (lang === 'UZ') return 'Video ' + num;
@@ -765,68 +722,6 @@ function Landing() {
           </div>
         </section>
 
-        {/* Guruh reytingini tekshirish bo'limi */}
-        <section className="grades-section" id="leaderboard">
-          <div className="container">
-            <div className="section-header">
-              <div className="section-title-wrap">
-                <span className="eyebrow eyebrow-dark">{t.gradesSection.eyebrow}</span>
-              </div>
-              <h2>{t.gradesSection.title}</h2>
-              <p className="goals-desc">{t.gradesSection.desc}</p>
-            </div>
-
-            <form onSubmit={handleLookupLeaderboard} className="grades-lookup-form">
-              <input
-                type="number"
-                placeholder={t.gradesSection.inputPlaceholder}
-                value={groupIdInput}
-                onChange={(e) => setGroupIdInput(e.target.value)}
-                className="grades-input"
-                min="1"
-                required
-              />
-              <button type="submit" className="btn-primary" disabled={leaderboardLoading}>
-                {leaderboardLoading ? 'Tekshirilmoqda...' : t.gradesSection.checkBtn}
-              </button>
-            </form>
-
-            {leaderboardError && (
-              <div className="grades-error">
-                <span>⚠️ {leaderboardError}</span>
-              </div>
-            )}
-
-            {leaderboardData && leaderboardData.length > 0 && (
-              <div className="grades-table-wrap">
-                <table className="grades-table">
-                  <thead>
-                    <tr>
-                      <th style={{ width: '60px' }}>#</th>
-                      <th>O'quvchi</th>
-                      <th style={{ textAlign: 'right' }}>Oylik ball</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {leaderboardData.map((st, idx) => (
-                      <tr key={st.telegram_id || idx} className={idx < 3 ? 'top-row' : ''}>
-                        <td className="rank-cell">
-                          {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : idx + 1}
-                        </td>
-                        <td>
-                          <strong>{st.full_name}</strong>
-                        </td>
-                        <td style={{ textAlign: 'right' }}>
-                          <span className="points-badge pub">{st.current_month_points || 0}</span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        </section>
 
         {/* Bog'lanish bo'limi */}
         <section className="contact-section" id="contact">

@@ -76,8 +76,21 @@ const initDb = async () => {
         stars INT DEFAULT 5,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+
+      CREATE TABLE IF NOT EXISTS monthly_grades (
+        id SERIAL PRIMARY KEY,
+        group_id INT NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+        telegram_id BIGINT NOT NULL,
+        month_key VARCHAR(30) NOT NULL,
+        lesson_grades JSONB DEFAULT '{}'::jsonb,
+        total_points INT DEFAULT 0,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(group_id, telegram_id, month_key)
+      );
+
+      ALTER TABLE enrollments ADD COLUMN IF NOT EXISTS lesson_grades JSONB DEFAULT '{}'::jsonb;
     `);
-    console.log('✅ Baza jadvallari (users, payments, enrollments) tekshirildi va tayyor.');
+    console.log('✅ Baza jadvallari (users, payments, enrollments, monthly_grades) tekshirildi va tayyor.');
 
     // Namunaviy test ma'lumotlarini qo'shish (agar o'quvchilar bo'lmasa)
     const checkUsers = await pool.query('SELECT COUNT(*) FROM users');

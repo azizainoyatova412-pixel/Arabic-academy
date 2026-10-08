@@ -2133,6 +2133,116 @@ a {
   cursor: not-allowed; 
 }
 
+.grade-chart-card {
+  margin-bottom: 18px;
+  padding: 20px;
+  border: 1.5px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(180deg, #FFF 0%, var(--panel-alt) 100%);
+}
+
+.grade-chart-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 18px;
+}
+
+.grade-chart-header h4 {
+  margin: 0 0 4px;
+  color: var(--text-main);
+  font-size: 1rem;
+}
+
+.grade-chart-header p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.grade-summary {
+  min-width: 96px;
+  text-align: center;
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  background: var(--accent-light);
+  border: 1px solid var(--line);
+}
+
+.grade-summary strong {
+  display: block;
+  font-size: 1.35rem;
+  color: var(--text-main);
+}
+
+.grade-summary span {
+  color: var(--text-soft);
+  font-size: 0.72rem;
+}
+
+.grade-chart-bars {
+  height: 180px;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(36px, 1fr));
+  align-items: end;
+  gap: 12px;
+  padding: 12px 8px 4px;
+  background: rgba(255,255,255,0.55);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+}
+
+.grade-bar-group {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.grade-bar-value {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+.grade-bar-track {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0 4px;
+  border-radius: 10px 10px 0 0;
+  background: linear-gradient(180deg, rgba(140,90,60,0.04), rgba(140,90,60,0.12));
+}
+
+.grade-bar-fill {
+  display: block;
+  width: 100%;
+  border-radius: 10px 10px 0 0;
+  min-height: 6px;
+  background: linear-gradient(180deg, var(--gold-tint), var(--accent-color));
+  box-shadow: 0 0 0 1px rgba(140,90,60,0.12);
+}
+
+.grade-bar-label {
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: var(--text-soft);
+}
+
+.grade-chart-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 14px;
+  color: var(--text-soft);
+  font-size: 0.75rem;
+}
+
 .admin-empty-state {
   text-align: center;
   padding: 36px 16px;
@@ -2305,28 +2415,540 @@ a {
 .current-pts {
   color: var(--accent-color);
   font-weight: 700;
+  background: var(--accent-light);
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  font-size: 0.82rem;
 }
 
 .student-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
 }
 
-.grade-num-input {
-  width: 68px;
-  padding: 7px 10px;
+.grade-quick-select {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: #ffffff;
+  padding: 4px;
+  border-radius: var(--radius-pill);
   border: 1.5px solid var(--line);
-  border-radius: var(--radius-sm);
-  font-size: 0.92rem;
+}
+
+.grade-pill-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: var(--text-soft);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.grade-pill-btn:hover {
+  background: var(--panel-alt);
+  color: var(--text-main);
+  transform: scale(1.1);
+}
+
+.grade-pill-btn.active {
+  background: linear-gradient(135deg, #1A7A5E 0%, #115E46 100%);
+  color: #ffffff;
+  box-shadow: 0 4px 10px rgba(26, 122, 94, 0.35);
+  transform: scale(1.08);
+}
+
+.admin-btn-icon-delete {
+  background: #FEF2F2;
+  border: 1.5px solid #FCA5A5;
+  border-radius: 50%;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  color: #DC2626;
+}
+
+.admin-btn-icon-delete:hover {
+  background: #DC2626;
+  border-color: #DC2626;
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.25);
+}
+
+/* ========================================================= */
+/* BAR & COLUMN CHART (USTUNLI DIAGRAMMA) STILARI            */
+/* ========================================================= */
+.grade-chart-card {
+  background: #FFFFFF;
+  border: 1.5px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: 22px;
+  margin-bottom: 24px;
+  box-shadow: 0 4px 20px rgba(61, 32, 15, 0.05);
+}
+
+.grade-chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1.5px solid var(--line);
+}
+
+.grade-chart-header h4 {
+  margin: 0 0 4px 0;
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--text-main);
+}
+
+.grade-chart-header p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-soft);
+}
+
+.chart-stat-badges {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.mini-stat-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: var(--panel-alt);
+  border: 1px solid var(--line);
+  padding: 6px 14px;
+  border-radius: var(--radius-md);
+  min-width: 80px;
+}
+
+.mini-stat-title {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+.mini-stat-val {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--text-main);
+  margin-top: 2px;
+}
+
+.text-gold { color: #D97706 !important; }
+.text-green { color: #10B981 !important; }
+
+/* Column Chart Container */
+.column-chart-wrapper {
+  padding: 10px 0 6px 0;
+  overflow-x: auto;
+}
+
+.column-chart-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 14px;
+  align-items: end;
+  min-width: 320px;
+  height: 200px;
+  padding-bottom: 4px;
+}
+
+.column-chart-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+  justify-content: flex-end;
+  position: relative;
+}
+
+.column-value-tag {
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: var(--text-main);
+  margin-bottom: 8px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--panel-alt);
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--line);
+}
+
+.empty-val {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.column-track {
+  width: 100%;
+  max-width: 52px;
+  height: 130px;
+  background: rgba(0, 0, 0, 0.03);
+  border-radius: 12px 12px 6px 6px;
+  display: flex;
+  align-items: flex-end;
+  padding: 4px;
+  border: 1px dashed rgba(0, 0, 0, 0.08);
+  transition: all 0.2s;
+}
+
+.column-chart-item:hover .column-track {
+  background: rgba(0, 0, 0, 0.06);
+  border-color: var(--gold-tint);
+}
+
+.column-bar {
+  width: 100%;
+  border-radius: 8px 8px 4px 4px;
+  transition: height 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  position: relative;
+  min-height: 4px;
+}
+
+.bar-inner-percent {
+  font-size: 0.72rem;
+  color: #FFFFFF;
+  font-weight: 800;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+.column-axis-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 10px;
   text-align: center;
-  outline: none;
+}
+
+.column-axis-label strong {
+  font-size: 0.84rem;
+  color: var(--text-main);
+}
+
+.column-axis-label small {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-top: 1px;
+}
+
+/* ========================================================= */
+/* OYNI TANLASH VA GURUH BOSHQUVI STILARI                    */
+/* ========================================================= */
+.group-delete-btn {
+  background: transparent;
+  border: none;
+  font-size: 0.92rem;
+  padding: 4px;
+  cursor: pointer;
+  opacity: 0.5;
+  transition: all 0.2s;
+  border-radius: 4px;
+}
+
+.group-item:hover .group-delete-btn {
+  opacity: 1;
+}
+
+.group-delete-btn:hover {
+  background: #FEE2E2;
+  transform: scale(1.2);
+}
+
+.month-selector-bar {
+  background: #FFFFFF;
+  border: 1.5px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: 14px 18px;
+  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+}
+
+.month-selector-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.month-selector-label {
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: var(--text-soft);
+}
+
+.current-month-display {
+  font-size: 0.98rem;
+  font-weight: 800;
+  color: var(--accent-color);
+  background: var(--accent-light);
+  padding: 3px 12px;
+  border-radius: var(--radius-pill);
+}
+
+.month-pills-list {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.month-pill-btn {
+  background: var(--panel-alt);
+  border: 1.5px solid var(--line);
+  padding: 6px 14px;
+  border-radius: var(--radius-pill);
+  font-size: 0.84rem;
   font-weight: 700;
   color: var(--text-main);
-  background: #fff;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-.grade-num-input:focus {
+.month-pill-btn:hover {
+  background: #FFFFFF;
+  border-color: var(--accent-color);
+  transform: translateY(-1px);
+}
+
+.month-pill-btn.active {
+  background: linear-gradient(135deg, #1A7A5E 0%, #115E46 100%);
+  color: #FFFFFF;
+  border-color: transparent;
+  box-shadow: 0 4px 12px rgba(26, 122, 94, 0.28);
+}
+
+.month-pill-btn.add-new-month {
+  border-style: dashed;
+  background: transparent;
+  color: var(--text-soft);
+}
+
+.month-pill-btn.add-new-month:hover {
+  background: var(--accent-light);
+  color: var(--accent-color);
+  border-style: solid;
+}
+
+.add-month-inline-form {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.admin-input-compact {
+  padding: 5px 10px;
+  border: 1.5px solid var(--line);
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  outline: none;
+  font-weight: 600;
+  color: var(--text-main);
+  background: #FFFFFF;
+}
+
+.admin-input-compact:focus {
+  border-color: var(--accent-color);
+}
+
+/* ========================================================= */
+/* 12 TA DARSLIK OYLIK JURNAL STILARI                        */
+/* ========================================================= */
+.student-journal-card {
+  background: #FFFFFF;
+  border: 1.5px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+}
+
+.student-journal-card:hover {
+  border-color: var(--gold-tint);
+  box-shadow: 0 8px 24px rgba(61, 32, 15, 0.08);
+}
+
+.student-journal-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.student-journal-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.badge-total-pts {
+  background: var(--accent-light);
+  color: var(--accent-color);
+  font-weight: 800;
+  font-size: 0.82rem;
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+}
+
+.badge-avg-pts {
+  background: #FEF3C7;
+  color: #D97706;
+  font-weight: 800;
+  font-size: 0.82rem;
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+}
+
+.badge-lessons-count {
+  background: #F3F4F6;
+  color: #4B5563;
+  font-weight: 600;
+  font-size: 0.78rem;
+  padding: 3px 8px;
+  border-radius: var(--radius-pill);
+}
+
+/* 12 Dars Gridi */
+.lessons-journal-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 10px;
+}
+
+@media (min-width: 1200px) {
+  .lessons-journal-grid {
+    grid-template-columns: repeat(6, 1fr);
+  }
+}
+
+.lesson-cell {
+  background: var(--panel-alt);
+  border: 1.5px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: all 0.2s;
+}
+
+.lesson-cell.empty {
+  opacity: 0.85;
+}
+
+.lesson-cell.empty:hover {
+  opacity: 1;
+  border-color: #9CA3AF;
+}
+
+.lesson-cell.has-grade {
+  background: #FFFFFF;
+  border-color: var(--accent-color);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+}
+
+.lesson-cell.grade-5 {
+  border-color: #10B981;
+  background: rgba(16, 185, 129, 0.05);
+}
+
+.lesson-cell.grade-4 {
+  border-color: #D97706;
+  background: rgba(217, 119, 6, 0.05);
+}
+
+.lesson-cell.grade-3 {
+  border-color: #3B82F6;
+  background: rgba(59, 130, 246, 0.05);
+}
+
+.lesson-cell.grade-0,
+.lesson-cell.grade-1,
+.lesson-cell.grade-2 {
+  border-color: #EF4444;
+  background: rgba(239, 68, 68, 0.05);
+}
+
+.lesson-cell-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.lesson-cell-title {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--text-soft);
+  text-transform: uppercase;
+}
+
+.lesson-score-pill {
+  font-size: 0.74rem;
+  font-weight: 800;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: #10B981;
+  color: #FFFFFF;
+}
+
+.lesson-cell.grade-4 .lesson-score-pill { background: #D97706; }
+.lesson-cell.grade-3 .lesson-score-pill { background: #3B82F6; }
+.lesson-cell.grade-2 .lesson-score-pill,
+.lesson-cell.grade-1 .lesson-score-pill,
+.lesson-cell.grade-0 .lesson-score-pill { background: #EF4444; }
+
+.lesson-grade-select {
+  width: 100%;
+  padding: 5px 6px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-main);
+  background: #FFFFFF;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.lesson-grade-select:focus {
   border-color: var(--accent-color);
 }
 
@@ -2586,6 +3208,15 @@ a {
 
   .add-student-form input {
     max-width: unset !important;
+  }
+
+  .grade-chart-header,
+  .grade-chart-footer {
+    flex-direction: column;
+  }
+
+  .grade-summary {
+    width: 100%;
   }
 
   .student-row-card {
