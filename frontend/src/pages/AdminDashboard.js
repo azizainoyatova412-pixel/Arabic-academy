@@ -388,10 +388,13 @@ function GradesSection({ onDataChange }) {
   };
 
   const deleteGroup = async (groupId, groupName, e) => {
-    if (e) e.stopPropagation();
-    if (!window.confirm(`Haqiqatan ham "${groupName}" guruhini va uning barcha oylik baholarini butunlay o'chirmoqchimisiz?`)) {
-      return;
+    if (e) {
+      if (typeof e.preventDefault === 'function') e.preventDefault();
+      if (typeof e.stopPropagation === 'function') e.stopPropagation();
     }
+    const confirmed = window.confirm(`Haqiqatan ham "${groupName}" guruhini va uning barcha oylik baholarini butunlay o'chirmoqchimisiz?`);
+    if (!confirmed) return;
+
     setLoading(true);
     try {
       const res = await fetch(`${API}/api/admin/groups/${groupId}`, {
@@ -400,12 +403,26 @@ function GradesSection({ onDataChange }) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Guruhni o‘chirishda xatolik');
+      
       showToast(`"${groupName}" guruhi muvaffaqiyatli o'chirildi!`);
-      if (selectedGroup === groupId) {
-        setSelectedGroup(null);
-        setStudents([]);
-      }
-      await loadGroups();
+      
+      // Ro'yxatdan zudlik bilan o'chirish (optimistic UI update)
+      setGroups((prev) => {
+        const remaining = prev.filter((g) => g.id !== groupId);
+        if (selectedGroup === groupId) {
+          if (remaining.length > 0) {
+            setSelectedGroup(remaining[0].id);
+            loadStudents(remaining[0].id, selectedMonth);
+          } else {
+            setSelectedGroup(null);
+            setStudents([]);
+            setChart({ labels: [], values: [], averageScore: 0, highestScore: 0, maxValue: 0, lessonStats: [] });
+          }
+        }
+        return remaining;
+      });
+
+      if (onDataChange) onDataChange();
     } catch (err) {
       showToast(err.message || 'Xatolik yuz berdi', 'error');
     }
@@ -499,8 +516,14 @@ function GradesSection({ onDataChange }) {
     }
   };
 
-  const deleteStudent = async (studentId) => {
-    if (!window.confirm("Haqiqatan ham ushbu o'quvchini guruhdan o'chirmoqchimisiz?")) return;
+  const deleteStudent = async (studentId, studentName = '') => {
+    const promptText = studentName
+      ? `"${studentName}" o'quvchisini guruhdan o'chirmoqchimisiz?`
+      : "Haqiqatan ham ushbu o'quvchini guruhdan o'chirmoqchimisiz?";
+    if (!window.confirm(promptText)) return;
+
+    // Darhol ekrandan olib tashlash (tezkor optimistic UI)
+    setStudents((prev) => prev.filter((s) => String(s.telegram_id || s.id) !== String(studentId)));
 
     try {
       const res = await fetch(`${API}/api/admin/groups/${selectedGroup}/students/${studentId}`, {
@@ -509,10 +532,19 @@ function GradesSection({ onDataChange }) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'O‘quvchini o‘chirishda xatolik');
-      showToast("O'quvchi guruhdan muvaffaqiyatli o'chirildi!");
-      loadStudents(selectedGroup, selectedMonth);
+      showToast(studentName ? `"${studentName}" guruhdan o'chirildi!` : "O'quvchi guruhdan muvaffaqiyatli o'chirildi!");
+
+      // Yangilangan statistikani qayta yuklash
+      if (selectedGroup) {
+        const statsRes = await fetch(`${API}/api/admin/groups/${selectedGroup}/stats?month=${encodeURIComponent(selectedMonth)}`, {
+          headers: { 'x-admin-key': sessionStorage.getItem('admin_auth') || '' }
+        });
+        const statsData = await statsRes.json();
+        if (statsRes.ok && statsData.stats) setChart(statsData.stats);
+      }
     } catch (err) {
       showToast(err.message || 'O‘quvchini o‘chirishda xatolik', 'error');
+      loadStudents(selectedGroup, selectedMonth);
     }
   };
 
@@ -807,7 +839,7 @@ function GradesSection({ onDataChange }) {
                             <button
                               type="button"
                               className="admin-btn-icon-delete"
-                              onClick={() => deleteStudent(sId)}
+                              onClick={() => deleteStudent(sId, s.full_name)}
                               title="O‘quvchini guruhdan o‘chirish"
                             >
                               🗑️
@@ -938,6 +970,7 @@ function ResultsSection({ onDataChange }) {
 
   const deleteResult = async (id) => {
     if (!window.confirm("Haqiqatan ham ushbu natijani o'chirmoqchimisiz?")) return;
+    setResults((prev) => prev.filter((r) => r.id !== id));
     try {
       const res = await fetch(`${API}/api/admin/results/${id}`, {
         method: 'DELETE',
@@ -945,10 +978,11 @@ function ResultsSection({ onDataChange }) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Natijani o‘chirishda xatolik');
-      showToast("Natija o'chirildi!");
-      loadResults();
+      showToast("Natija muvaffaqiyatli o'chirildi!");
+      if (onDataChange) onDataChange();
     } catch (err) {
       showToast(err.message || 'O‘chirishda xatolik', 'error');
+      loadResults();
     }
   };
 
@@ -1126,6 +1160,7 @@ function ReviewsSection({ onDataChange }) {
 
   const deleteReview = async (id) => {
     if (!window.confirm("Haqiqatan ham ushbu sharhni o'chirmoqchimisiz?")) return;
+    setReviews((prev) => prev.filter((r) => r.id !== id));
     try {
       const res = await fetch(`${API}/api/admin/reviews/${id}`, {
         method: 'DELETE',
@@ -1133,10 +1168,11 @@ function ReviewsSection({ onDataChange }) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Sharh o‘chirishda xatolik');
-      showToast("Sharh o'chirildi!");
-      loadReviews();
+      showToast("Sharh muvaffaqiyatli o'chirildi!");
+      if (onDataChange) onDataChange();
     } catch (err) {
       showToast(err.message || 'O‘chirishda xatolik', 'error');
+      loadReviews();
     }
   };
 

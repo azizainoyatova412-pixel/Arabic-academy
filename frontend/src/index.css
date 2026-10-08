@@ -2486,6 +2486,37 @@ a {
   box-shadow: 0 4px 12px rgba(220, 38, 38, 0.25);
 }
 
+.group-delete-btn {
+  background: #FEF2F2;
+  border: 1.5px solid #FCA5A5;
+  border-radius: 8px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.92rem;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  color: #DC2626;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 5;
+}
+
+.group-delete-btn:hover {
+  background: #DC2626;
+  border-color: #DC2626;
+  color: #FFFFFF;
+  transform: scale(1.12);
+  box-shadow: 0 4px 10px rgba(220, 38, 38, 0.3);
+}
+
+.group-delete-btn:active,
+.admin-btn-icon-delete:active {
+  transform: scale(0.94);
+}
+
 /* ========================================================= */
 /* BAR & COLUMN CHART (USTUNLI DIAGRAMMA) STILARI            */
 /* ========================================================= */

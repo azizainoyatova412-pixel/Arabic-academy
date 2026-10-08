@@ -30,18 +30,18 @@ exports.createGroup = async (req, res) => {
 
 exports.deleteGroup = async (req, res) => {
   const { groupId } = req.params;
+  const gId = parseInt(groupId, 10);
+  const targetId = isNaN(gId) ? groupId : gId;
+
   try {
-    await db.query('DELETE FROM monthly_grades WHERE group_id = $1', [groupId]).catch(() => {});
-    await db.query('DELETE FROM enrollments WHERE group_id = $1', [groupId]).catch(() => {});
-    await db.query('DELETE FROM payments WHERE group_id = $1', [groupId]).catch(() => {});
-    const result = await db.query('DELETE FROM groups WHERE id = $1 RETURNING *', [groupId]);
+    await db.query('DELETE FROM monthly_grades WHERE group_id = $1', [targetId]).catch(() => {});
+    await db.query('DELETE FROM enrollments WHERE group_id = $1', [targetId]).catch(() => {});
+    await db.query('DELETE FROM payments WHERE group_id = $1', [targetId]).catch(() => {});
+    const result = await db.query('DELETE FROM groups WHERE id = $1 RETURNING *', [targetId]);
 
-    if (result.rowCount === 0) {
-      return res.status(404).json({ error: 'Guruh topilmadi' });
-    }
-
-    res.json({ ok: true, message: 'Guruh muvaffaqiyatli o‘chirildi', group: result.rows[0] });
+    res.json({ ok: true, message: 'Guruh muvaffaqiyatli o‘chirildi', group: result.rows[0] || null });
   } catch (e) {
+    console.error('deleteGroup xatolik:', e.message);
     res.status(500).json({ error: e.message });
   }
 };
@@ -222,21 +222,21 @@ exports.updateGrade = async (req, res) => {
 
 exports.deleteStudent = async (req, res) => {
   const { studentId, groupId } = req.params;
+  const gId = parseInt(groupId, 10);
+  const targetGroupId = isNaN(gId) ? groupId : gId;
 
   try {
-    await db.query('DELETE FROM monthly_grades WHERE telegram_id = $1 AND group_id = $2', [studentId, groupId]).catch(() => {});
+    await db.query('DELETE FROM monthly_grades WHERE telegram_id = $1 AND group_id = $2', [studentId, targetGroupId]).catch(() => {});
+    await db.query('DELETE FROM payments WHERE telegram_id = $1 AND group_id = $2', [studentId, targetGroupId]).catch(() => {});
     const result = await db.query(
       `DELETE FROM enrollments
        WHERE telegram_id = $1 AND group_id = $2 RETURNING *`,
-      [studentId, groupId]
+      [studentId, targetGroupId]
     );
 
-    if (result.rowCount === 0) {
-      return res.status(404).json({ error: 'O‘quvchi bu guruhda topilmadi' });
-    }
-
-    res.json({ ok: true, removed: result.rows[0] });
+    res.json({ ok: true, message: 'O‘quvchi guruhdan muvaffaqiyatli o‘chirildi', removed: result.rows[0] || null });
   } catch (e) {
+    console.error('deleteStudent xatolik:', e.message);
     res.status(500).json({ error: e.message });
   }
 };

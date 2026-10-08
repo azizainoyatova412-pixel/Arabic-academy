@@ -42,6 +42,16 @@ try {
   process.exit(1);
 }
 
+// Favicon generatsiyasi
+try {
+  const favScript = path.join(__dirname, 'generate-favicon.js');
+  if (fs.existsSync(favScript)) {
+    require('./generate-favicon');
+  }
+} catch (e) {
+  console.warn('Favicon generation warning:', e.message);
+}
+
 // 3. Frontend production build yaratish
 try {
   console.log('🔨 [RENDER BUILD] React production bundle yaratilmoqda (npm run build)...');
