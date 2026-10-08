@@ -1,0 +1,10 @@
+{
+  "name": "arabic-academy-root",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "npm --prefix backend install && npm --prefix backend run build",
+    "render:build": "npm --prefix backend install && npm --prefix backend run build",
+    "start": "node backend/src/server.js"
+  }
+}

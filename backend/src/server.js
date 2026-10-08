@@ -119,66 +119,67 @@ app.delete('/api/admin/reviews/:id', adminGuard, contentController.deleteReview)
 // ============================================================
 // SERVER ISHGA TUSHIRISH
 // ============================================================
-const frontendBuildPath = path.join(__dirname, '..', '..', 'frontend', 'build');
-const frontendIndexPath = path.join(frontendBuildPath, 'index.html');
+// Qidiriladigan ehtimoliy frontend build manzillari
+const candidatePaths = [
+  path.join(__dirname, '..', 'build'),                   // backend/build
+  path.join(__dirname, '..', '..', 'frontend', 'build'), // ../frontend/build
+  path.join(process.cwd(), 'build'),                     // cwd/build
+  path.join(process.cwd(), 'frontend', 'build'),          // cwd/frontend/build
+  path.join(process.cwd(), 'backend', 'build')            // cwd/backend/build
+];
 
-if (fs.existsSync(frontendBuildPath)) {
-  app.use(express.static(frontendBuildPath));
-  app.get(/^(?!\/api).*/, (req, res, next) => {
-    if (req.path.startsWith('/api')) return next();
-    res.sendFile(frontendIndexPath);
-  });
-} else {
-  app.get('/', (req, res) => {
-    res.type('html').send(`
-      <!doctype html>
-      <html lang="uz">
-      <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>Uzbikiyya | App is starting</title>
-        <style>
-          body { font-family: Arial, sans-serif; background: #f7efe9; color: #3d200f; display: grid; place-items: center; min-height: 100vh; margin: 0; }
-          .box { background: white; padding: 32px 28px; border-radius: 18px; box-shadow: 0 12px 28px rgba(61,32,15,.08); text-align: center; max-width: 620px; }
-          h1 { margin-bottom: 12px; font-size: 2rem; }
-          p { color: #6e4f39; line-height: 1.6; }
-        </style>
-      </head>
-      <body>
-        <div class="box">
-          <h1>Sayt tayyorlanmoqda</h1>
-          <p>Frontend build hali tayyorlanmoqda. Server ishlayapti, lekin web sahifa allaqachon yuklanmayapti. Iltimos, Render build tugagach qayta yuklang.</p>
-        </div>
-      </body>
-      </html>
-    `);
-  });
-
-  app.get(/^(?!\/api).*/, (req, res) => {
-    res.type('html').send(`
-      <!doctype html>
-      <html lang="uz">
-      <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>Uzbikiyya | App is starting</title>
-        <style>
-          body { font-family: Arial, sans-serif; background: #f7efe9; color: #3d200f; display: grid; place-items: center; min-height: 100vh; margin: 0; }
-          .box { background: white; padding: 32px 28px; border-radius: 18px; box-shadow: 0 12px 28px rgba(61,32,15,.08); text-align: center; max-width: 620px; }
-          h1 { margin-bottom: 12px; font-size: 2rem; }
-          p { color: #6e4f39; line-height: 1.6; }
-        </style>
-      </head>
-      <body>
-        <div class="box">
-          <h1>Frontend build topilmadi</h1>
-          <p>Render ishlayotgan serverda build hali tugamagan yoki build yo'li noto'g'ri. Iltimos, deployni qayta ishga tushiring.</p>
-        </div>
-      </body>
-      </html>
-    `);
-  });
+function resolveFrontendDir() {
+  for (const p of candidatePaths) {
+    if (fs.existsSync(p) && fs.existsSync(path.join(p, 'index.html'))) {
+      return p;
+    }
+  }
+  return null;
 }
+
+const frontendBuildPath = resolveFrontendDir();
+if (frontendBuildPath) {
+  console.log(`📦 [Frontend] Statik sahifa ulashilmoqda: ${frontendBuildPath}`);
+  app.use(express.static(frontendBuildPath));
+}
+
+// Barcha boshqa marshrutlar (SPA client-side routing)
+app.get('*', (req, res, next) => {
+  if (req.path.startsWith('/api') || req.path.startsWith('/uploads')) {
+    return next();
+  }
+
+  const activeDir = resolveFrontendDir();
+  if (activeDir) {
+    return res.sendFile(path.join(activeDir, 'index.html'));
+  }
+
+  res.status(503).type('html').send(`
+    <!doctype html>
+    <html lang="uz">
+    <head>
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <title>Uzbikiyya | Build kutilmoqda</title>
+      <style>
+        body { font-family: system-ui, -apple-system, sans-serif; background: #0f172a; color: #f8fafc; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 20px; box-sizing: border-box; }
+        .card { background: #1e293b; border: 1px solid #334155; border-radius: 16px; padding: 32px; max-width: 520px; text-align: center; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.5); }
+        h1 { color: #38bdf8; margin: 0 0 16px 0; font-size: 1.5rem; }
+        p { color: #94a3b8; line-height: 1.6; margin: 0 0 14px 0; font-size: 0.95rem; }
+        .code { background: #0f172a; padding: 10px 14px; border-radius: 8px; font-family: monospace; color: #facc15; display: inline-block; }
+      </style>
+    </head>
+    <body>
+      <div class="card">
+        <h1>Frontend Build Topilmadi</h1>
+        <p>Backend server muvaffaqiyatli ishga tushgan, lekin React frontend build fayllari topilmadi.</p>
+        <p>Render Dashboard-da <b>Build Command</b> sozlamasini quyidagicha qiling:</p>
+        <div class="code">npm run build</div>
+      </div>
+    </body>
+    </html>
+  `);
+});
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', async () => {
@@ -208,8 +209,7 @@ app.listen(PORT, '0.0.0.0', async () => {
   }
 });
 
-const token = process.env.BOT_TOKEN || '';
-if (token && token.includes(':')) {
+if (bot && typeof bot.start === 'function') {
   bot.start()
     .then(() => {
       console.log('🤖 Telegram bot ishga tushdi!');

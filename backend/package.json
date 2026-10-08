@@ -5,8 +5,10 @@
   "main": "index.js",
   "scripts": {
     "start": "node src/server.js",
-    "render:build": "npm --prefix ../frontend install && npm --prefix ../frontend run build",
+    "build": "node scripts/render-build.js",
+    "render:build": "node scripts/render-build.js",
     "render:start": "node src/server.js",
+    "postinstall": "node scripts/render-build.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
