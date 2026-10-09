@@ -773,9 +773,35 @@ function GradesSection({ onDataChange }) {
                   </div>
                 </div>
 
+                <div className="student-progress-chart" role="img" aria-label="O‘quvchilar o‘sish holati diagrammasi">
+                  {[
+                    { label: 'O‘sdi', count: studentStats.improvedCount, className: 'progress-chart-up' },
+                    { label: 'O‘zgarmadi', count: studentStats.unchangedCount, className: 'progress-chart-same' },
+                    { label: 'Pasaydi', count: studentStats.declinedCount, className: 'progress-chart-down' },
+                    { label: 'Trend uchun baho kam', count: studentStats.noDataCount, className: 'progress-chart-no-data' },
+                  ].map((item) => {
+                    const height = studentStats.totalStudents > 0
+                      ? Math.max(item.count > 0 ? 8 : 0, (item.count / studentStats.totalStudents) * 100)
+                      : 0;
+
+                    return (
+                      <div className="student-progress-chart-item" key={item.label}>
+                        <strong>{item.count}</strong>
+                        <div className="student-progress-chart-track">
+                          <div
+                            className={`student-progress-chart-bar ${item.className}`}
+                            style={{ height: `${height}%` }}
+                          />
+                        </div>
+                        <span>{item.label}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+
                 <div className="student-progress-table-wrap">
                   {studentStats.students.length === 0 ? (
-                    <p className="student-progress-empty">Bu guruhda faol o‘quvchilar yo‘q.</p>
+                    <p className="student-progress-empty">Bu guruhda o‘quvchilar yo‘q.</p>
                   ) : (
                     <table className="student-progress-table">
                       <thead>

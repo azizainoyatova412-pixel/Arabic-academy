@@ -253,7 +253,7 @@ exports.getGroupStats = async (req, res) => {
        FROM enrollments e
        JOIN users u ON e.telegram_id = u.telegram_id
        LEFT JOIN monthly_grades mg ON mg.telegram_id = u.telegram_id AND mg.group_id = e.group_id AND mg.month_key = $2
-       WHERE e.group_id = $1 AND e.status = 'active'
+       WHERE e.group_id = $1
        ORDER BY u.full_name ASC`,
       [groupId, month, getCurrentMonthKey()]
     );

@@ -2655,6 +2655,59 @@ a {
   overflow-x: auto;
 }
 
+.student-progress-chart {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(90px, 1fr));
+  gap: 16px;
+  height: 190px;
+  margin: 8px 0 22px;
+  padding: 12px 8px 0;
+}
+
+.student-progress-chart-item {
+  display: grid;
+  grid-template-rows: 20px minmax(0, 1fr) 34px;
+  justify-items: center;
+  gap: 6px;
+  color: var(--text-soft);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.student-progress-chart-track {
+  display: flex;
+  align-items: flex-end;
+  width: min(100%, 64px);
+  height: 100%;
+  overflow: hidden;
+  border-radius: 10px 10px 5px 5px;
+  background: var(--panel-alt);
+}
+
+.student-progress-chart-bar {
+  width: 100%;
+  min-height: 0;
+  border-radius: 8px 8px 4px 4px;
+  transition: height 0.3s ease;
+}
+
+.progress-chart-up {
+  background: linear-gradient(180deg, #34D399, #10B981);
+}
+
+.progress-chart-same {
+  background: linear-gradient(180deg, #FBBF24, #D97706);
+}
+
+.progress-chart-down {
+  background: linear-gradient(180deg, #F87171, #DC2626);
+}
+
+.progress-chart-no-data {
+  background: linear-gradient(180deg, #9CA3AF, #6B7280);
+}
+
 .student-progress-table {
   width: 100%;
   border-collapse: collapse;
@@ -3354,4 +3407,3 @@ a {
     border-radius: 18px;
   }
 }
-
