@@ -254,7 +254,6 @@ function GradesSection({ onDataChange }) {
   const [newGroupName, setNewGroupName] = useState('');
   const [newStudentName, setNewStudentName] = useState('');
   const [studentStats, setStudentStats] = useState({
-    previousMonth: null,
     totalStudents: 0,
     improvedCount: 0,
     declinedCount: 0,
@@ -333,7 +332,7 @@ function GradesSection({ onDataChange }) {
       }
     } catch (err) {
       setStudents([]);
-      setStudentStats({ previousMonth: null, totalStudents: 0, improvedCount: 0, declinedCount: 0, unchangedCount: 0, noDataCount: 0, students: [] });
+      setStudentStats({ totalStudents: 0, improvedCount: 0, declinedCount: 0, unchangedCount: 0, noDataCount: 0, students: [] });
       showToast(err.message || 'O‘quvchilarni olishda xatolik', 'error');
     }
     setLoading(false);
@@ -424,7 +423,7 @@ function GradesSection({ onDataChange }) {
           } else {
             setSelectedGroup(null);
             setStudents([]);
-            setStudentStats({ previousMonth: null, totalStudents: 0, improvedCount: 0, declinedCount: 0, unchangedCount: 0, noDataCount: 0, students: [] });
+            setStudentStats({ totalStudents: 0, improvedCount: 0, declinedCount: 0, unchangedCount: 0, noDataCount: 0, students: [] });
           }
         }
         return remaining;
@@ -747,17 +746,12 @@ function GradesSection({ onDataChange }) {
                 </div>
               )}
 
-              {/* O'quvchilar o'sishi — tanlangan oy oldingi baholangan oy bilan taqqoslanadi */}
+              {/* O'quvchilar o'sishi faqat hozirgacha baho qo'yilgan darslar asosida */}
               <div className="grade-chart-card">
                 <div className="grade-chart-header">
                   <div>
                     <h4>📈 {currentGroupObj ? currentGroupObj.name : 'Guruh'} — o‘quvchilar o‘sishi</h4>
-                    <p>
-                      {formatMonthName(selectedMonth)} oyidagi o‘rtacha baholar
-                      {studentStats.previousMonth
-                        ? ` ${formatMonthName(studentStats.previousMonth)} oyiga nisbatan`
-                        : ' — oldingi oyda baholar topilmadi'}
-                    </p>
+                    <p>{formatMonthName(selectedMonth)} oyida hozirgacha baho qo‘yilgan darslar taqqoslanadi</p>
                   </div>
                   <div className="chart-stat-badges">
                     <div className="mini-stat-badge">
@@ -787,8 +781,9 @@ function GradesSection({ onDataChange }) {
                       <thead>
                         <tr>
                           <th>O‘quvchi</th>
-                          <th>{formatMonthName(studentStats.previousMonth) || 'Oldingi oy'} o‘rtachasi</th>
-                          <th>{formatMonthName(selectedMonth)} o‘rtachasi</th>
+                          <th>Avvalgi darslar o‘rtachasi</th>
+                          <th>So‘nggi darslar o‘rtachasi</th>
+                          <th>Hozirgacha o‘rtacha</th>
                           <th>Farq</th>
                           <th>Holat</th>
                         </tr>
@@ -799,7 +794,7 @@ function GradesSection({ onDataChange }) {
                             improved: ['O‘sdi', 'progress-up'],
                             declined: ['Pasaydi', 'progress-down'],
                             unchanged: ['O‘zgarmadi', 'progress-same'],
-                            'no-data': ['Taqqoslash uchun baho yo‘q', 'progress-no-data'],
+                            'no-data': ['Trend uchun baho kam', 'progress-no-data'],
                           };
                           const [statusLabel, statusClass] = statusLabels[student.status];
                           const formatAverage = (value) => value === null ? '—' : `${value.toFixed(2)} / 5`;
@@ -812,7 +807,8 @@ function GradesSection({ onDataChange }) {
                           return (
                             <tr key={student.telegram_id}>
                               <td className="progress-student-name">{student.full_name}</td>
-                              <td>{formatAverage(student.previousAverage)}</td>
+                              <td>{formatAverage(student.earlierAverage)} <small>({student.earlierGradedLessons} dars)</small></td>
+                              <td>{formatAverage(student.recentAverage)} <small>({student.recentGradedLessons} dars)</small></td>
                               <td>{formatAverage(student.currentAverage)}</td>
                               <td className={student.difference > 0 ? 'progress-difference-up' : student.difference < 0 ? 'progress-difference-down' : ''}>
                                 {formatDifference(student.difference)}
