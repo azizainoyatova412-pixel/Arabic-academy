@@ -253,7 +253,15 @@ function GradesSection({ onDataChange }) {
   const [showAddMonth, setShowAddMonth] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
   const [newStudentName, setNewStudentName] = useState('');
-  const [chart, setChart] = useState({ labels: [], values: [], averageScore: 0, highestScore: 0, maxValue: 0, lessonStats: [] });
+  const [studentStats, setStudentStats] = useState({
+    previousMonth: null,
+    totalStudents: 0,
+    improvedCount: 0,
+    declinedCount: 0,
+    unchangedCount: 0,
+    noDataCount: 0,
+    students: [],
+  });
   const [msg, setMsg] = useState({ text: '', type: 'success' });
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -320,12 +328,12 @@ function GradesSection({ onDataChange }) {
         });
         const statsData = await statsRes.json();
         if (statsRes.ok && statsData.stats) {
-          setChart(statsData.stats);
+          setStudentStats(statsData.stats);
         }
       }
     } catch (err) {
       setStudents([]);
-      setChart({ labels: [], values: [], averageScore: 0, highestScore: 0, maxValue: 0, lessonStats: [] });
+      setStudentStats({ previousMonth: null, totalStudents: 0, improvedCount: 0, declinedCount: 0, unchangedCount: 0, noDataCount: 0, students: [] });
       showToast(err.message || 'O‘quvchilarni olishda xatolik', 'error');
     }
     setLoading(false);
@@ -416,7 +424,7 @@ function GradesSection({ onDataChange }) {
           } else {
             setSelectedGroup(null);
             setStudents([]);
-            setChart({ labels: [], values: [], averageScore: 0, highestScore: 0, maxValue: 0, lessonStats: [] });
+            setStudentStats({ previousMonth: null, totalStudents: 0, improvedCount: 0, declinedCount: 0, unchangedCount: 0, noDataCount: 0, students: [] });
           }
         }
         return remaining;
@@ -508,7 +516,7 @@ function GradesSection({ onDataChange }) {
           headers: { 'x-admin-key': sessionStorage.getItem('admin_auth') || '' }
         });
         const statsData = await statsRes.json();
-        if (statsRes.ok && statsData.stats) setChart(statsData.stats);
+        if (statsRes.ok && statsData.stats) setStudentStats(statsData.stats);
       }
     } catch (err) {
       showToast(err.message || 'Bahoni saqlashda xatolik', 'error');
@@ -540,7 +548,7 @@ function GradesSection({ onDataChange }) {
           headers: { 'x-admin-key': sessionStorage.getItem('admin_auth') || '' }
         });
         const statsData = await statsRes.json();
-        if (statsRes.ok && statsData.stats) setChart(statsData.stats);
+        if (statsRes.ok && statsData.stats) setStudentStats(statsData.stats);
       }
     } catch (err) {
       showToast(err.message || 'O‘quvchini o‘chirishda xatolik', 'error');
@@ -739,65 +747,83 @@ function GradesSection({ onDataChange }) {
                 </div>
               )}
 
-              {/* Ustunli Diagramma / Column Chart — Shu guruhning 12 ta darsi bo'yicha */}
+              {/* O'quvchilar o'sishi — tanlangan oy oldingi baholangan oy bilan taqqoslanadi */}
               <div className="grade-chart-card">
                 <div className="grade-chart-header">
                   <div>
-                    <h4>📊 {currentGroupObj ? currentGroupObj.name : 'Guruh'} — {formatMonthName(selectedMonth)} Statistikasi</h4>
-                    <p>{students.length} nafar o‘quvchining 12 ta dars bo‘yicha o‘zlashtirish ko‘rsatkichlari</p>
+                    <h4>📈 {currentGroupObj ? currentGroupObj.name : 'Guruh'} — o‘quvchilar o‘sishi</h4>
+                    <p>
+                      {formatMonthName(selectedMonth)} oyidagi o‘rtacha baholar
+                      {studentStats.previousMonth
+                        ? ` ${formatMonthName(studentStats.previousMonth)} oyiga nisbatan`
+                        : ' — oldingi oyda baholar topilmadi'}
+                    </p>
                   </div>
                   <div className="chart-stat-badges">
                     <div className="mini-stat-badge">
-                      <span className="mini-stat-title">Oylik darslar</span>
-                      <strong className="mini-stat-val text-gold">12 ta</strong>
+                      <span className="mini-stat-title">O‘sdi</span>
+                      <strong className="mini-stat-val text-green">{studentStats.improvedCount} nafar</strong>
                     </div>
                     <div className="mini-stat-badge">
-                      <span className="mini-stat-title">Guruh o'rtacha</span>
-                      <strong className="mini-stat-val text-green">{chart.averageScore || 0} ball</strong>
+                      <span className="mini-stat-title">Pasaydi</span>
+                      <strong className="mini-stat-val text-gold">{studentStats.declinedCount} nafar</strong>
                     </div>
                     <div className="mini-stat-badge">
-                      <span className="mini-stat-title">O'quvchilar</span>
-                      <strong className="mini-stat-val">{students.length} ta</strong>
+                      <span className="mini-stat-title">O‘zgarmadi</span>
+                      <strong className="mini-stat-val">{studentStats.unchangedCount} nafar</strong>
+                    </div>
+                    <div className="mini-stat-badge">
+                      <span className="mini-stat-title">Taqqoslash yo‘q</span>
+                      <strong className="mini-stat-val">{studentStats.noDataCount} nafar</strong>
                     </div>
                   </div>
                 </div>
 
-                <div className="column-chart-wrapper">
-                  <div className="column-chart-grid" aria-label="12 ta dars ustunli diagrammasi" style={{ gridTemplateColumns: 'repeat(12, 1fr)', minWidth: '580px' }}>
-                    {(chart.lessonStats || Array.from({ length: 12 }, (_, i) => ({ lessonNum: i + 1, averageScore: 0, gradedCount: 0 }))).map((ls) => {
-                      const avg = ls.averageScore || 0;
-                      const heightPercent = avg > 0 ? Math.max(16, (avg / 5) * 100) : 0;
-                      
-                      let barBg = 'linear-gradient(180deg, #E5E7EB 0%, #D1D5DB 100%)';
-                      if (avg >= 4.5) barBg = 'linear-gradient(180deg, #34D399 0%, #10B981 100%)';
-                      else if (avg >= 3.5) barBg = 'linear-gradient(180deg, #D4AF37 0%, #8C5A3C 100%)';
-                      else if (avg >= 2.5) barBg = 'linear-gradient(180deg, #60A5FA 0%, #3B82F6 100%)';
-                      else if (avg > 0) barBg = 'linear-gradient(180deg, #FB923C 0%, #F97316 100%)';
+                <div className="student-progress-table-wrap">
+                  {studentStats.students.length === 0 ? (
+                    <p className="student-progress-empty">Bu guruhda faol o‘quvchilar yo‘q.</p>
+                  ) : (
+                    <table className="student-progress-table">
+                      <thead>
+                        <tr>
+                          <th>O‘quvchi</th>
+                          <th>{formatMonthName(studentStats.previousMonth) || 'Oldingi oy'} o‘rtachasi</th>
+                          <th>{formatMonthName(selectedMonth)} o‘rtachasi</th>
+                          <th>Farq</th>
+                          <th>Holat</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {studentStats.students.map((student) => {
+                          const statusLabels = {
+                            improved: ['O‘sdi', 'progress-up'],
+                            declined: ['Pasaydi', 'progress-down'],
+                            unchanged: ['O‘zgarmadi', 'progress-same'],
+                            'no-data': ['Taqqoslash uchun baho yo‘q', 'progress-no-data'],
+                          };
+                          const [statusLabel, statusClass] = statusLabels[student.status];
+                          const formatAverage = (value) => value === null ? '—' : `${value.toFixed(2)} / 5`;
+                          const formatDifference = (value) => {
+                            if (value === null) return '—';
+                            if (value === 0) return '0';
+                            return `${value > 0 ? '+' : ''}${value.toFixed(2)}`;
+                          };
 
-                      return (
-                        <div className="column-chart-item" key={ls.lessonNum}>
-                          <div className="column-value-tag" style={{ fontSize: '0.74rem' }}>
-                            {avg > 0 ? `${avg}` : '-'}
-                          </div>
-                          <div className="column-track" style={{ height: '110px' }}>
-                            <div
-                              className="column-bar"
-                              style={{
-                                height: `${heightPercent}%`,
-                                background: barBg,
-                              }}
-                            >
-                              {heightPercent >= 50 && <span className="bar-inner-percent">{avg}</span>}
-                            </div>
-                          </div>
-                          <div className="column-axis-label">
-                            <strong style={{ fontSize: '0.78rem' }}>{ls.lessonNum}-dars</strong>
-                            <small>{ls.gradedCount || 0} kishi</small>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
+                          return (
+                            <tr key={student.telegram_id}>
+                              <td className="progress-student-name">{student.full_name}</td>
+                              <td>{formatAverage(student.previousAverage)}</td>
+                              <td>{formatAverage(student.currentAverage)}</td>
+                              <td className={student.difference > 0 ? 'progress-difference-up' : student.difference < 0 ? 'progress-difference-down' : ''}>
+                                {formatDifference(student.difference)}
+                              </td>
+                              <td><span className={`progress-status ${statusClass}`}>{statusLabel}</span></td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  )}
                 </div>
               </div>
 

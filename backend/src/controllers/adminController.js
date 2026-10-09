@@ -245,28 +245,37 @@ exports.getGroupStats = async (req, res) => {
   const { groupId } = req.params;
   const month = req.query.month || getCurrentMonthKey();
   try {
+    const previousMonthResult = await db.query(
+      `SELECT MAX(month_key) as previous_month
+       FROM monthly_grades
+       WHERE group_id = $1
+         AND month_key < $2
+         AND jsonb_object_length(COALESCE(lesson_grades, '{}'::jsonb)) > 0`,
+      [groupId, month]
+    );
+    const previousMonth = previousMonthResult.rows[0].previous_month;
     const result = await db.query(
       `SELECT 
          u.telegram_id, 
          u.full_name, 
-         COALESCE(mg.total_points, e.current_month_points, 0) as current_month_points,
-         COALESCE(mg.lesson_grades, e.lesson_grades, '{}'::jsonb) as lesson_grades
+         COALESCE(mg.lesson_grades, CASE WHEN $2 = $4 THEN e.lesson_grades END, '{}'::jsonb) as current_lesson_grades,
+         COALESCE(previous_mg.lesson_grades, '{}'::jsonb) as previous_lesson_grades
        FROM enrollments e
        JOIN users u ON e.telegram_id = u.telegram_id
        LEFT JOIN monthly_grades mg ON mg.telegram_id = u.telegram_id AND mg.group_id = e.group_id AND mg.month_key = $2
+       LEFT JOIN monthly_grades previous_mg ON previous_mg.telegram_id = u.telegram_id
+         AND previous_mg.group_id = e.group_id AND previous_mg.month_key = $3
        WHERE e.group_id = $1 AND e.status = 'active'
-       ORDER BY COALESCE(mg.total_points, e.current_month_points, 0) DESC, u.full_name ASC`,
-      [groupId, month]
+       ORDER BY u.full_name ASC`,
+      [groupId, month, previousMonth, getCurrentMonthKey()]
     );
 
     res.json({
       groupId,
       month,
-      totalStudents: result.rows.length,
-      stats: require('../utils/gradeStats').buildGradeChart(result.rows),
+      stats: require('../utils/studentProgress').buildStudentProgress(result.rows, previousMonth),
     });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
 };
-
