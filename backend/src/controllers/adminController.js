@@ -1,4 +1,5 @@
 const db = require('../db/index');
+const bot = require('../bot/bot');
 
 function getCurrentMonthKey() {
   const d = new Date();
@@ -264,6 +265,134 @@ exports.getGroupStats = async (req, res) => {
       stats: require('../utils/studentProgress').buildStudentProgress(result.rows),
     });
   } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+};
+
+exports.getPayments = async (req, res) => {
+  const status = req.query.status || 'pending';
+  if (!['pending', 'approved', 'rejected', 'all'].includes(status)) {
+    return res.status(400).json({ error: 'To‘lov holati noto‘g‘ri' });
+  }
+
+  try {
+    const result = await db.query(
+      `SELECT p.id, p.telegram_id, u.full_name, g.name as group_name,
+              p.group_id, p.status, p.created_at
+       FROM payments p
+       LEFT JOIN users u ON u.telegram_id = p.telegram_id
+       LEFT JOIN groups g ON g.id = p.group_id
+       WHERE ($1 = 'all' OR p.status = $1)
+       ORDER BY p.created_at DESC, p.id DESC`,
+      [status]
+    );
+    res.json({ payments: result.rows });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+};
+
+exports.getPaymentPhoto = async (req, res) => {
+  const paymentId = Number(req.params.paymentId);
+  if (!Number.isInteger(paymentId) || paymentId < 1) {
+    return res.status(400).json({ error: 'To‘lov ID noto‘g‘ri' });
+  }
+  if (!bot) {
+    return res.status(503).json({ error: 'Telegram bot sozlanmagan, chek rasmini olish imkonsiz' });
+  }
+
+  try {
+    const payment = await db.query('SELECT check_file_id FROM payments WHERE id = $1', [paymentId]);
+    if (payment.rowCount === 0) return res.status(404).json({ error: 'To‘lov topilmadi' });
+
+    const file = await bot.api.getFile(payment.rows[0].check_file_id);
+    if (!file.file_path) throw new Error('Telegram chek fayli uchun yo‘l qaytarmadi');
+
+    const image = await fetch(`https://api.telegram.org/file/bot${bot.token}/${file.file_path}`);
+    if (!image.ok) throw new Error(`Telegram chek rasmini yuklay olmadi (${image.status})`);
+
+    res.type(image.headers.get('content-type') || 'application/octet-stream');
+    res.set('Cache-Control', 'private, no-store');
+    res.send(Buffer.from(await image.arrayBuffer()));
+  } catch (e) {
+    console.error('Chek rasmini olishda xatolik:', e.message);
+    res.status(502).json({ error: 'Telegramdan chek rasmini olib bo‘lmadi' });
+  }
+};
+
+exports.updatePaymentStatus = async (req, res) => {
+  const paymentId = Number(req.params.paymentId);
+  const { status } = req.body;
+  if (!Number.isInteger(paymentId) || paymentId < 1) {
+    return res.status(400).json({ error: 'To‘lov ID noto‘g‘ri' });
+  }
+  if (!['approved', 'rejected'].includes(status)) {
+    return res.status(400).json({ error: 'Holat approved yoki rejected bo‘lishi kerak' });
+  }
+
+  try {
+    const paymentResult = await db.query(
+      `SELECT p.id, p.telegram_id, p.group_id, u.full_name, g.name as group_name
+       FROM payments p
+       LEFT JOIN users u ON u.telegram_id = p.telegram_id
+       LEFT JOIN groups g ON g.id = p.group_id
+       WHERE p.id = $1 AND p.status = 'pending'`,
+      [paymentId]
+    );
+    if (paymentResult.rowCount === 0) {
+      return res.status(409).json({ error: 'Kutilayotgan to‘lov topilmadi yoki u oldin ko‘rib chiqilgan' });
+    }
+
+    const payment = paymentResult.rows[0];
+    let inviteLink = null;
+    if (status === 'approved') {
+      if (!bot || !process.env.TELEGRAM_GROUP_ID) {
+        return res.status(503).json({ error: 'Tasdiqlash uchun Telegram bot va TELEGRAM_GROUP_ID sozlangan bo‘lishi kerak' });
+      }
+      const invite = await bot.api.createChatInviteLink(process.env.TELEGRAM_GROUP_ID, { member_limit: 1 });
+      inviteLink = invite.invite_link;
+    }
+
+    const updated = await db.transaction(async (client) => {
+      const changedPayment = await client.query(
+        `UPDATE payments SET status = $1 WHERE id = $2 AND status = 'pending'
+         RETURNING telegram_id, group_id`,
+        [status, paymentId]
+      );
+      if (changedPayment.rowCount === 0) {
+        const error = new Error('To‘lov boshqa admin tomonidan ko‘rib chiqildi');
+        error.statusCode = 409;
+        throw error;
+      }
+
+      const { telegram_id, group_id } = changedPayment.rows[0];
+      await client.query(
+        `INSERT INTO enrollments (telegram_id, group_id, status)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (telegram_id, group_id)
+         DO UPDATE SET status = EXCLUDED.status, updated_at = CURRENT_TIMESTAMP`,
+        [telegram_id, group_id, status === 'approved' ? 'active' : 'rejected']
+      );
+
+      return { telegram_id, group_id };
+    });
+
+    let notificationWarning = null;
+    try {
+      const message = status === 'approved'
+        ? `🎉 To‘lovingiz tasdiqlandi!\n\nGuruhga qo‘shilish havolasi:\n${inviteLink}`
+        : '❌ Kechirasiz, yuborgan to‘lov chekingiz tasdiqlanmadi. Iltimos, administrator bilan bog‘laning.';
+      if (!bot) throw new Error('Telegram bot sozlanmagan');
+      await bot.api.sendMessage(updated.telegram_id, message);
+    } catch (e) {
+      console.error(`To‘lov #${paymentId} bo‘yicha o‘quvchiga xabar yuborilmadi:`, e.message);
+      notificationWarning = 'Holat saqlandi, lekin o‘quvchiga Telegram xabari yuborilmadi. Bot tokenini tekshiring.';
+    }
+
+    res.json({ ok: true, status, notificationWarning });
+  } catch (e) {
+    if (e.statusCode) return res.status(e.statusCode).json({ error: e.message });
+    console.error('To‘lov holatini yangilashda xatolik:', e.message);
     res.status(500).json({ error: e.message });
   }
 };

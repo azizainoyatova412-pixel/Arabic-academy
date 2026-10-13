@@ -100,6 +100,14 @@ export default function AdminDashboard() {
           </button>
 
           <button
+            className={'admin-nav-item' + (activeTab === 'payments' ? ' active' : '')}
+            onClick={() => setActiveTab('payments')}
+          >
+            <span className="admin-nav-icon">💳</span>
+            <span>To‘lov cheklari</span>
+          </button>
+
+          <button
             className={'admin-nav-item' + (activeTab === 'results' ? ' active' : '')}
             onClick={() => setActiveTab('results')}
           >
@@ -180,6 +188,7 @@ export default function AdminDashboard() {
         {/* Tab kontentlari */}
         <div className="admin-content-card-wrap">
           {activeTab === 'grades' && <GradesSection onDataChange={loadGlobalStats} />}
+          {activeTab === 'payments' && <PaymentsSection />}
           {activeTab === 'results' && <ResultsSection onDataChange={loadGlobalStats} />}
           {activeTab === 'reviews' && <ReviewsSection onDataChange={loadGlobalStats} />}
           {activeTab === 'videos' && <VideosSection />}
@@ -189,6 +198,14 @@ export default function AdminDashboard() {
 
       {/* Mobil pastki Navigation Bar */}
       <nav className="admin-bottom-nav">
+        <button
+          className={'admin-bottom-item' + (activeTab === 'payments' ? ' active' : '')}
+          onClick={() => setActiveTab('payments')}
+        >
+          <span className="bottom-icon">💳</span>
+          <span>Cheklar</span>
+        </button>
+
         <button
           className={'admin-bottom-item' + (activeTab === 'grades' ? ' active' : '')}
           onClick={() => setActiveTab('grades')}
@@ -229,6 +246,193 @@ export default function AdminDashboard() {
           <span>Sozlamalar</span>
         </button>
       </nav>
+    </div>
+  );
+}
+
+function PaymentsSection() {
+  const [status, setStatus] = useState('pending');
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [payments, setPayments] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [updatingId, setUpdatingId] = useState(null);
+  const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
+  const [photo, setPhoto] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadPayments = async () => {
+      setLoading(true);
+      setError('');
+      try {
+        const response = await fetch(`${API}/api/admin/payments?status=${status}`, {
+          headers: { 'x-admin-key': sessionStorage.getItem('admin_auth') || '' },
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'To‘lov cheklari yuklanmadi');
+        if (!cancelled) setPayments(data.payments || []);
+      } catch (err) {
+        if (!cancelled) setError(err.message || 'Server bilan bog‘lanishda xatolik');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    loadPayments();
+    return () => {
+      cancelled = true;
+    };
+  }, [status, refreshKey]);
+
+  useEffect(() => () => {
+    if (photo) URL.revokeObjectURL(photo.url);
+  }, [photo]);
+
+  const viewPhoto = async (payment) => {
+    setError('');
+    try {
+      const response = await fetch(`${API}/api/admin/payments/${payment.id}/photo`, {
+        headers: { 'x-admin-key': sessionStorage.getItem('admin_auth') || '' },
+      });
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Chek rasmini yuklab bo‘lmadi');
+      }
+      const url = URL.createObjectURL(await response.blob());
+      setPhoto({ url, studentName: payment.full_name, paymentId: payment.id });
+    } catch (err) {
+      setError(err.message || 'Chek rasmini yuklab bo‘lmadi');
+    }
+  };
+
+  const updateStatus = async (payment, nextStatus) => {
+    setUpdatingId(payment.id);
+    setError('');
+    setMessage('');
+    try {
+      const response = await fetch(`${API}/api/admin/payments/${payment.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-key': sessionStorage.getItem('admin_auth') || '',
+        },
+        body: JSON.stringify({ status: nextStatus }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'To‘lov holatini o‘zgartirib bo‘lmadi');
+      setPayments((previous) => status === 'pending'
+        ? previous.filter((item) => item.id !== payment.id)
+        : previous.map((item) => item.id === payment.id ? { ...item, status: nextStatus } : item)
+      );
+      setMessage(nextStatus === 'approved' ? 'To‘lov tasdiqlandi.' : 'To‘lov rad etildi.');
+      if (data.notificationWarning) setError(data.notificationWarning);
+    } catch (err) {
+      setError(err.message || 'To‘lov holatini o‘zgartirib bo‘lmadi');
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  const statusLabel = { pending: 'Kutilmoqda', approved: 'Tasdiqlangan', rejected: 'Rad etilgan' };
+
+  return (
+    <div className="admin-section">
+      <div className="admin-section-header">
+        <div>
+          <h2>💳 O‘quvchilar to‘lov cheklari</h2>
+          <p className="admin-section-desc">O‘quvchi botga yuborgan chekni shu yerdan tekshiring, tasdiqlang yoki rad eting.</p>
+        </div>
+      </div>
+
+      {error && <div className="admin-alert alert-danger"><span>⚠️</span><span>{error}</span></div>}
+      {message && <div className="admin-alert alert-success"><span>✅</span><span>{message}</span></div>}
+
+      <div className="admin-card">
+        <div className="payment-filters" role="group" aria-label="To‘lov holati">
+          {[
+            ['pending', 'Kutilayotgan'],
+            ['approved', 'Tasdiqlangan'],
+            ['rejected', 'Rad etilgan'],
+            ['all', 'Barchasi'],
+          ].map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              className={`admin-btn small ${status === value ? 'primary' : ''}`}
+              onClick={() => setStatus(value)}
+            >
+              {label}
+            </button>
+          ))}
+          <button
+            type="button"
+            className="admin-btn small"
+            onClick={() => setRefreshKey((previous) => previous + 1)}
+            disabled={loading}
+          >
+            🔄 Yangilash
+          </button>
+        </div>
+
+        {loading ? (
+          <div className="admin-empty-state"><p>To‘lovlar yuklanmoqda...</p></div>
+        ) : payments.length === 0 ? (
+          <div className="admin-empty-state">
+            <span className="empty-icon">🧾</span>
+            <p>Bu bo‘limda to‘lov cheklari yo‘q.</p>
+          </div>
+        ) : (
+          <div className="payment-list">
+            {payments.map((payment) => (
+              <article className="payment-item" key={payment.id}>
+                <div className="payment-item-details">
+                  <strong>{payment.full_name || `Telegram ID ${payment.telegram_id}`}</strong>
+                  <span>{payment.group_name || `Guruh #${payment.group_id}`}</span>
+                  <small>{new Date(payment.created_at).toLocaleString('uz-UZ')} · {statusLabel[payment.status] || payment.status}</small>
+                </div>
+                <div className="payment-item-actions">
+                  <button type="button" className="admin-btn small" onClick={() => viewPhoto(payment)}>
+                    🖼️ Chekni ko‘rish
+                  </button>
+                  {payment.status === 'pending' && (
+                    <>
+                      <button
+                        type="button"
+                        className="admin-btn small primary"
+                        disabled={updatingId === payment.id}
+                        onClick={() => updateStatus(payment, 'approved')}
+                      >
+                        {updatingId === payment.id ? 'Saqlanmoqda...' : '✅ Tasdiqlash'}
+                      </button>
+                      <button
+                        type="button"
+                        className="admin-btn small danger"
+                        disabled={updatingId === payment.id}
+                        onClick={() => updateStatus(payment, 'rejected')}
+                      >
+                        ❌ Rad etish
+                      </button>
+                    </>
+                  )}
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {photo && (
+        <div className="payment-photo-overlay" role="presentation" onClick={() => setPhoto(null)}>
+          <div className="payment-photo-dialog" role="dialog" aria-modal="true" aria-label="To‘lov cheki" onClick={(event) => event.stopPropagation()}>
+            <div className="payment-photo-header">
+              <strong>{photo.studentName || `To‘lov #${photo.paymentId}`}</strong>
+              <button type="button" className="admin-btn small" onClick={() => setPhoto(null)}>Yopish ✕</button>
+            </div>
+            <img src={photo.url} alt={`${photo.studentName || 'O‘quvchi'} to‘lov cheki`} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1342,7 +1546,7 @@ function VideosSection() {
         <div>
           <h2>🎬 Videolar & Admin Yo'riqnomasi</h2>
           <p className="admin-section-desc">
-            Sayt va Telegram botni boshqarish bo'yicha to'liq qo'llanma.
+            Sayt boshqaruvi va o‘quvchilar uchun Telegram bot bo‘yicha qo‘llanma.
           </p>
         </div>
       </div>

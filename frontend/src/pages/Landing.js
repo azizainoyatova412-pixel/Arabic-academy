@@ -24,7 +24,7 @@ const content = {
     heroTitleSuffix: "professional darajada o‘rgatamiz",
     heroDesc: "Uzbikiyya — o‘qitishning izchil, zamonaviy va amaliy tizimi bilan ishlaydigan akademiya. Kichik guruhlar, individual mashg‘ulotlar va amaliy nutq mashqlari uyg‘unlikda olib boriladi. Arab tilini C1–C2 darajasiga olib chiqadigan ustoz bilan ishlaysiz.",
     enrollBtn: 'Kursga yoziling',
-    telegramBtn: "Telegram bilan bog‘lanish",
+    telegramBtn: "Telegram kanalimiz",
     heroCards: {
       topLabel: 'Darslar',
       topVal: '4 bosqich',
@@ -120,11 +120,9 @@ const content = {
     },
 
     contact: {
-
-      eyebrow: 'Ma‘lumotlarni bot orqali olasiz,',
-      title: 'Gap vaqtda emas, shunchaki arab tlini chin dildan xohlash kerak. Qolgani shunchaki ssilka.',
-      desc: 'Guruhlar haqida batafsil ma‘lumot Telegram bot orqali beriladi. Dars jadvali va imkoniyatlar haqida bir zumda xabar olasiz.',
-      btn: 'Telegram botga o‘tish',
+      eyebrow: 'Biz bilan bog‘laning',
+      title: 'Arab tili o‘rganish yo‘lingizni bugun boshlang.',
+      desc: 'Kurslar, dars jadvali va ro‘yxatdan o‘tish haqida ma’lumot olish uchun Instagram orqali bog‘laning.',
     },
     footer: '© 2026 Uzbikiyya Academy. Barcha huquqlar himoyalangan.',
   },
@@ -148,7 +146,7 @@ const content = {
     heroTitleSuffix: 'at a professional level',
     heroDesc: 'Uzbikiyya Academy is an academy built upon a structured, modern, and highly practical teaching methodology. Small interactive groups, personalized tutoring, and live conversational practice.',
     enrollBtn: 'Enroll Now',
-    telegramBtn: 'Contact via Telegram',
+    telegramBtn: 'Visit our Telegram channel',
     heroCards: {
       topLabel: 'Program',
       topVal: '4 Levels',
@@ -231,10 +229,9 @@ const content = {
       empty: 'Reviews will appear soon.',
     },
     contact: {
-      eyebrow: 'Telegram Admin',
-      title: 'No deadlines on self-reinvention. Arabic is hitting deifferent now. ',
-      desc: 'Detailed information about groups and schedules is shared through the Telegram bot. You will get the latest details quickly and clearly.',
-      btn: 'Open Telegram Bot',
+      eyebrow: 'Get in touch',
+      title: 'Start your Arabic learning journey today.',
+      desc: 'Contact us on Instagram for course details, schedules, and enrollment information.',
     },
     footer: '© 2026 Aisha Uzbikiyya Academy. All rights reserved.',
   },
@@ -317,10 +314,9 @@ const content = {
       empty: 'Отзывы скоро появятся.',
     },
     contact: {
-      eyebrow: 'Telegram администратор',
-      title: 'Информацию вы получите через бота',
-      desc: 'Подробности о группах и расписании отправляются через Telegram-бота. Вы быстро получите актуальные данные.',
-      btn: 'Перейти в Telegram-бот',
+      eyebrow: 'Свяжитесь с нами',
+      title: 'Начните изучать арабский уже сегодня.',
+      desc: 'Напишите нам в Instagram, чтобы узнать о курсах, расписании и записи.',
     },
     footer: '© 2026 Aisha Uzbikiyya Academy. Все права защищены.',
   },
@@ -329,7 +325,6 @@ const content = {
 const languageOptions = ['UZ', 'EN', 'RU'];
 
 const TELEGRAM_CHANNEL_URL = 'https://t.me/aisha_uzbikiyya';
-const TELEGRAM_BOT_URL = 'https://t.me/aishauzbikiyya_bot';
 const INSTAGRAM_URL = 'https://instagram.com/aisha_uzbikiyya';
 
 const mentorVideos = [
@@ -444,7 +439,7 @@ function Landing() {
               <p className="hero-desc">{t.heroDesc}</p>
 
               <div className="hero-actions">
-                <a href={TELEGRAM_BOT_URL} target="_blank" rel="noreferrer" className="btn-primary">
+                <a href="#contact" className="btn-primary">
                   {t.enrollBtn} →
                 </a>
                 <a href={TELEGRAM_CHANNEL_URL} target="_blank" rel="noreferrer" className="btn-secondary">
@@ -734,9 +729,6 @@ function Landing() {
                 <h2>{t.contact.title}</h2>
                 <p className="contact-copy">{t.contact.desc}</p>
                 <div style={{ marginTop: '18px', display: 'flex', flexWrap: 'wrap', gap: '14px' }}>
-                  <a href={TELEGRAM_BOT_URL} target="_blank" rel="noreferrer" className="telegram-btn">
-                    {t.contact.btn} ✦
-                  </a>
                   <a href={INSTAGRAM_URL} target="_blank" rel="noreferrer" className="secondary-link">
                     Instagram sahifa
                   </a>

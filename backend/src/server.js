@@ -102,6 +102,9 @@ app.delete('/api/admin/groups/:groupId', adminGuard, adminController.deleteGroup
 app.get('/api/admin/groups/:groupId/students', adminGuard, adminController.getStudents);
 app.post('/api/admin/groups/:groupId/students', adminGuard, adminController.addStudent);
 app.get('/api/admin/groups/:groupId/stats', adminGuard, adminController.getGroupStats);
+app.get('/api/admin/payments', adminGuard, adminController.getPayments);
+app.get('/api/admin/payments/:paymentId/photo', adminGuard, adminController.getPaymentPhoto);
+app.patch('/api/admin/payments/:paymentId', adminGuard, adminController.updatePaymentStatus);
 
 // Baholash
 app.put('/api/admin/students/:studentId/lesson-grade', adminGuard, adminController.updateLessonGrade);
