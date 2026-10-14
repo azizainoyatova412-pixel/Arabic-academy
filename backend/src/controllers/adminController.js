@@ -1,5 +1,4 @@
 const db = require('../db/index');
-const bot = require('../bot/bot');
 
 function getCurrentMonthKey() {
   const d = new Date();
@@ -269,130 +268,142 @@ exports.getGroupStats = async (req, res) => {
   }
 };
 
-exports.getPayments = async (req, res) => {
-  const status = req.query.status || 'pending';
-  if (!['pending', 'approved', 'rejected', 'all'].includes(status)) {
-    return res.status(400).json({ error: 'To‘lov holati noto‘g‘ri' });
+exports.getDashboardStats = async (_req, res) => {
+  try {
+    const [summary, groups, results, botSnapshot] = await Promise.all([
+      db.query(
+        `SELECT
+           COUNT(DISTINCT g.id)::int AS group_count,
+           COUNT(DISTINCT e.telegram_id)::int AS students,
+           COUNT(DISTINCT e.telegram_id) FILTER (WHERE e.status = 'active')::int AS active_students,
+           COUNT(*) FILTER (WHERE e.status = 'pending')::int AS pending_enrollments,
+           (SELECT COUNT(*)::int FROM reviews WHERE status = 'approved') AS reviews,
+           (SELECT COUNT(*)::int FROM reviews WHERE status = 'pending') AS pending_reviews
+         FROM groups g
+         LEFT JOIN enrollments e ON e.group_id = g.id`
+      ),
+      db.query(
+        `SELECT g.id, g.name, COUNT(DISTINCT e.telegram_id)::int AS students
+         FROM groups g
+         LEFT JOIN enrollments e ON e.group_id = g.id
+         GROUP BY g.id, g.name
+         ORDER BY g.name`
+      ),
+      db.query('SELECT COUNT(*)::int AS count FROM results_showcase'),
+      db.query('SELECT stats, updated_at FROM bot_stats_snapshots WHERE id = 1'),
+    ]);
+
+    res.json({
+      stats: {
+        ...summary.rows[0],
+        results: results.rows[0].count,
+        groups: groups.rows,
+        bot: botSnapshot.rows[0]?.stats || null,
+        botUpdatedAt: botSnapshot.rows[0]?.updated_at || null,
+      },
+    });
+  } catch (e) {
+    console.error('Admin dashboard statistikasini olishda xatolik:', e.message);
+    res.status(500).json({ error: 'Statistika ma’lumotlarini olib bo‘lmadi' });
+  }
+};
+
+exports.getBotStudentStats = async (req, res) => {
+  const telegramId = Number(req.body.telegram_id);
+  if (!Number.isSafeInteger(telegramId) || telegramId <= 0) {
+    return res.status(400).json({ error: 'Telegram ID noto‘g‘ri' });
   }
 
+  const month = getCurrentMonthKey();
   try {
     const result = await db.query(
-      `SELECT p.id, p.telegram_id, u.full_name, g.name as group_name,
-              p.group_id, p.status, p.created_at
-       FROM payments p
-       LEFT JOIN users u ON u.telegram_id = p.telegram_id
-       LEFT JOIN groups g ON g.id = p.group_id
-       WHERE ($1 = 'all' OR p.status = $1)
-       ORDER BY p.created_at DESC, p.id DESC`,
-      [status]
+      `SELECT
+         e.group_id,
+         g.name AS group_name,
+         u.telegram_id,
+         u.full_name,
+         COALESCE(mg.lesson_grades, e.lesson_grades, '{}'::jsonb) AS current_lesson_grades,
+         COALESCE(mg.total_points, e.current_month_points, 0)::int AS current_month_points,
+         COALESCE(e.total_points, 0)::int AS total_points
+       FROM enrollments e
+       JOIN users u ON u.telegram_id = e.telegram_id
+       JOIN groups g ON g.id = e.group_id
+       LEFT JOIN monthly_grades mg
+         ON mg.telegram_id = e.telegram_id
+        AND mg.group_id = e.group_id
+        AND mg.month_key = $2
+       WHERE e.status = 'active'
+         AND e.group_id IN (
+           SELECT group_id FROM enrollments
+           WHERE telegram_id = $1 AND status = 'active'
+         )
+       ORDER BY g.name, current_month_points DESC, u.full_name`,
+      [telegramId, month]
     );
-    res.json({ payments: result.rows });
+
+    const groupsById = new Map();
+
+    for (const row of result.rows) {
+      const groupId = Number(row.group_id);
+      if (!groupsById.has(groupId)) groupsById.set(groupId, []);
+      groupsById.get(groupId).push(row);
+    }
+
+    const groups = [];
+    for (const [groupId, rows] of groupsById) {
+      const ownRow = rows.find((row) => Number(row.telegram_id) === telegramId);
+      if (!ownRow) continue;
+      const progress = require('../utils/studentProgress').buildStudentProgress(rows);
+      const ownProgress = progress.students.find(
+        (student) => Number(student.telegram_id) === telegramId
+      );
+      const ownGrades = (ownRow.current_lesson_grades && typeof ownRow.current_lesson_grades === 'object')
+        ? Object.values(ownRow.current_lesson_grades).map(Number).filter((grade) => Number.isFinite(grade) && grade >= 0 && grade <= 5)
+        : [];
+      const rank = rows.filter(
+        (row) => Number(row.current_month_points) > Number(ownRow.current_month_points)
+      ).length + 1;
+
+      groups.push({
+        groupId,
+        groupName: ownRow.group_name,
+        rank,
+        groupSize: rows.length,
+        monthPoints: Number(ownRow.current_month_points) || 0,
+        totalPoints: Number(ownRow.total_points) || 0,
+        gradedLessons: ownProgress?.gradedLessons || 0,
+        averageGrade: ownProgress?.currentAverage ?? (ownGrades.length
+          ? Number((ownGrades.reduce((sum, grade) => sum + grade, 0) / ownGrades.length).toFixed(2))
+          : null),
+        progressDifference: ownProgress?.difference ?? null,
+        progressStatus: ownProgress?.status || 'no-data',
+      });
+    }
+
+    res.json({ telegramId, groups, updatedAt: new Date().toISOString() });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    console.error('Bot o‘quvchi statistikasini olishda xatolik:', e.message);
+    res.status(500).json({ error: 'Sayt statistikasini olib bo‘lmadi' });
   }
 };
 
-exports.getPaymentPhoto = async (req, res) => {
-  const paymentId = Number(req.params.paymentId);
-  if (!Number.isInteger(paymentId) || paymentId < 1) {
-    return res.status(400).json({ error: 'To‘lov ID noto‘g‘ri' });
-  }
-  if (!bot) {
-    return res.status(503).json({ error: 'Telegram bot sozlanmagan, chek rasmini olish imkonsiz' });
+exports.syncBotStats = async (req, res) => {
+  const { users, groups, tests, gradedStudents } = req.body;
+  const values = [users, groups, tests, gradedStudents];
+  if (!values.every((value) => Number.isSafeInteger(value) && value >= 0)) {
+    return res.status(400).json({ error: 'Bot statistikasi manfiy bo‘lmagan butun sonlardan iborat bo‘lishi kerak' });
   }
 
   try {
-    const payment = await db.query('SELECT check_file_id FROM payments WHERE id = $1', [paymentId]);
-    if (payment.rowCount === 0) return res.status(404).json({ error: 'To‘lov topilmadi' });
-
-    const file = await bot.api.getFile(payment.rows[0].check_file_id);
-    if (!file.file_path) throw new Error('Telegram chek fayli uchun yo‘l qaytarmadi');
-
-    const image = await fetch(`https://api.telegram.org/file/bot${bot.token}/${file.file_path}`);
-    if (!image.ok) throw new Error(`Telegram chek rasmini yuklay olmadi (${image.status})`);
-
-    res.type(image.headers.get('content-type') || 'application/octet-stream');
-    res.set('Cache-Control', 'private, no-store');
-    res.send(Buffer.from(await image.arrayBuffer()));
-  } catch (e) {
-    console.error('Chek rasmini olishda xatolik:', e.message);
-    res.status(502).json({ error: 'Telegramdan chek rasmini olib bo‘lmadi' });
-  }
-};
-
-exports.updatePaymentStatus = async (req, res) => {
-  const paymentId = Number(req.params.paymentId);
-  const { status } = req.body;
-  if (!Number.isInteger(paymentId) || paymentId < 1) {
-    return res.status(400).json({ error: 'To‘lov ID noto‘g‘ri' });
-  }
-  if (!['approved', 'rejected'].includes(status)) {
-    return res.status(400).json({ error: 'Holat approved yoki rejected bo‘lishi kerak' });
-  }
-
-  try {
-    const paymentResult = await db.query(
-      `SELECT p.id, p.telegram_id, p.group_id, u.full_name, g.name as group_name
-       FROM payments p
-       LEFT JOIN users u ON u.telegram_id = p.telegram_id
-       LEFT JOIN groups g ON g.id = p.group_id
-       WHERE p.id = $1 AND p.status = 'pending'`,
-      [paymentId]
+    await db.query(
+      `INSERT INTO bot_stats_snapshots (id, stats, updated_at)
+       VALUES (1, $1::jsonb, CURRENT_TIMESTAMP)
+       ON CONFLICT (id) DO UPDATE SET stats = EXCLUDED.stats, updated_at = CURRENT_TIMESTAMP`,
+      [JSON.stringify({ users, groups, tests, gradedStudents })]
     );
-    if (paymentResult.rowCount === 0) {
-      return res.status(409).json({ error: 'Kutilayotgan to‘lov topilmadi yoki u oldin ko‘rib chiqilgan' });
-    }
-
-    const payment = paymentResult.rows[0];
-    let inviteLink = null;
-    if (status === 'approved') {
-      if (!bot || !process.env.TELEGRAM_GROUP_ID) {
-        return res.status(503).json({ error: 'Tasdiqlash uchun Telegram bot va TELEGRAM_GROUP_ID sozlangan bo‘lishi kerak' });
-      }
-      const invite = await bot.api.createChatInviteLink(process.env.TELEGRAM_GROUP_ID, { member_limit: 1 });
-      inviteLink = invite.invite_link;
-    }
-
-    const updated = await db.transaction(async (client) => {
-      const changedPayment = await client.query(
-        `UPDATE payments SET status = $1 WHERE id = $2 AND status = 'pending'
-         RETURNING telegram_id, group_id`,
-        [status, paymentId]
-      );
-      if (changedPayment.rowCount === 0) {
-        const error = new Error('To‘lov boshqa admin tomonidan ko‘rib chiqildi');
-        error.statusCode = 409;
-        throw error;
-      }
-
-      const { telegram_id, group_id } = changedPayment.rows[0];
-      await client.query(
-        `INSERT INTO enrollments (telegram_id, group_id, status)
-         VALUES ($1, $2, $3)
-         ON CONFLICT (telegram_id, group_id)
-         DO UPDATE SET status = EXCLUDED.status, updated_at = CURRENT_TIMESTAMP`,
-        [telegram_id, group_id, status === 'approved' ? 'active' : 'rejected']
-      );
-
-      return { telegram_id, group_id };
-    });
-
-    let notificationWarning = null;
-    try {
-      const message = status === 'approved'
-        ? `🎉 To‘lovingiz tasdiqlandi!\n\nGuruhga qo‘shilish havolasi:\n${inviteLink}`
-        : '❌ Kechirasiz, yuborgan to‘lov chekingiz tasdiqlanmadi. Iltimos, administrator bilan bog‘laning.';
-      if (!bot) throw new Error('Telegram bot sozlanmagan');
-      await bot.api.sendMessage(updated.telegram_id, message);
-    } catch (e) {
-      console.error(`To‘lov #${paymentId} bo‘yicha o‘quvchiga xabar yuborilmadi:`, e.message);
-      notificationWarning = 'Holat saqlandi, lekin o‘quvchiga Telegram xabari yuborilmadi. Bot tokenini tekshiring.';
-    }
-
-    res.json({ ok: true, status, notificationWarning });
+    res.json({ ok: true });
   } catch (e) {
-    if (e.statusCode) return res.status(e.statusCode).json({ error: e.message });
-    console.error('To‘lov holatini yangilashda xatolik:', e.message);
-    res.status(500).json({ error: e.message });
+    console.error('Bot statistikasini sinxronlashda xatolik:', e.message);
+    res.status(500).json({ error: 'Bot statistikasini saqlab bo‘lmadi' });
   }
 };

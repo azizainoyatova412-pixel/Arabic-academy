@@ -7,7 +7,19 @@ const API = process.env.REACT_APP_API_URL || '';
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('grades');
-  const [stats, setStats] = useState({ groups: 0, students: 0, results: 0, reviews: 0 });
+  const [stats, setStats] = useState({
+    group_count: 0,
+    students: 0,
+    active_students: 0,
+    pending_enrollments: 0,
+    results: 0,
+    reviews: 0,
+    pending_reviews: 0,
+    groups: [],
+    bot: null,
+    botUpdatedAt: null,
+  });
+  const [statsError, setStatsError] = useState('');
 
   useEffect(() => {
     if (!sessionStorage.getItem('admin_auth')) {
@@ -28,35 +40,27 @@ export default function AdminDashboard() {
       return;
     }
     try {
-      const resG = await fetch(`${API}/api/admin/groups`, { headers: { 'x-admin-key': authKey } });
-      if (resG.status === 401) {
+      const response = await fetch(`${API}/api/admin/dashboard-stats`, {
+        headers: { 'x-admin-key': authKey },
+      });
+      if (response.status === 401) {
         sessionStorage.removeItem('admin_auth');
         navigate('/admin');
         return;
       }
-      const groupsData = await resG.json();
-      const [resR, resRev] = await Promise.allSettled([
-        fetch(`${API}/api/results`).then(r => r.json()),
-        fetch(`${API}/api/reviews`).then(r => r.json()),
-      ]);
-
-      let groupCount = (groupsData && groupsData.groups) ? groupsData.groups.length : 0;
-      let resultsCount = (resR.status === 'fulfilled' && resR.value.results) ? resR.value.results.length : 0;
-      let reviewsCount = (resRev.status === 'fulfilled' && resRev.value.reviews) ? resRev.value.reviews.length : 0;
-
-      setStats({
-        groups: groupCount,
-        students: 0, // guruh ichida hisoblanadi
-        results: resultsCount,
-        reviews: reviewsCount,
-      });
-    } catch {
-      // xatolik yuz bersa ham dashboard ishlayveradi
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Statistikani yuklab bo‘lmadi');
+      setStats((previous) => ({ ...previous, ...data.stats }));
+      setStatsError('');
+    } catch (err) {
+      setStatsError(err.message || 'Statistikani yuklab bo‘lmadi');
     }
   };
 
   useEffect(() => {
     loadGlobalStats();
+    const interval = setInterval(loadGlobalStats, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   return (
@@ -97,14 +101,6 @@ export default function AdminDashboard() {
           >
             <span className="admin-nav-icon">📚</span>
             <span>Baholar & Guruhlar</span>
-          </button>
-
-          <button
-            className={'admin-nav-item' + (activeTab === 'payments' ? ' active' : '')}
-            onClick={() => setActiveTab('payments')}
-          >
-            <span className="admin-nav-icon">💳</span>
-            <span>To‘lov cheklari</span>
           </button>
 
           <button
@@ -153,6 +149,7 @@ export default function AdminDashboard() {
       {/* Asosiy kontent maydoni */}
       <main className="admin-main">
         {/* Yuqori Tezkor Statistika */}
+        {statsError && <div className="admin-alert alert-danger"><span>⚠️</span><span>{statsError}</span></div>}
         <section className="admin-quick-stats">
           <div className="quick-stat-card">
             <div className="stat-icon-wrap" style={{ background: 'rgba(26, 122, 94, 0.12)', color: '#1A7A5E' }}>
@@ -160,7 +157,37 @@ export default function AdminDashboard() {
             </div>
             <div>
               <span className="stat-label">Guruhlar</span>
-              <strong className="stat-num">{stats.groups} ta</strong>
+              <strong className="stat-num">{stats.group_count} ta</strong>
+            </div>
+          </div>
+
+          <div className="quick-stat-card">
+            <div className="stat-icon-wrap" style={{ background: 'rgba(59, 130, 246, 0.12)', color: '#2563EB' }}>
+              👥
+            </div>
+            <div>
+              <span className="stat-label">Barcha o‘quvchilar</span>
+              <strong className="stat-num">{stats.students} nafar</strong>
+            </div>
+          </div>
+
+          <div className="quick-stat-card">
+            <div className="stat-icon-wrap" style={{ background: 'rgba(16, 185, 129, 0.12)', color: '#059669' }}>
+              ✅
+            </div>
+            <div>
+              <span className="stat-label">Faol o‘quvchilar</span>
+              <strong className="stat-num">{stats.active_students} nafar</strong>
+            </div>
+          </div>
+
+          <div className="quick-stat-card">
+            <div className="stat-icon-wrap" style={{ background: 'rgba(217, 119, 6, 0.12)', color: '#D97706' }}>
+              📝
+            </div>
+            <div>
+              <span className="stat-label">Tasdiq kutayotgan sharhlar</span>
+              <strong className="stat-num">{stats.pending_reviews} ta</strong>
             </div>
           </div>
 
@@ -188,24 +215,56 @@ export default function AdminDashboard() {
         {/* Tab kontentlari */}
         <div className="admin-content-card-wrap">
           {activeTab === 'grades' && <GradesSection onDataChange={loadGlobalStats} />}
-          {activeTab === 'payments' && <PaymentsSection />}
           {activeTab === 'results' && <ResultsSection onDataChange={loadGlobalStats} />}
           {activeTab === 'reviews' && <ReviewsSection onDataChange={loadGlobalStats} />}
           {activeTab === 'videos' && <VideosSection />}
           {activeTab === 'settings' && <SettingsSection />}
         </div>
+
+        <section className="admin-card admin-live-stats">
+          <div className="admin-live-stats-header">
+            <div>
+              <h3 className="admin-card-title">📊 Tizim faolligi</h3>
+              <p>Bot va sayt statistikasi har 30 soniyada yangilanadi.</p>
+            </div>
+            <button type="button" className="admin-btn small" onClick={loadGlobalStats}>🔄 Yangilash</button>
+          </div>
+          <div className="admin-live-stat-grid">
+            <div><span>Saytdagi faol guruhlar</span><strong>{stats.group_count}</strong></div>
+            <div><span>O‘quvchilar</span><strong>{stats.students}</strong></div>
+            <div><span>Yuborilgan testlar</span><strong>{stats.bot?.tests ?? '—'}</strong></div>
+            <div><span>Bot foydalanuvchilari</span><strong>{stats.bot?.users ?? '—'}</strong></div>
+          </div>
+          <div className="admin-group-stats">
+            {stats.groups.length === 0 ? (
+              <p>Hozircha guruh statistikasi yo‘q.</p>
+            ) : (
+              <div className="admin-group-column-chart" role="img" aria-label="Har bir guruhdagi o‘quvchilar soni">
+                {stats.groups.map((group) => {
+                  const maxStudents = Math.max(1, ...stats.groups.map((item) => Number(item.students) || 0));
+                  const studentCount = Number(group.students) || 0;
+                  const percent = Math.max(5, Math.round((studentCount / maxStudents) * 100));
+                  return (
+                    <div className="admin-group-column" key={group.id} title={`${group.name}: ${studentCount} o‘quvchi`}>
+                      <div className="admin-group-column-value">{studentCount}</div>
+                      <div className="admin-group-column-track">
+                        <span style={{ height: `${percent}%` }} />
+                      </div>
+                      <div className="admin-group-column-label">{group.name}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+          <small className="admin-sync-time">
+            Bot statistikasi: {stats.botUpdatedAt ? new Date(stats.botUpdatedAt).toLocaleString('uz-UZ') : 'sinxronlash kutilmoqda'}
+          </small>
+        </section>
       </main>
 
       {/* Mobil pastki Navigation Bar */}
       <nav className="admin-bottom-nav">
-        <button
-          className={'admin-bottom-item' + (activeTab === 'payments' ? ' active' : '')}
-          onClick={() => setActiveTab('payments')}
-        >
-          <span className="bottom-icon">💳</span>
-          <span>Cheklar</span>
-        </button>
-
         <button
           className={'admin-bottom-item' + (activeTab === 'grades' ? ' active' : '')}
           onClick={() => setActiveTab('grades')}
@@ -246,193 +305,6 @@ export default function AdminDashboard() {
           <span>Sozlamalar</span>
         </button>
       </nav>
-    </div>
-  );
-}
-
-function PaymentsSection() {
-  const [status, setStatus] = useState('pending');
-  const [refreshKey, setRefreshKey] = useState(0);
-  const [payments, setPayments] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [updatingId, setUpdatingId] = useState(null);
-  const [error, setError] = useState('');
-  const [message, setMessage] = useState('');
-  const [photo, setPhoto] = useState(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    const loadPayments = async () => {
-      setLoading(true);
-      setError('');
-      try {
-        const response = await fetch(`${API}/api/admin/payments?status=${status}`, {
-          headers: { 'x-admin-key': sessionStorage.getItem('admin_auth') || '' },
-        });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error || 'To‘lov cheklari yuklanmadi');
-        if (!cancelled) setPayments(data.payments || []);
-      } catch (err) {
-        if (!cancelled) setError(err.message || 'Server bilan bog‘lanishda xatolik');
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
-
-    loadPayments();
-    return () => {
-      cancelled = true;
-    };
-  }, [status, refreshKey]);
-
-  useEffect(() => () => {
-    if (photo) URL.revokeObjectURL(photo.url);
-  }, [photo]);
-
-  const viewPhoto = async (payment) => {
-    setError('');
-    try {
-      const response = await fetch(`${API}/api/admin/payments/${payment.id}/photo`, {
-        headers: { 'x-admin-key': sessionStorage.getItem('admin_auth') || '' },
-      });
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Chek rasmini yuklab bo‘lmadi');
-      }
-      const url = URL.createObjectURL(await response.blob());
-      setPhoto({ url, studentName: payment.full_name, paymentId: payment.id });
-    } catch (err) {
-      setError(err.message || 'Chek rasmini yuklab bo‘lmadi');
-    }
-  };
-
-  const updateStatus = async (payment, nextStatus) => {
-    setUpdatingId(payment.id);
-    setError('');
-    setMessage('');
-    try {
-      const response = await fetch(`${API}/api/admin/payments/${payment.id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-admin-key': sessionStorage.getItem('admin_auth') || '',
-        },
-        body: JSON.stringify({ status: nextStatus }),
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'To‘lov holatini o‘zgartirib bo‘lmadi');
-      setPayments((previous) => status === 'pending'
-        ? previous.filter((item) => item.id !== payment.id)
-        : previous.map((item) => item.id === payment.id ? { ...item, status: nextStatus } : item)
-      );
-      setMessage(nextStatus === 'approved' ? 'To‘lov tasdiqlandi.' : 'To‘lov rad etildi.');
-      if (data.notificationWarning) setError(data.notificationWarning);
-    } catch (err) {
-      setError(err.message || 'To‘lov holatini o‘zgartirib bo‘lmadi');
-    } finally {
-      setUpdatingId(null);
-    }
-  };
-
-  const statusLabel = { pending: 'Kutilmoqda', approved: 'Tasdiqlangan', rejected: 'Rad etilgan' };
-
-  return (
-    <div className="admin-section">
-      <div className="admin-section-header">
-        <div>
-          <h2>💳 O‘quvchilar to‘lov cheklari</h2>
-          <p className="admin-section-desc">O‘quvchi botga yuborgan chekni shu yerdan tekshiring, tasdiqlang yoki rad eting.</p>
-        </div>
-      </div>
-
-      {error && <div className="admin-alert alert-danger"><span>⚠️</span><span>{error}</span></div>}
-      {message && <div className="admin-alert alert-success"><span>✅</span><span>{message}</span></div>}
-
-      <div className="admin-card">
-        <div className="payment-filters" role="group" aria-label="To‘lov holati">
-          {[
-            ['pending', 'Kutilayotgan'],
-            ['approved', 'Tasdiqlangan'],
-            ['rejected', 'Rad etilgan'],
-            ['all', 'Barchasi'],
-          ].map(([value, label]) => (
-            <button
-              key={value}
-              type="button"
-              className={`admin-btn small ${status === value ? 'primary' : ''}`}
-              onClick={() => setStatus(value)}
-            >
-              {label}
-            </button>
-          ))}
-          <button
-            type="button"
-            className="admin-btn small"
-            onClick={() => setRefreshKey((previous) => previous + 1)}
-            disabled={loading}
-          >
-            🔄 Yangilash
-          </button>
-        </div>
-
-        {loading ? (
-          <div className="admin-empty-state"><p>To‘lovlar yuklanmoqda...</p></div>
-        ) : payments.length === 0 ? (
-          <div className="admin-empty-state">
-            <span className="empty-icon">🧾</span>
-            <p>Bu bo‘limda to‘lov cheklari yo‘q.</p>
-          </div>
-        ) : (
-          <div className="payment-list">
-            {payments.map((payment) => (
-              <article className="payment-item" key={payment.id}>
-                <div className="payment-item-details">
-                  <strong>{payment.full_name || `Telegram ID ${payment.telegram_id}`}</strong>
-                  <span>{payment.group_name || `Guruh #${payment.group_id}`}</span>
-                  <small>{new Date(payment.created_at).toLocaleString('uz-UZ')} · {statusLabel[payment.status] || payment.status}</small>
-                </div>
-                <div className="payment-item-actions">
-                  <button type="button" className="admin-btn small" onClick={() => viewPhoto(payment)}>
-                    🖼️ Chekni ko‘rish
-                  </button>
-                  {payment.status === 'pending' && (
-                    <>
-                      <button
-                        type="button"
-                        className="admin-btn small primary"
-                        disabled={updatingId === payment.id}
-                        onClick={() => updateStatus(payment, 'approved')}
-                      >
-                        {updatingId === payment.id ? 'Saqlanmoqda...' : '✅ Tasdiqlash'}
-                      </button>
-                      <button
-                        type="button"
-                        className="admin-btn small danger"
-                        disabled={updatingId === payment.id}
-                        onClick={() => updateStatus(payment, 'rejected')}
-                      >
-                        ❌ Rad etish
-                      </button>
-                    </>
-                  )}
-                </div>
-              </article>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {photo && (
-        <div className="payment-photo-overlay" role="presentation" onClick={() => setPhoto(null)}>
-          <div className="payment-photo-dialog" role="dialog" aria-modal="true" aria-label="To‘lov cheki" onClick={(event) => event.stopPropagation()}>
-            <div className="payment-photo-header">
-              <strong>{photo.studentName || `To‘lov #${photo.paymentId}`}</strong>
-              <button type="button" className="admin-btn small" onClick={() => setPhoto(null)}>Yopish ✕</button>
-            </div>
-            <img src={photo.url} alt={`${photo.studentName || 'O‘quvchi'} to‘lov cheki`} />
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -1354,12 +1226,14 @@ function ResultsSection({ onDataChange }) {
 // SHARHLAR BO'LIMI
 // =====================================================================
 function ReviewsSection({ onDataChange }) {
+  const [status, setStatus] = useState('pending');
   const [reviews, setReviews] = useState([]);
   const [name, setName] = useState('');
   const [text, setText] = useState('');
   const [stars, setStars] = useState(5);
   const [msg, setMsg] = useState({ text: '', type: 'success' });
   const [loading, setLoading] = useState(false);
+  const [busyReviewId, setBusyReviewId] = useState(null);
 
   const showToast = (text, type = 'success') => {
     setMsg({ text, type });
@@ -1368,18 +1242,23 @@ function ReviewsSection({ onDataChange }) {
 
   const loadReviews = async () => {
     try {
-      const res = await fetch(`${API}/api/reviews`);
+      const res = await fetch(`${API}/api/admin/reviews?status=${status}`, {
+        headers: { 'x-admin-key': sessionStorage.getItem('admin_auth') || '' },
+      });
       const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Sharhlarni yuklab bo‘lmadi');
       setReviews(data.reviews || []);
       if (onDataChange) onDataChange();
-    } catch {
-      setReviews([]);
+    } catch (err) {
+      showToast(err.message || 'Sharhlarni yuklab bo‘lmadi', 'error');
     }
   };
 
   useEffect(() => {
     loadReviews();
-  }, []);
+    const interval = setInterval(loadReviews, 15000);
+    return () => clearInterval(interval);
+  }, [status]);
 
   const addReview = async (e) => {
     if (e) e.preventDefault();
@@ -1428,14 +1307,34 @@ function ReviewsSection({ onDataChange }) {
     }
   };
 
+  const updateReviewStatus = async (review, nextStatus) => {
+    setBusyReviewId(review.id);
+    try {
+      const res = await fetch(`${API}/api/admin/reviews/${review.id}/status`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-key': sessionStorage.getItem('admin_auth') || '',
+        },
+        body: JSON.stringify({ status: nextStatus }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Sharh holatini yangilab bo‘lmadi');
+      showToast(nextStatus === 'approved' ? 'Sharh saytda e’lon qilindi.' : 'Sharh rad etildi.');
+      await loadReviews();
+    } catch (err) {
+      showToast(err.message || 'Sharh holatini yangilab bo‘lmadi', 'error');
+    } finally {
+      setBusyReviewId(null);
+    }
+  };
+
   return (
     <div className="admin-section">
       <div className="admin-section-header">
         <div>
           <h2>💬 O'quvchilar Sharhlari</h2>
-          <p className="admin-section-desc">
-            O'quvchilarning haqiqiy fikr va xursandchiliklarini qo'shing — saytda dinamik ko'rsatiladi.
-          </p>
+          <p className="admin-section-desc">Botdan kelgan sharhlar tasdiqlanmaguncha saytda ko‘rinmaydi.</p>
         </div>
       </div>
 
@@ -1486,15 +1385,33 @@ function ReviewsSection({ onDataChange }) {
           />
 
           <button type="submit" className="admin-btn primary" disabled={loading}>
-            {loading ? 'Qo‘shilmoqda...' : '+ Sharhni saytga chiqarish'}
+            {loading ? 'Qo‘shilmoqda...' : '+ Tasdiqlangan sharh qo‘shish'}
           </button>
         </form>
       </div>
 
       {/* Sharhlar ro'yxati */}
       <div className="admin-card">
+        <div className="review-status-filters">
+          {[
+            ['pending', 'Kutilayotgan'],
+            ['approved', 'Saytda e’lon qilingan'],
+            ['rejected', 'Rad etilgan'],
+            ['all', 'Barchasi'],
+          ].map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              className={`admin-btn small ${status === value ? 'primary' : ''}`}
+              onClick={() => setStatus(value)}
+            >
+              {label}
+            </button>
+          ))}
+          <button type="button" className="admin-btn small" onClick={loadReviews}>🔄 Yangilash</button>
+        </div>
         <h3 className="admin-card-title">
-          <span>Mavjud sharhlar</span>
+          <span>Sharhlar: {status === 'pending' ? 'kutilmoqda' : status === 'approved' ? 'e’lon qilingan' : status === 'rejected' ? 'rad etilgan' : 'barcha holatlar'}</span>
           <span className="badge-count">{reviews.length} ta</span>
         </h3>
 
@@ -1509,7 +1426,7 @@ function ReviewsSection({ onDataChange }) {
               <div key={rev.id} className="review-admin-card">
                 <div className="review-admin-header">
                   <div className="review-admin-user">
-                    <span className="avatar-circle">{rev.name.charAt(0).toUpperCase()}</span>
+                    <span className="avatar-circle">{(rev.name || 'O').charAt(0).toUpperCase()}</span>
                     <strong>{rev.name}</strong>
                   </div>
                   <span className="stars-gold">
@@ -1518,7 +1435,31 @@ function ReviewsSection({ onDataChange }) {
                   </span>
                 </div>
                 <p className="review-admin-text">"{rev.text}"</p>
+                <small className={`review-status-badge review-status-${rev.status}`}>
+                  {rev.status === 'pending' ? 'Tasdiq kutilmoqda' : rev.status === 'approved' ? 'Saytda ko‘rinadi' : 'Rad etilgan'}
+                  {rev.telegram_id ? ' · Telegram botdan' : ''}
+                </small>
                 <div className="review-admin-footer">
+                  {rev.status === 'pending' && (
+                    <>
+                      <button
+                        type="button"
+                        className="admin-btn primary small"
+                        disabled={busyReviewId === rev.id}
+                        onClick={() => updateReviewStatus(rev, 'approved')}
+                      >
+                        ✅ Tasdiqlash
+                      </button>
+                      <button
+                        type="button"
+                        className="admin-btn small"
+                        disabled={busyReviewId === rev.id}
+                        onClick={() => updateReviewStatus(rev, 'rejected')}
+                      >
+                        Rad etish
+                      </button>
+                    </>
+                  )}
                   <button
                     type="button"
                     className="admin-btn danger small"

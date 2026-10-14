@@ -2,9 +2,9 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 const multer = require('multer');
 const db = require('./db/index');
-const bot = require('./bot/bot');
 const leaderboardController = require('./controllers/leaderboardController');
 const adminController = require('./controllers/adminController');
 const contentController = require('./controllers/contentController');
@@ -54,6 +54,15 @@ app.get('/api/ping', (req, res) => {
 app.get('/api/leaderboard/:groupId', leaderboardController.getLeaderboard);
 app.get('/api/results', contentController.getResults);
 app.get('/api/reviews', contentController.getReviews);
+app.get('/api/public-config', (_req, res) => {
+  const contact = (process.env.ADMIN_TELEGRAM_CONTACT || process.env.ADMIN_TELEGRAM_ID || '8145529224').trim();
+  const telegramAdminUrl = /^https?:\/\//i.test(contact)
+    ? contact
+    : /^\d+$/.test(contact)
+      ? `tg://user?id=${contact}`
+      : `https://t.me/${contact.replace(/^@/, '')}`;
+  res.json({ telegramAdminUrl });
+});
 
 // ============================================================
 // ADMIN API endpointlari (x-admin-key header bilan himoyalangan)
@@ -65,6 +74,17 @@ const adminGuard = (req, res, next) => {
   const providedKey = req.headers['x-admin-key'];
   if (providedKey && providedKey === runtimePassword) return next();
   res.status(401).json({ error: 'Ruxsatsiz kirish' });
+};
+
+const botSyncGuard = (req, res, next) => {
+  const expected = process.env.BOT_SYNC_SECRET || '';
+  const provided = req.get('x-bot-sync-secret') || '';
+  const expectedBuffer = Buffer.from(expected);
+  const providedBuffer = Buffer.from(provided);
+  if (!expected || expectedBuffer.length !== providedBuffer.length || !crypto.timingSafeEqual(expectedBuffer, providedBuffer)) {
+    return res.status(401).json({ error: 'Ruxsatsiz bot sinxronlash so‘rovi' });
+  }
+  next();
 };
 
 // Parolni o'zgartirish endpointi
@@ -102,9 +122,7 @@ app.delete('/api/admin/groups/:groupId', adminGuard, adminController.deleteGroup
 app.get('/api/admin/groups/:groupId/students', adminGuard, adminController.getStudents);
 app.post('/api/admin/groups/:groupId/students', adminGuard, adminController.addStudent);
 app.get('/api/admin/groups/:groupId/stats', adminGuard, adminController.getGroupStats);
-app.get('/api/admin/payments', adminGuard, adminController.getPayments);
-app.get('/api/admin/payments/:paymentId/photo', adminGuard, adminController.getPaymentPhoto);
-app.patch('/api/admin/payments/:paymentId', adminGuard, adminController.updatePaymentStatus);
+app.get('/api/admin/dashboard-stats', adminGuard, adminController.getDashboardStats);
 
 // Baholash
 app.put('/api/admin/students/:studentId/lesson-grade', adminGuard, adminController.updateLessonGrade);
@@ -117,7 +135,14 @@ app.delete('/api/admin/results/:id', adminGuard, contentController.deleteResult)
 
 // Sharhlar
 app.post('/api/admin/reviews', adminGuard, contentController.addReview);
+app.get('/api/admin/reviews', adminGuard, contentController.getAdminReviews);
+app.patch('/api/admin/reviews/:id/status', adminGuard, contentController.updateReviewStatus);
 app.delete('/api/admin/reviews/:id', adminGuard, contentController.deleteReview);
+
+// Botdan kelgan sharh/statistika (shared secret bilan himoyalanadi)
+app.post('/api/bot/reviews', botSyncGuard, contentController.submitBotReview);
+app.post('/api/bot/stats', botSyncGuard, adminController.syncBotStats);
+app.post('/api/bot/student-stats', botSyncGuard, adminController.getBotStudentStats);
 
 // ============================================================
 // SERVER ISHGA TUSHIRISH
@@ -212,15 +237,3 @@ app.listen(PORT, '0.0.0.0', async () => {
     }, PING_INTERVAL_MS);
   }
 });
-
-if (bot && typeof bot.start === 'function') {
-  bot.start()
-    .then(() => {
-      console.log('🤖 Telegram bot ishga tushdi!');
-    })
-    .catch((err) => {
-      console.error('❌ Telegram bot ishga tushmadi:', err.message);
-    });
-} else {
-  console.log('ℹ️ Telegram BOT_TOKEN topilmadi yoki yaroqsiz. Bot o‘chirilgan holda ishlaydi.');
-}

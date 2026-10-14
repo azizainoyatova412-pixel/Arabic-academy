@@ -74,7 +74,18 @@ const initDb = async () => {
         name TEXT NOT NULL,
         text TEXT NOT NULL,
         stars INT DEFAULT 5,
+        status VARCHAR(20) NOT NULL DEFAULT 'approved',
+        telegram_id BIGINT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      ALTER TABLE reviews ADD COLUMN IF NOT EXISTS status VARCHAR(20) NOT NULL DEFAULT 'approved';
+      ALTER TABLE reviews ADD COLUMN IF NOT EXISTS telegram_id BIGINT;
+
+      CREATE TABLE IF NOT EXISTS bot_stats_snapshots (
+        id SMALLINT PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+        stats JSONB NOT NULL,
+        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
       );
 
       CREATE TABLE IF NOT EXISTS monthly_grades (
@@ -121,23 +132,5 @@ const initDb = async () => {
 
 module.exports = {
   query: (text, params) => pool.query(text, params),
-  transaction: async (callback) => {
-    const client = await pool.connect();
-    try {
-      await client.query('BEGIN');
-      const result = await callback(client);
-      await client.query('COMMIT');
-      return result;
-    } catch (err) {
-      try {
-        await client.query('ROLLBACK');
-      } catch (rollbackError) {
-        console.error('❌ Tranzaksiyani bekor qilishda xatolik:', rollbackError.message);
-      }
-      throw err;
-    } finally {
-      client.release();
-    }
-  },
   initDb,
 };

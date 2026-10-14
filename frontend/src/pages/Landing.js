@@ -24,7 +24,7 @@ const content = {
     heroTitleSuffix: "professional darajada o‘rgatamiz",
     heroDesc: "Uzbikiyya — o‘qitishning izchil, zamonaviy va amaliy tizimi bilan ishlaydigan akademiya. Kichik guruhlar, individual mashg‘ulotlar va amaliy nutq mashqlari uyg‘unlikda olib boriladi. Arab tilini C1–C2 darajasiga olib chiqadigan ustoz bilan ishlaysiz.",
     enrollBtn: 'Kursga yoziling',
-    telegramBtn: "Telegram kanalimiz",
+    telegramBtn: "Telegram orqali adminga yozish",
     heroCards: {
       topLabel: 'Darslar',
       topVal: '4 bosqich',
@@ -122,7 +122,8 @@ const content = {
     contact: {
       eyebrow: 'Biz bilan bog‘laning',
       title: 'Arab tili o‘rganish yo‘lingizni bugun boshlang.',
-      desc: 'Kurslar, dars jadvali va ro‘yxatdan o‘tish haqida ma’lumot olish uchun Instagram orqali bog‘laning.',
+      desc: 'Kurslar, dars jadvali va ro‘yxatdan o‘tish haqida ma’lumot olish uchun administratorga Telegram orqali yozing.',
+      btn: 'Admin bilan Telegramda bog‘lanish',
     },
     footer: '© 2026 Uzbikiyya Academy. Barcha huquqlar himoyalangan.',
   },
@@ -146,7 +147,7 @@ const content = {
     heroTitleSuffix: 'at a professional level',
     heroDesc: 'Uzbikiyya Academy is an academy built upon a structured, modern, and highly practical teaching methodology. Small interactive groups, personalized tutoring, and live conversational practice.',
     enrollBtn: 'Enroll Now',
-    telegramBtn: 'Visit our Telegram channel',
+    telegramBtn: 'Message the admin on Telegram',
     heroCards: {
       topLabel: 'Program',
       topVal: '4 Levels',
@@ -231,7 +232,8 @@ const content = {
     contact: {
       eyebrow: 'Get in touch',
       title: 'Start your Arabic learning journey today.',
-      desc: 'Contact us on Instagram for course details, schedules, and enrollment information.',
+      desc: 'Message the administrator on Telegram for course details, schedules, and enrollment information.',
+      btn: 'Contact the admin on Telegram',
     },
     footer: '© 2026 Aisha Uzbikiyya Academy. All rights reserved.',
   },
@@ -255,7 +257,7 @@ const content = {
     heroTitleSuffix: 'на профессиональном уровне',
     heroDesc: 'Aisha Uzbikiyya — академия с последовательной, современной и практической методикой обучения. Занятия в малых группах, индивидуальный подход и постоянная речевая практика.',
     enrollBtn: 'Записаться на курс',
-    telegramBtn: 'Связаться через Telegram',
+    telegramBtn: 'Написать администратору в Telegram',
     heroCards: {
       topLabel: 'Программа',
       topVal: '4 уровня',
@@ -316,7 +318,8 @@ const content = {
     contact: {
       eyebrow: 'Свяжитесь с нами',
       title: 'Начните изучать арабский уже сегодня.',
-      desc: 'Напишите нам в Instagram, чтобы узнать о курсах, расписании и записи.',
+      desc: 'Напишите администратору в Telegram, чтобы узнать о курсах, расписании и записи.',
+      btn: 'Связаться с администратором',
     },
     footer: '© 2026 Aisha Uzbikiyya Academy. Все права защищены.',
   },
@@ -325,6 +328,7 @@ const content = {
 const languageOptions = ['UZ', 'EN', 'RU'];
 
 const TELEGRAM_CHANNEL_URL = 'https://t.me/aisha_uzbikiyya';
+const DEFAULT_TELEGRAM_ADMIN_URL = 'tg://user?id=8145529224';
 const INSTAGRAM_URL = 'https://instagram.com/aisha_uzbikiyya';
 
 const mentorVideos = [
@@ -340,9 +344,17 @@ function Landing() {
   // Dinamik ma'lumotlar
   const [resultsList, setResultsList] = useState([]);
   const [reviewsList, setReviewsList] = useState([]);
+  const [telegramAdminUrl, setTelegramAdminUrl] = useState(DEFAULT_TELEGRAM_ADMIN_URL);
 
   // Natijalar va sharhlarni serverdan yuklash
   useEffect(() => {
+    fetch(`${API}/api/public-config`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data && data.telegramAdminUrl) setTelegramAdminUrl(data.telegramAdminUrl);
+      })
+      .catch((err) => console.warn('Admin Telegram havolasini olishda xatolik:', err.message));
+
     // Natijalar
     fetch(`${API}/api/results`)
       .then((res) => (res.ok ? res.json() : null))
@@ -439,7 +451,7 @@ function Landing() {
               <p className="hero-desc">{t.heroDesc}</p>
 
               <div className="hero-actions">
-                <a href="#contact" className="btn-primary">
+                <a href={telegramAdminUrl} className="btn-primary">
                   {t.enrollBtn} →
                 </a>
                 <a href={TELEGRAM_CHANNEL_URL} target="_blank" rel="noreferrer" className="btn-secondary">
@@ -729,6 +741,9 @@ function Landing() {
                 <h2>{t.contact.title}</h2>
                 <p className="contact-copy">{t.contact.desc}</p>
                 <div style={{ marginTop: '18px', display: 'flex', flexWrap: 'wrap', gap: '14px' }}>
+                  <a href={telegramAdminUrl} className="telegram-btn">
+                    {t.contact.btn} ✦
+                  </a>
                   <a href={INSTAGRAM_URL} target="_blank" rel="noreferrer" className="secondary-link">
                     Instagram sahifa
                   </a>
