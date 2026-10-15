@@ -77,7 +77,7 @@ const adminGuard = (req, res, next) => {
 };
 
 const botSyncGuard = (req, res, next) => {
-  const expected = process.env.BOT_SYNC_SECRET || '';
+  const expected = (process.env.BOT_SYNC_SECRET || '').trim();
   const provided = req.get('x-bot-sync-secret') || '';
   const expectedBuffer = Buffer.from(expected);
   const providedBuffer = Buffer.from(provided);
