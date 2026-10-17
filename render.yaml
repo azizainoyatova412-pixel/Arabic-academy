@@ -15,3 +15,28 @@ services:
         sync: false
       - key: BOT_SYNC_SECRET
         sync: false
+  - type: worker
+    name: arabic-academy-bot
+    env: node
+    rootDir: arab-bot
+    buildCommand: npm install && npm run build
+    startCommand: node dist/server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: BOT_TOKEN
+        sync: false
+      - key: ADMIN_ID
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: ADMIN_TELEGRAM_CONTACT
+        sync: false
+      - key: BOT_DATABASE_URL
+        sync: false
+      - key: BOT_DATABASE_SCHEMA
+        value: arab_bot
+      - key: ACADEMY_API_URL
+        sync: false
+      - key: ACADEMY_SYNC_SECRET
+        sync: false

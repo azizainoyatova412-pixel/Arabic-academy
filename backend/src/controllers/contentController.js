@@ -5,36 +5,76 @@ const fs = require('fs');
 // ====== RESULTS ======
 exports.getResults = async (req, res) => {
   try {
-    const r = await db.query('SELECT * FROM results_showcase ORDER BY created_at DESC');
+    const r = await db.query(
+      `SELECT id, filename, caption, created_at, image_data IS NOT NULL AS has_image
+       FROM results_showcase ORDER BY created_at DESC`
+    );
     res.json({ results: r.rows });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
 };
 
-exports.addResult = async (req, res) => {
-  if (!req.file) return res.status(400).json({ error: 'Fayl kerak' });
-  const { caption } = req.body;
+exports.getResultImage = async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isSafeInteger(id) || id < 1) {
+    return res.status(400).json({ error: 'Natija ID raqami noto‘g‘ri' });
+  }
+
   try {
-    const r = await db.query(
-      'INSERT INTO results_showcase (filename, caption) VALUES ($1, $2) RETURNING *',
-      [req.file.filename, caption || '']
+    const result = await db.query(
+      'SELECT image_data, image_content_type FROM results_showcase WHERE id = $1',
+      [id]
     );
-    res.json({ result: r.rows[0] });
+    const image = result.rows[0];
+    if (!image?.image_data) return res.status(404).json({ error: 'Natija rasmi topilmadi' });
+
+    res.set('Content-Type', image.image_content_type);
+    res.set('Cache-Control', 'public, max-age=86400');
+    res.send(image.image_data);
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
 };
 
-exports.deleteResult = async (req, res) => {
-  const { id } = req.params;
+exports.addResult = async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'Natija rasmi kerak' });
+  const allowedImageTypes = ['image/jpeg', 'image/png', 'image/webp'];
+  if (!allowedImageTypes.includes(req.file.mimetype)) {
+    return res.status(400).json({ error: 'Faqat JPEG, PNG yoki WebP rasmlarini yuborish mumkin' });
+  }
+
+  const caption = typeof req.body.caption === 'string' ? req.body.caption.trim() : '';
+  if (caption.length > 500) {
+    return res.status(400).json({ error: 'Izoh 500 belgidan oshmasligi kerak' });
+  }
+
   try {
-    const r = await db.query('SELECT filename FROM results_showcase WHERE id = $1', [id]);
-    if (r.rows[0]) {
-      const filePath = path.join(__dirname, '../../uploads', r.rows[0].filename);
+    const result = await db.query(
+      `INSERT INTO results_showcase (filename, image_data, image_content_type, caption)
+       VALUES (NULL, $1, $2, $3) RETURNING id, filename, caption, created_at`,
+      [req.file.buffer, req.file.mimetype, caption]
+    );
+    res.status(201).json({ result: { ...result.rows[0], has_image: true } });
+  } catch (e) {
+    console.error('Natijani saqlashda xatolik:', e.message);
+    res.status(500).json({ error: 'Natijani saqlab bo‘lmadi' });
+  }
+};
+
+exports.deleteResult = async (req, res) => {
+  try {
+    const result = await db.query(
+      'DELETE FROM results_showcase WHERE id = $1 RETURNING filename',
+      [req.params.id]
+    );
+    if (result.rowCount === 0) return res.status(404).json({ error: 'Natija topilmadi' });
+
+    const filename = result.rows[0]?.filename;
+    if (filename) {
+      const filePath = path.join(__dirname, '../../uploads', path.basename(filename));
       if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
     }
-    await db.query('DELETE FROM results_showcase WHERE id = $1', [id]);
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -48,20 +88,6 @@ exports.getReviews = async (req, res) => {
       "SELECT * FROM reviews WHERE status = 'approved' ORDER BY created_at DESC"
     );
     res.json({ reviews: r.rows });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
-};
-
-exports.addReview = async (req, res) => {
-  const { name, text, stars } = req.body;
-  if (!name || !text) return res.status(400).json({ error: 'name va text kerak' });
-  try {
-    const r = await db.query(
-      "INSERT INTO reviews (name, text, stars, status) VALUES ($1, $2, $3, 'approved') RETURNING *",
-      [name, text, stars || 5]
-    );
-    res.json({ review: r.rows[0] });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }

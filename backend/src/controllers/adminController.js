@@ -401,9 +401,27 @@ exports.syncBotStats = async (req, res) => {
        ON CONFLICT (id) DO UPDATE SET stats = EXCLUDED.stats, updated_at = CURRENT_TIMESTAMP`,
       [JSON.stringify({ users, groups, tests, gradedStudents })]
     );
-    res.json({ ok: true });
+    return res.json({ ok: true });
   } catch (e) {
-    console.error('Bot statistikasini sinxronlashda xatolik:', e.message);
-    res.status(500).json({ error: 'Bot statistikasini saqlab bo‘lmadi' });
+    console.warn('Bot statistikasini saqlashda dastlabki urinish xatosi, jadval tekshirilmoqda:', e.message);
+    try {
+      await db.query(`
+        CREATE TABLE IF NOT EXISTS bot_stats_snapshots (
+          id SMALLINT PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+          stats JSONB NOT NULL,
+          updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+      await db.query(
+        `INSERT INTO bot_stats_snapshots (id, stats, updated_at)
+         VALUES (1, $1::jsonb, CURRENT_TIMESTAMP)
+         ON CONFLICT (id) DO UPDATE SET stats = EXCLUDED.stats, updated_at = CURRENT_TIMESTAMP`,
+        [JSON.stringify({ users, groups, tests, gradedStudents })]
+      );
+      return res.json({ ok: true });
+    } catch (retryErr) {
+      console.error('Bot statistikasini sinxronlashda xatolik:', retryErr.message);
+      return res.status(500).json({ error: 'Bot statistikasini saqlab bo‘lmadi: ' + retryErr.message });
+    }
   }
 };

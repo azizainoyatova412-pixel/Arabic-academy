@@ -1,0 +1,77 @@
+import { db } from '../db/index.js';
+import { config } from '../config.js';
+
+export interface AcademyStudentStats {
+  telegramId: number;
+  updatedAt: string;
+  groups: Array<{
+    groupId: number;
+    groupName: string;
+    rank: number;
+    groupSize: number;
+    monthPoints: number;
+    totalPoints: number;
+    gradedLessons: number;
+    averageGrade: number | null;
+    progressDifference: number | null;
+    progressStatus: 'improved' | 'declined' | 'unchanged' | 'no-data';
+  }>;
+}
+
+async function sendAcademyRequest(path: string, payload: Record<string, unknown>): Promise<unknown> {
+  if (!config.academyApiUrl || !config.academySyncSecret) {
+    throw new Error('ACADEMY_API_URL yoki ACADEMY_SYNC_SECRET sozlanmagan');
+  }
+
+  const response = await fetch(`${config.academyApiUrl}${path}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-bot-sync-secret': config.academySyncSecret,
+    },
+    body: JSON.stringify(payload),
+  });
+  const responseText = await response.text();
+  const contentType = response.headers.get('content-type') || '';
+  let data: { error?: string };
+
+  if (!contentType.includes('application/json')) {
+    if (response.status === 404 && responseText.includes('Cannot POST')) {
+      throw new Error(`${path} endpointi saytda topilmadi. Sayt backend o‘zgarishlarini deploy qiling.`);
+    }
+    throw new Error(`Sayt API JSON emas javob qaytardi (HTTP ${response.status}, ${contentType || 'content-type yo‘q'}). ACADEMY_API_URL manzilini tekshiring.`);
+  }
+
+  try {
+    data = JSON.parse(responseText) as { error?: string };
+  } catch {
+    throw new Error(`Sayt API noto‘g‘ri JSON qaytardi (HTTP ${response.status}).`);
+  }
+  if (!response.ok) throw new Error(data.error || `Akademiya API xatosi: ${response.status}`);
+  return data;
+}
+
+export async function submitAcademyReview(telegramId: number, name: string, text: string): Promise<void> {
+  await sendAcademyRequest('/api/bot/reviews', { telegram_id: telegramId, name, text });
+}
+
+export async function getAcademyStudentStats(telegramId: number): Promise<AcademyStudentStats> {
+  return await sendAcademyRequest('/api/bot/student-stats', { telegram_id: telegramId }) as AcademyStudentStats;
+}
+
+export async function syncAcademyStats(): Promise<void> {
+  const [users, groups, tests, gradedStudents] = await Promise.all([
+    db.query("SELECT COUNT(*) AS count FROM users WHERE status = 'active'"),
+    db.query('SELECT COUNT(*) AS count FROM groups WHERE is_active = TRUE'),
+    db.query('SELECT COUNT(*) AS count FROM user_tests'),
+    db.query('SELECT COUNT(*) AS count FROM users WHERE grade IS NOT NULL AND grade > 0'),
+  ]);
+  const count = (rows: Array<{ count: number | string }>) => Number(rows[0]?.count || 0);
+
+  await sendAcademyRequest('/api/bot/stats', {
+    users: count(users.rows),
+    groups: count(groups.rows),
+    tests: count(tests.rows),
+    gradedStudents: count(gradedStudents.rows),
+  });
+}

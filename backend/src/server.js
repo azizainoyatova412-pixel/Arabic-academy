@@ -8,6 +8,8 @@ const db = require('./db/index');
 const leaderboardController = require('./controllers/leaderboardController');
 const adminController = require('./controllers/adminController');
 const contentController = require('./controllers/contentController');
+const bookController = require('./controllers/bookController');
+
 require('dotenv').config();
 
 const app = express();
@@ -17,20 +19,41 @@ app.use(express.json());
 // Uploads jildini statik sifatida ko'rsatish
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
-// Fayl yuklash uchun multer sozlamasi
-const storage = multer.diskStorage({
+const resultUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_req, file, callback) => {
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.mimetype)) {
+      callback(new Error('Faqat JPEG, PNG yoki WebP rasmlarini yuborish mumkin'));
+      return;
+    }
+    callback(null, true);
+  },
+});
+
+const parseResultUpload = (req, res, next) => {
+  resultUpload.single('image')(req, res, (error) => {
+    if (error) {
+      const status = error.code === 'LIMIT_FILE_SIZE' ? 413 : 400;
+      return res.status(status).json({ error: error.message });
+    }
+    next();
+  });
+};
+
+// PDF Kitoblar yuklash uchun multer sozlamasi
+const bookStorage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const dir = path.join(__dirname, '../uploads');
-    const fs = require('fs');
+    const dir = path.join(__dirname, '../uploads/books');
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
     cb(null, dir);
   },
   filename: (req, file, cb) => {
     const ext = path.extname(file.originalname);
-    cb(null, `${Date.now()}_${Math.random().toString(36).slice(2)}${ext}`);
+    cb(null, `book_${Date.now()}_${Math.random().toString(36).slice(2)}${ext}`);
   }
 });
-const upload = multer({ storage, limits: { fileSize: 5 * 1024 * 1024 } });
+const uploadBook = multer({ storage: bookStorage, limits: { fileSize: 50 * 1024 * 1024 } });
 
 // ============================================================
 // HEALTH CHECK VA ANTI-SLEEP PING ENDPOINTLARI
@@ -53,6 +76,7 @@ app.get('/api/ping', (req, res) => {
 // ============================================================
 app.get('/api/leaderboard/:groupId', leaderboardController.getLeaderboard);
 app.get('/api/results', contentController.getResults);
+app.get('/api/results/:id/image', contentController.getResultImage);
 app.get('/api/reviews', contentController.getReviews);
 app.get('/api/public-config', (_req, res) => {
   const contact = (process.env.ADMIN_TELEGRAM_CONTACT || process.env.ADMIN_TELEGRAM_ID || '8145529224').trim();
@@ -77,12 +101,12 @@ const adminGuard = (req, res, next) => {
 };
 
 const botSyncGuard = (req, res, next) => {
-  const expected = (process.env.BOT_SYNC_SECRET || '').trim();
-  const provided = req.get('x-bot-sync-secret') || '';
+  const expected = (process.env.BOT_SYNC_SECRET || process.env.ACADEMY_SYNC_SECRET || '').trim();
+  const provided = (req.get('x-bot-sync-secret') || '').trim();
   const expectedBuffer = Buffer.from(expected);
   const providedBuffer = Buffer.from(provided);
   if (!expected || expectedBuffer.length !== providedBuffer.length || !crypto.timingSafeEqual(expectedBuffer, providedBuffer)) {
-    return res.status(401).json({ error: 'Ruxsatsiz bot sinxronlash so‘rovi' });
+    return res.status(401).json({ error: 'Ruxsatsiz bot sinxronlash' });
   }
   next();
 };
@@ -130,14 +154,19 @@ app.put('/api/admin/students/:studentId/grade', adminGuard, adminController.upda
 app.delete('/api/admin/groups/:groupId/students/:studentId', adminGuard, adminController.deleteStudent);
 
 // Natijalar (skrinshotlar)
-app.post('/api/admin/results', adminGuard, upload.single('image'), contentController.addResult);
+app.post('/api/admin/results', adminGuard, parseResultUpload, contentController.addResult);
 app.delete('/api/admin/results/:id', adminGuard, contentController.deleteResult);
 
 // Sharhlar
-app.post('/api/admin/reviews', adminGuard, contentController.addReview);
 app.get('/api/admin/reviews', adminGuard, contentController.getAdminReviews);
 app.patch('/api/admin/reviews/:id/status', adminGuard, contentController.updateReviewStatus);
 app.delete('/api/admin/reviews/:id', adminGuard, contentController.deleteReview);
+
+// PDF Kitoblar va Darsliklar
+app.get('/api/admin/books', adminGuard, bookController.getBooks);
+app.post('/api/admin/books', adminGuard, uploadBook.single('pdf'), bookController.uploadBook);
+app.delete('/api/admin/books/:id', adminGuard, bookController.deleteBook);
+app.post('/api/admin/groups/:groupId/attach-book', adminGuard, bookController.attachBookToGroup);
 
 // Botdan kelgan sharh/statistika (shared secret bilan himoyalanadi)
 app.post('/api/bot/reviews', botSyncGuard, contentController.submitBotReview);

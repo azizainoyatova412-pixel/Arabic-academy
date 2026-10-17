@@ -1,0 +1,7 @@
+node_modules
+.env
+.next
+data
+*.db
+data/*
+.env.example

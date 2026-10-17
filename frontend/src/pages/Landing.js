@@ -346,7 +346,7 @@ function Landing() {
   const [reviewsList, setReviewsList] = useState([]);
   const [telegramAdminUrl, setTelegramAdminUrl] = useState(DEFAULT_TELEGRAM_ADMIN_URL);
 
-  // Natijalar va sharhlarni serverdan yuklash
+  // Natijalar va tasdiqlangan sharhlarni serverdan yuklash
   useEffect(() => {
     fetch(`${API}/api/public-config`)
       .then((res) => (res.ok ? res.json() : null))
@@ -407,17 +407,43 @@ function Landing() {
             ))}
           </nav>
 
-          <div className="lang-switcher" aria-label="Til tanlash">
-            {languageOptions.map((code) => (
-              <button
-                key={code}
-                type="button"
-                className={'lang-btn' + (lang === code ? ' active' : '')}
-                onClick={() => setLang(code)}
-              >
-                {code}
-              </button>
-            ))}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div className="lang-switcher" aria-label="Til tanlash">
+              {languageOptions.map((code) => (
+                <button
+                  key={code}
+                  type="button"
+                  className={'lang-btn' + (lang === code ? ' active' : '')}
+                  onClick={() => setLang(code)}
+                >
+                  {code}
+                </button>
+              ))}
+            </div>
+
+            <a
+              href="/admin"
+              className="topbar-admin-link"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '6px 14px',
+                borderRadius: '999px',
+                background: 'linear-gradient(135deg, #1A7A5E 0%, #0e4c39 100%)',
+                color: '#ffffff',
+                textDecoration: 'none',
+                fontSize: '0.82rem',
+                fontWeight: '600',
+                letterSpacing: '0.02em',
+                boxShadow: '0 2px 8px rgba(26, 122, 94, 0.25)',
+                transition: 'all 0.2s ease',
+              }}
+              title="Admin boshqaruv paneliga o'tish"
+            >
+              <span>🔐</span>
+              <span>Admin</span>
+            </a>
           </div>
         </div>
       </header>
@@ -676,7 +702,7 @@ function Landing() {
                 {resultsList.map((item) => (
                   <div className="result-card" key={item.id}>
                     <img
-                      src={`${API}/uploads/${item.filename}`}
+                      src={item.has_image ? `${API}/api/results/${item.id}/image` : `${API}/uploads/${item.filename}`}
                       alt={item.caption || "O'quvchi natijasi"}
                       loading="lazy"
                       onError={(e) => {
@@ -691,10 +717,10 @@ function Landing() {
           </div>
         </section>
 
-        {/* Sharhlar bo'limi (Admin kiritgan sharhlar) */}
+        {/* Sharhlar bo'limi */}
         <section className="reviews-section" id="reviews">
           <div className="container">
-            <div className="section-header">
+            <div className="section-header" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
               <div className="section-title-wrap">
                 <span className="eyebrow eyebrow-dark">{t.reviewsSection.eyebrow}</span>
               </div>

@@ -120,6 +120,14 @@ export default function AdminDashboard() {
           </button>
 
           <button
+            className={'admin-nav-item' + (activeTab === 'books' ? ' active' : '')}
+            onClick={() => setActiveTab('books')}
+          >
+            <span className="admin-nav-icon">📖</span>
+            <span>PDF Darsliklar / Kitoblar</span>
+          </button>
+
+          <button
             className={'admin-nav-item' + (activeTab === 'videos' ? ' active' : '')}
             onClick={() => setActiveTab('videos')}
           >
@@ -196,7 +204,7 @@ export default function AdminDashboard() {
               🏆
             </div>
             <div>
-              <span className="stat-label">Yuklangan Natijalar</span>
+              <span className="stat-label">Saytga yuklangan natijalar</span>
               <strong className="stat-num">{stats.results} ta</strong>
             </div>
           </div>
@@ -217,6 +225,7 @@ export default function AdminDashboard() {
           {activeTab === 'grades' && <GradesSection onDataChange={loadGlobalStats} />}
           {activeTab === 'results' && <ResultsSection onDataChange={loadGlobalStats} />}
           {activeTab === 'reviews' && <ReviewsSection onDataChange={loadGlobalStats} />}
+          {activeTab === 'books' && <BooksSection onDataChange={loadGlobalStats} />}
           {activeTab === 'videos' && <VideosSection />}
           {activeTab === 'settings' && <SettingsSection />}
         </div>
@@ -287,6 +296,14 @@ export default function AdminDashboard() {
         >
           <span className="bottom-icon">💬</span>
           <span>Sharhlar</span>
+        </button>
+
+        <button
+          className={'admin-bottom-item' + (activeTab === 'books' ? ' active' : '')}
+          onClick={() => setActiveTab('books')}
+        >
+          <span className="bottom-icon">📖</span>
+          <span>Kitoblar</span>
         </button>
 
         <button
@@ -1026,14 +1043,8 @@ function ResultsSection({ onDataChange }) {
   const [results, setResults] = useState([]);
   const [file, setFile] = useState(null);
   const [caption, setCaption] = useState('');
-  const [msg, setMsg] = useState({ text: '', type: 'success' });
-  const [loading, setLoading] = useState(false);
-  const [previewUrl, setPreviewUrl] = useState('');
-
-  const showToast = (text, type = 'success') => {
-    setMsg({ text, type });
-    setTimeout(() => setMsg({ text: '', type: 'success' }), 3500);
-  };
+  const [message, setMessage] = useState('');
+  const [uploading, setUploading] = useState(false);
 
   const loadResults = async () => {
     try {
@@ -1050,63 +1061,51 @@ function ResultsSection({ onDataChange }) {
     loadResults();
   }, []);
 
-  const handleFileChange = (e) => {
-    const selected = e.target.files && e.target.files[0];
-    if (selected) {
-      if (selected.size > 5 * 1024 * 1024) {
-        showToast('Rasm hajmi 5MB dan oshmasligi kerak!', 'error');
-        return;
-      }
-      setFile(selected);
-      setPreviewUrl(URL.createObjectURL(selected));
-    }
-  };
-
-  const uploadResult = async (e) => {
-    if (e) e.preventDefault();
+  const uploadResult = async (event) => {
+    event.preventDefault();
     if (!file) {
-      showToast('Iltimos, rasm yoki skrinshot tanlang!', 'error');
+      setMessage('Natija rasmini tanlang.');
       return;
     }
-    setLoading(true);
+
+    setUploading(true);
+    setMessage('');
     const form = new FormData();
     form.append('image', file);
     form.append('caption', caption.trim());
 
     try {
-      const res = await fetch(`${API}/api/admin/results`, {
+      const response = await fetch(`${API}/api/admin/results`, {
         method: 'POST',
         headers: { 'x-admin-key': sessionStorage.getItem('admin_auth') || '' },
-        body: form
+        body: form,
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Natija yuklashda xatolik');
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Natijani yuklab bo‘lmadi');
       setFile(null);
-      setPreviewUrl('');
       setCaption('');
-      showToast('Skrinshot muvaffaqiyatli yuklandi!');
-      loadResults();
-    } catch (err) {
-      showToast(err.message || 'Xatolik yuz berdi!', 'error');
+      setMessage('Natija saytga yuklandi.');
+      await loadResults();
+    } catch (error) {
+      setMessage(error.message || 'Natijani yuklashda xatolik yuz berdi.');
+    } finally {
+      setUploading(false);
     }
-    setLoading(false);
   };
 
   const deleteResult = async (id) => {
     if (!window.confirm("Haqiqatan ham ushbu natijani o'chirmoqchimisiz?")) return;
-    setResults((prev) => prev.filter((r) => r.id !== id));
     try {
-      const res = await fetch(`${API}/api/admin/results/${id}`, {
+      const response = await fetch(`${API}/api/admin/results/${id}`, {
         method: 'DELETE',
-        headers: { 'x-admin-key': sessionStorage.getItem('admin_auth') || '' }
+        headers: { 'x-admin-key': sessionStorage.getItem('admin_auth') || '' },
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Natijani o‘chirishda xatolik');
-      showToast("Natija muvaffaqiyatli o'chirildi!");
-      if (onDataChange) onDataChange();
-    } catch (err) {
-      showToast(err.message || 'O‘chirishda xatolik', 'error');
-      loadResults();
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Natijani o‘chirib bo‘lmadi');
+      setMessage('Natija o‘chirildi.');
+      await loadResults();
+    } catch (error) {
+      setMessage(error.message || 'Natijani o‘chirishda xatolik yuz berdi.');
     }
   };
 
@@ -1116,64 +1115,43 @@ function ResultsSection({ onDataChange }) {
         <div>
           <h2>🏆 O'quvchilar Natijalari (Skrinshotlar)</h2>
           <p className="admin-section-desc">
-            Sertifikatlar, imtihon natijalari yoki chat xabarlarini yuklang — ular saytda chiroyli ko'rsatiladi.
+            Natijalarni shu saytdan yuklang — ular ommaga saytda ko'rsatiladi.
           </p>
         </div>
       </div>
 
-      {msg.text && (
-        <div className={`admin-alert ${msg.type === 'error' ? 'alert-danger' : 'alert-success'}`}>
-          <span>{msg.type === 'error' ? '⚠️' : '✅'}</span>
-          <span>{msg.text}</span>
-        </div>
-      )}
+      {message && <div className="admin-alert">{message}</div>}
 
-      {/* Yuklash kartasi */}
       <div className="admin-card">
-        <h3 className="admin-card-title">➕ Yangi natija yoki sertifikat yuklash</h3>
-        <form onSubmit={uploadResult}>
-          <div
-            className={`admin-dropzone ${previewUrl ? 'has-preview' : ''}`}
-            onClick={() => document.getElementById('result-file-input').click()}
-          >
-            {previewUrl ? (
-              <div className="dropzone-preview">
-                <img src={previewUrl} alt="Tanlangan rasm" />
-                <span>O'zgartirish uchun bosing ({file && file.name})</span>
-              </div>
-            ) : (
-              <div className="dropzone-placeholder">
-                <span className="dropzone-icon">📷</span>
-                <strong>Skrinshot yoki sertifikat rasmini tanlash</strong>
-                <small>PNG, JPG, JPEG (Maksimal hajm: 5MB)</small>
-              </div>
-            )}
-          </div>
-
+        <h3 className="admin-card-title">➕ Yangi natija yuklash</h3>
+        <form onSubmit={uploadResult} className="admin-form-col">
           <input
-            id="result-file-input"
             type="file"
-            accept="image/*"
-            style={{ display: 'none' }}
-            onChange={handleFileChange}
+            accept="image/jpeg,image/png,image/webp"
+            onChange={(event) => {
+              const selectedFile = event.target.files?.[0] || null;
+              if (selectedFile && selectedFile.size > 5 * 1024 * 1024) {
+                setMessage('Rasm hajmi 5 MB dan oshmasligi kerak.');
+                event.target.value = '';
+                setFile(null);
+                return;
+              }
+              setFile(selectedFile);
+              setMessage('');
+            }}
+            required
           />
-
-          <div className="admin-flex-row" style={{ marginTop: '16px' }}>
-            <input
-              type="text"
-              placeholder="Izoh (masalan: Ali Valiyev — C1 daraja sertifikati)"
-              value={caption}
-              onChange={(e) => setCaption(e.target.value)}
-              className="admin-input"
-            />
-            <button
-              type="submit"
-              className="admin-btn primary"
-              disabled={loading || !file}
-            >
-              {loading ? 'Yuklanmoqda...' : '⬆️ Saytga yuklash'}
-            </button>
-          </div>
+          <input
+            type="text"
+            placeholder="Izoh (masalan: o‘quvchi — C1 sertifikati)"
+            value={caption}
+            maxLength={500}
+            onChange={(event) => setCaption(event.target.value)}
+            className="admin-input"
+          />
+          <button type="submit" className="admin-btn primary" disabled={uploading || !file}>
+            {uploading ? 'Yuklanmoqda...' : 'Saytga yuklash'}
+          </button>
         </form>
       </div>
 
@@ -1188,7 +1166,7 @@ function ResultsSection({ onDataChange }) {
           <div className="admin-empty-state">
             <span className="empty-icon">🖼️</span>
             <p>Hozircha natijalar yuklanmagan.</p>
-            <small>Birinchi natijani yuqoridagi maydon orqali yuklang.</small>
+            <small>Birinchi natijani yuqoridagi forma orqali yuklang.</small>
           </div>
         ) : (
           <div className="results-admin-grid">
@@ -1196,7 +1174,7 @@ function ResultsSection({ onDataChange }) {
               <div key={r.id} className="result-admin-card">
                 <div className="result-img-wrapper">
                   <img
-                    src={`${API}/uploads/${r.filename}`}
+                    src={r.has_image ? `${API}/api/results/${r.id}/image` : `${API}/uploads/${r.filename}`}
                     alt={r.caption || 'Natija'}
                     onError={(e) => {
                       e.target.src = '/logo.jpg';
@@ -1228,11 +1206,7 @@ function ResultsSection({ onDataChange }) {
 function ReviewsSection({ onDataChange }) {
   const [status, setStatus] = useState('pending');
   const [reviews, setReviews] = useState([]);
-  const [name, setName] = useState('');
-  const [text, setText] = useState('');
-  const [stars, setStars] = useState(5);
   const [msg, setMsg] = useState({ text: '', type: 'success' });
-  const [loading, setLoading] = useState(false);
   const [busyReviewId, setBusyReviewId] = useState(null);
 
   const showToast = (text, type = 'success') => {
@@ -1259,35 +1233,6 @@ function ReviewsSection({ onDataChange }) {
     const interval = setInterval(loadReviews, 15000);
     return () => clearInterval(interval);
   }, [status]);
-
-  const addReview = async (e) => {
-    if (e) e.preventDefault();
-    if (!name.trim() || !text.trim()) {
-      showToast("O'quvchi ismi va sharh matnini to'ldiring!", 'error');
-      return;
-    }
-    setLoading(true);
-    try {
-      const res = await fetch(`${API}/api/admin/reviews`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-admin-key': sessionStorage.getItem('admin_auth') || ''
-        },
-        body: JSON.stringify({ name: name.trim(), text: text.trim(), stars })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Sharh qo‘shishda xatolik');
-      setName('');
-      setText('');
-      setStars(5);
-      showToast('Sharh muvaffaqiyatli qo‘shildi!');
-      loadReviews();
-    } catch (err) {
-      showToast(err.message || 'Xatolik yuz berdi!', 'error');
-    }
-    setLoading(false);
-  };
 
   const deleteReview = async (id) => {
     if (!window.confirm("Haqiqatan ham ushbu sharhni o'chirmoqchimisiz?")) return;
@@ -1344,51 +1289,6 @@ function ReviewsSection({ onDataChange }) {
           <span>{msg.text}</span>
         </div>
       )}
-
-      {/* Yangi sharh formasi */}
-      <div className="admin-card">
-        <h3 className="admin-card-title">➕ Yangi sharh qo'shish</h3>
-        <form onSubmit={addReview} className="admin-form-col">
-          <div className="admin-flex-row">
-            <input
-              type="text"
-              placeholder="O'quvchi ismi familiyasi *"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="admin-input"
-              required
-            />
-            <div className="star-picker">
-              <label>Baholash:</label>
-              <div className="stars-btns-wrap">
-                {[1, 2, 3, 4, 5].map((num) => (
-                  <button
-                    key={num}
-                    type="button"
-                    className={`star-choice-btn ${stars >= num ? 'filled' : ''}`}
-                    onClick={() => setStars(num)}
-                  >
-                    ★
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <textarea
-            placeholder="O'quvchining kursi haqidagi samimiy fikri yoki sharhi... *"
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            className="admin-input admin-textarea"
-            rows="3"
-            required
-          />
-
-          <button type="submit" className="admin-btn primary" disabled={loading}>
-            {loading ? 'Qo‘shilmoqda...' : '+ Tasdiqlangan sharh qo‘shish'}
-          </button>
-        </form>
-      </div>
 
       {/* Sharhlar ro'yxati */}
       <div className="admin-card">
@@ -1518,7 +1418,7 @@ function VideosSection() {
         <h3 className="admin-card-title">🔑 Render va Baza xavfsizligi bo'yicha muhim eslatma</h3>
         <div className="admin-info-box">
           <p>
-            <strong>Eslatma:</strong> Barcha guruhlar, o'quvchilar va baholar PostgreSQL ma'lumotlar bazasida doimiy saqlanadi. Render bepul rejasida yuklangan rasmlar (uploads) server qayta yonganida o'chmasligi uchun muhim natijalarni Telegram kanalda ham e'lon qilish tavsiya etiladi.
+            <strong>Eslatma:</strong> Guruhlar, o'quvchilar, baholar va natijalar galereyasidagi rasmlar PostgreSQL bazasida saqlanadi. PDF kitoblar Render diskida saqlanadi; doimiy disk ulanmagan bo'lsa, redeploy vaqtida ularni qayta yuklash kerak bo'lishi mumkin.
           </p>
         </div>
       </div>
@@ -1668,6 +1568,353 @@ function SettingsSection() {
           </p>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ============================================================
+// PDF DARSLIKLAR VA KITOBLAR BO'LIMI (BOOKS SECTION)
+// ============================================================
+function BooksSection() {
+  const [books, setBooks] = useState([]);
+  const [groups, setGroups] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const [bookTitle, setBookTitle] = useState('');
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [message, setMessage] = useState({ type: '', text: '' });
+  const [attachModalBook, setAttachModalBook] = useState(null);
+  const [selectedGroupId, setSelectedGroupId] = useState('');
+
+  const authKey = sessionStorage.getItem('admin_auth') || '';
+
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      const [booksRes, groupsRes] = await Promise.all([
+        fetch(`${API}/api/admin/books`, { headers: { 'x-admin-key': authKey } }),
+        fetch(`${API}/api/admin/groups`, { headers: { 'x-admin-key': authKey } }),
+      ]);
+      const booksData = await booksRes.json();
+      const groupsData = await groupsRes.json();
+      setBooks(booksData.books || []);
+      setGroups(groupsData.groups || []);
+    } catch (err) {
+      setMessage({ type: 'danger', text: 'Ma\'lumotlarni yuklashda xatolik: ' + err.message });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const handleUpload = async (e) => {
+    e.preventDefault();
+    if (!selectedFile) {
+      setMessage({ type: 'danger', text: 'Iltimos, PDF fayl tanlang!' });
+      return;
+    }
+    setUploading(true);
+    setMessage({ type: '', text: '' });
+
+    const formData = new FormData();
+    formData.append('title', bookTitle || selectedFile.name.replace(/\.pdf$/i, ''));
+    formData.append('pdf', selectedFile);
+
+    try {
+      const res = await fetch(`${API}/api/admin/books`, {
+        method: 'POST',
+        headers: { 'x-admin-key': authKey },
+        body: formData,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Kitobni yuklab bo‘lmadi');
+      setMessage({ type: 'success', text: data.message || 'Kitob muvaffaqiyatli yuklandi!' });
+      setBookTitle('');
+      setSelectedFile(null);
+      // File input reset
+      const fileInput = document.getElementById('book-pdf-input');
+      if (fileInput) fileInput.value = '';
+      loadData();
+    } catch (err) {
+      setMessage({ type: 'danger', text: err.message });
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleDelete = async (id, title) => {
+    if (!window.confirm(`Haqiqatan ham "${title}" kitobini o'chirmoqchimisiz?`)) return;
+    try {
+      const res = await fetch(`${API}/api/admin/books/${id}`, {
+        method: 'DELETE',
+        headers: { 'x-admin-key': authKey },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'O‘chirishda xatolik');
+      setMessage({ type: 'success', text: 'Kitob muvaffaqiyatli o‘chirildi!' });
+      loadData();
+    } catch (err) {
+      setMessage({ type: 'danger', text: err.message });
+    }
+  };
+
+  const handleAttach = async (e) => {
+    e.preventDefault();
+    if (!attachModalBook) return;
+    try {
+      const res = await fetch(`${API}/api/admin/groups/${selectedGroupId}/attach-book`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-key': authKey,
+        },
+        body: JSON.stringify({ bookId: attachModalBook.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Biriktirishda xatolik');
+      setMessage({ type: 'success', text: data.message || 'Kitob guruhga muvaffaqiyatli biriktirildi!' });
+      setAttachModalBook(null);
+      setSelectedGroupId('');
+      loadData();
+    } catch (err) {
+      setMessage({ type: 'danger', text: err.message });
+    }
+  };
+
+  const formatFileSize = (bytes) => {
+    if (!bytes) return '—';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  };
+
+  return (
+    <div className="admin-tab-content">
+      <div className="admin-tab-header">
+        <div>
+          <h2>📚 PDF Darsliklar va Kitoblar</h2>
+          <p>Arab tili o'quv qo'llanmalari, kitoblarni yuklash va guruhlarga biriktirish.</p>
+        </div>
+        <button type="button" className="admin-btn small" onClick={loadData}>🔄 Yangilash</button>
+      </div>
+
+      {message.text && (
+        <div className={`admin-alert alert-${message.type}`} style={{ marginBottom: '20px' }}>
+          <span>{message.type === 'success' ? '✅' : '⚠️'}</span>
+          <span>{message.text}</span>
+        </div>
+      )}
+
+      {/* Yangi PDF Kitob yuklash formasi */}
+      <div className="admin-card" style={{ marginBottom: '28px' }}>
+        <h3 className="admin-card-title">📤 Yangi PDF Kitob yuklash</h3>
+        <form onSubmit={handleUpload} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '16px', alignItems: 'end' }}>
+          <div className="admin-field" style={{ margin: 0 }}>
+            <label>Kitob / Darslik nomi:</label>
+            <input
+              type="text"
+              value={bookTitle}
+              onChange={(e) => setBookTitle(e.target.value)}
+              placeholder="Masalan: Boshlang'ich Arab tili qo'llanmasi"
+              className="admin-input"
+            />
+          </div>
+
+          <div className="admin-field" style={{ margin: 0 }}>
+            <label>PDF Fayl:</label>
+            <input
+              id="book-pdf-input"
+              type="file"
+              accept=".pdf,application/pdf"
+              onChange={(e) => setSelectedFile(e.target.files[0] || null)}
+              required
+              className="admin-input"
+              style={{ padding: '8px 12px' }}
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={uploading}
+            className="admin-btn primary"
+            style={{ height: '42px', padding: '0 24px', display: 'flex', alignItems: 'center', gap: '8px' }}
+          >
+            <span>{uploading ? '⏳' : '📥'}</span>
+            <span>{uploading ? 'Yuklanmoqda...' : 'Yuklash'}</span>
+          </button>
+        </form>
+      </div>
+
+      {/* Yuklangan kitoblar ro'yxati */}
+      <div className="admin-card">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+          <h3 className="admin-card-title" style={{ margin: 0 }}>
+            📖 Yuklangan Kitoblar Kutubxonasi ({books.length} ta)
+          </h3>
+        </div>
+
+        {loading ? (
+          <div className="admin-empty-state"><p>Yuklanmoqda...</p></div>
+        ) : books.length === 0 ? (
+          <div className="admin-empty-state">
+            <span className="empty-icon">📚</span>
+            <p>Hozircha hech qanday PDF kitob yuklanmagan.</p>
+            <small>Yuqoridagi formadan foydalanib birinchi darslikni yuklang.</small>
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '18px' }}>
+            {books.map((b) => (
+              <div
+                key={b.id}
+                style={{
+                  background: '#f8fafc',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '14px',
+                  padding: '20px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                  boxShadow: '0 2px 6px rgba(0,0,0,0.03)',
+                }}
+              >
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+                    <div style={{ fontSize: '1.8rem' }}>📕</div>
+                    <div>
+                      <h4 style={{ margin: '0 0 4px 0', fontSize: '1.05rem', color: '#0f172a' }}>{b.title}</h4>
+                      <span style={{ fontSize: '0.8rem', color: '#64748b' }}>Hajmi: {formatFileSize(b.file_size)}</span>
+                    </div>
+                  </div>
+
+                  {b.attachedGroups && b.attachedGroups.length > 0 && (
+                    <div style={{ marginTop: '8px', marginBottom: '12px' }}>
+                      <span style={{ fontSize: '0.78rem', color: '#475569', fontWeight: '600' }}>Biriktirilgan guruhlar: </span>
+                      {b.attachedGroups.map((g) => (
+                        <span
+                          key={g.id}
+                          style={{
+                            display: 'inline-block',
+                            background: '#e0f2fe',
+                            color: '#0369a1',
+                            fontSize: '0.75rem',
+                            fontWeight: '600',
+                            padding: '2px 8px',
+                            borderRadius: '6px',
+                            marginRight: '6px',
+                            marginTop: '4px',
+                          }}
+                        >
+                          👥 {g.name}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div style={{ display: 'flex', gap: '8px', marginTop: '16px', paddingTop: '14px', borderTop: '1px solid #e2e8f0' }}>
+                  <a
+                    href={`${API}${b.pdf_path}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="admin-btn small"
+                    style={{ flex: 1, textAlign: 'center', textDecoration: 'none' }}
+                  >
+                    📄 Ochish
+                  </a>
+
+                  <button
+                    type="button"
+                    className="admin-btn small"
+                    style={{ background: '#f1f5f9', color: '#0f172a' }}
+                    onClick={() => {
+                      setAttachModalBook(b);
+                      setSelectedGroupId(groups[0]?.id || '');
+                    }}
+                  >
+                    👥 Guruhga
+                  </button>
+
+                  <button
+                    type="button"
+                    className="admin-btn small danger"
+                    onClick={() => handleDelete(b.id, b.title)}
+                  >
+                    🗑
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Guruhga biriktirish modali */}
+      {attachModalBook && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: '20px',
+          }}
+        >
+          <div
+            style={{
+              background: '#fff',
+              borderRadius: '16px',
+              padding: '28px',
+              maxWidth: '440px',
+              width: '100%',
+              boxShadow: '0 20px 25px -5px rgba(0,0,0,0.2)',
+            }}
+          >
+            <h3 style={{ margin: '0 0 8px 0', fontSize: '1.2rem', color: '#0f172a' }}>
+              👥 Guruhga kitob biriktirish
+            </h3>
+            <p style={{ margin: '0 0 18px 0', color: '#64748b', fontSize: '0.88rem' }}>
+              <strong>"{attachModalBook.title}"</strong> kitobini qaysi o'quv guruhiga biriktirmoqchisiz?
+            </p>
+
+            <form onSubmit={handleAttach}>
+              <div className="admin-field">
+                <label>Guruhni tanlang:</label>
+                <select
+                  value={selectedGroupId}
+                  onChange={(e) => setSelectedGroupId(e.target.value)}
+                  className="admin-input"
+                  required
+                >
+                  <option value="">-- Guruhni tanlang --</option>
+                  {groups.map((g) => (
+                    <option key={g.id} value={g.id}>
+                      {g.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '20px' }}>
+                <button
+                  type="button"
+                  className="admin-btn"
+                  onClick={() => setAttachModalBook(null)}
+                >
+                  Bekor qilish
+                </button>
+                <button type="submit" className="admin-btn primary">
+                  ✅ Biriktirish
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

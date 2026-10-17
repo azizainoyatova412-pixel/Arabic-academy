@@ -11,13 +11,17 @@ const isCloudDb = rawUrl.includes('neon.tech') || rawUrl.includes('sslmode=requi
 const pool = new Pool({
   connectionString: rawUrl,
   ssl: isCloudDb ? { rejectUnauthorized: false } : false,
-});
-
-pool.on('connect', () => {
-  console.log('🐘 PostgreSQL bazasiga muvaffaqiyatli ulandi!');
+  max: 10,
+  idleTimeoutMillis: 10000,
+  connectionTimeoutMillis: 10000,
+  keepAlive: true,
+  keepAliveInitialDelayMillis: 10000,
 });
 
 pool.on('error', (err) => {
+  if (/ECONNRESET|Connection terminated|closed/i.test(err.message || '')) {
+    return; // Neon bo'sh ulanishni yopganda kutish, query() avtomatik yangisini ochadi
+  }
   console.error('❌ PostgreSQL ulanishida xatolik:', err.message);
 });
 
@@ -64,10 +68,16 @@ const initDb = async () => {
 
       CREATE TABLE IF NOT EXISTS results_showcase (
         id SERIAL PRIMARY KEY,
-        filename TEXT NOT NULL,
+        filename TEXT,
+        image_data BYTEA,
+        image_content_type TEXT,
         caption TEXT DEFAULT '',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+
+      ALTER TABLE results_showcase ALTER COLUMN filename DROP NOT NULL;
+      ALTER TABLE results_showcase ADD COLUMN IF NOT EXISTS image_data BYTEA;
+      ALTER TABLE results_showcase ADD COLUMN IF NOT EXISTS image_content_type TEXT;
 
       CREATE TABLE IF NOT EXISTS reviews (
         id SERIAL PRIMARY KEY,
@@ -100,8 +110,19 @@ const initDb = async () => {
       );
 
       ALTER TABLE enrollments ADD COLUMN IF NOT EXISTS lesson_grades JSONB DEFAULT '{}'::jsonb;
+
+      CREATE TABLE IF NOT EXISTS books (
+        id SERIAL PRIMARY KEY,
+        title TEXT NOT NULL,
+        pdf_path TEXT NOT NULL,
+        file_size BIGINT DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      ALTER TABLE groups ADD COLUMN IF NOT EXISTS book_name TEXT;
+      ALTER TABLE groups ADD COLUMN IF NOT EXISTS book_pdf_path TEXT;
     `);
-    console.log('✅ Baza jadvallari (users, payments, enrollments, monthly_grades) tekshirildi va tayyor.');
+    console.log('✅ Baza jadvallari (users, groups, books, monthly_grades) tekshirildi va tayyor.');
 
     // Namunaviy test ma'lumotlarini qo'shish (agar o'quvchilar bo'lmasa)
     const checkUsers = await pool.query('SELECT COUNT(*) FROM users');
@@ -130,7 +151,22 @@ const initDb = async () => {
   }
 };
 
+const query = async (text, params, maxRetries = 3) => {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await pool.query(text, params);
+    } catch (err) {
+      const isTransient = /ECONNRESET|Connection terminated|closed|timeout|socket/i.test(err.message || '');
+      if (isTransient && attempt < maxRetries) {
+        await new Promise((resolve) => setTimeout(resolve, 200 * attempt));
+        continue;
+      }
+      throw err;
+    }
+  }
+};
+
 module.exports = {
-  query: (text, params) => pool.query(text, params),
+  query,
   initDb,
 };
