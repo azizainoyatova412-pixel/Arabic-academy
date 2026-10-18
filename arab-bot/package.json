@@ -7,10 +7,10 @@
     "dev:backend": "tsx watch src/server.ts",
     "dev": "npm run dev:backend",
     "build:backend": "tsc",
-    "build": "npm run build:backend",
+    "build": "npx prisma generate && tsc",
     "prestart": "npm run build:backend",
     "start:backend": "tsx src/server.ts",
-    "start": "npm run start:backend"
+    "start": "npx prisma db push && node dist/index.js"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.0",
