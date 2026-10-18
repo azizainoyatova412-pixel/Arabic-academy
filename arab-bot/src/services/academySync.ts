@@ -1,5 +1,6 @@
 import { db } from '../db/index.js';
 import { config } from '../config.js';
+import { PdfBookService } from './pdfBook.js';
 
 export interface AcademyStudentStats {
   telegramId: number;
@@ -15,7 +16,19 @@ export interface AcademyStudentStats {
     averageGrade: number | null;
     progressDifference: number | null;
     progressStatus: 'improved' | 'declined' | 'unchanged' | 'no-data';
+    leaderboard: Array<{
+      telegramId: number;
+      fullName: string;
+      rank: number;
+      monthPoints: number;
+    }>;
   }>;
+}
+
+export interface AcademyBook {
+  id: number;
+  title: string;
+  pdfPath: string;
 }
 
 async function sendAcademyRequest(path: string, payload: Record<string, unknown>): Promise<unknown> {
@@ -57,6 +70,33 @@ export async function submitAcademyReview(telegramId: number, name: string, text
 
 export async function getAcademyStudentStats(telegramId: number): Promise<AcademyStudentStats> {
   return await sendAcademyRequest('/api/bot/student-stats', { telegram_id: telegramId }) as AcademyStudentStats;
+}
+
+export async function getAcademyBooks(): Promise<AcademyBook[]> {
+  const response = await sendAcademyRequest('/api/bot/books', {});
+  return (response as { books: AcademyBook[] }).books;
+}
+
+export async function getAcademyBookText(bookId: number): Promise<{ title: string; text: string }> {
+  const response = await sendAcademyRequest(`/api/bot/books/${bookId}`, {});
+  const book = response as AcademyBook;
+  const pdfUrl = new URL(book.pdfPath, `${config.academyApiUrl}/`);
+  if (pdfUrl.origin !== new URL(config.academyApiUrl).origin) {
+    throw new Error('Sayt kitobining PDF manzili noto‘g‘ri');
+  }
+
+  const pdfResponse = await fetch(pdfUrl);
+  if (!pdfResponse.ok) {
+    throw new Error(`Saytdagi kitob PDF fayli olinmadi (HTTP ${pdfResponse.status})`);
+  }
+
+  const text = await PdfBookService.extractTextFromBuffer(
+    Buffer.from(await pdfResponse.arrayBuffer())
+  );
+  if (!text) {
+    throw new Error('Kitob PDF faylidan matn ajratib olinmadi');
+  }
+  return { title: book.title, text };
 }
 
 export async function syncAcademyStats(): Promise<void> {

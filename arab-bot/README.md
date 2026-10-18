@@ -47,20 +47,21 @@ npm start
 ## 🎯 Bot Imkoniyatlari (v4)
 
 1. **`/start`** → 🇺🇿 O'zbek | 🇷🇺 Русский | 🇬🇧 English.
-   - Tanlangach kurslar haqida narxlarsiz ma'lumot ko'rsatiladi.
+   - Til tanlangach asosiy menyu ko'rsatiladi; guruhlar haqida tanishtiruv yoki guruh tanlash tugmasi chiqmaydi.
 2. **`/review`** → o'quvchi sharhini sayt adminiga tasdiqlash uchun yuboradi.
-2. **📊 Statistika — Guruh bo'yicha va O'rin bilan**:
-   - Foydalanuvchi avval o'z guruhini tanlaydi.
-   - Shu guruhdagi barcha o'quvchilar ichida **nechinchi o'rinda turgani** (masalan, `1-o'rin (15 ta o'quvchi ichida)`) va qo'yilgan bahosi (`⭐️ 5 / 5`) ko'rsatiladi. Har guruh statistikasi alohida.
-3. **🧑‍🏫 Ustozlar uchun cheklangan kirish (`/ustoz`)**:
+3. **📊 Sayt statistikasi**:
+   - O'quvchining baholari va guruhdagi reytingi sayt admin panelidagi ma'lumotlardan olinadi.
+4. **🧑‍🏫 Ustozlar uchun cheklangan kirish (`/ustoz`)**:
    - Ustoz botda `/ustoz` buyrug'i va parolni (standart: `123`, `.env`dagi `TEACHER_ACCESS_CODE`) kiritadi.
    - Ustozga **faqat baho qo'yish** imkoniyati beriladi: guruhni tanlaydi -> o'quvchini tanlaydi -> 1 dan 5 gacha baho qo'yadi.
-4. **📞 Aloqa va Yordam**:
+5. **📞 Aloqa va Yordam**:
    - Admin Telegram havolasi (`ADMIN_TELEGRAM_CONTACT`) ko'rsatiladi.
-5. **👥 Guruhlar**:
+6. **👥 Guruhlar**:
    - Guruh tanlanganda kirish kodi so'raladi va to'g'ri bo'lsa qabul qilinadi.
-6. **📝 Test**:
+7. **📝 Test**:
    - Daraja aniqlash testi.
+8. **🤖 AI Ustoz**:
+   - O'quvchi sayt admin paneliga yuklangan kitobni tanlaydi; savollar faqat tanlangan kitob PDF matnidan tuziladi va javoblar shu matn bo'yicha tekshiriladi.
 
 ---
 
@@ -82,9 +83,10 @@ ADMIN_TELEGRAM_CONTACT=<@aishauzbikiyya_admin>
 - Saytda sharh yozish formasi yo'q: o'quvchilar sharhni botdagi `/review` orqali yuboradi, admin tasdiqlagandan keyin saytda ko'rsatiladi.
 - `/admin` botdagi admin ID uchun saytning yagona admin panel havolasini beradi.
 - Render'da shu repodan alohida **Background Worker** ishga tushiriladi; yangi GitHub repo yoki Google hisobi kerak emas. Worker alohida instance bo'lgani uchun sayt web service'ining CPU/RAM'ini bo'lishmaydi, lekin Render rejasi bo'yicha qo'shimcha xarajat bo'lishi mumkin.
-- `render.yaml` worker sozlamasini o'z ichiga oladi. Worker'da `BOT_TOKEN`, `ADMIN_ID`, `ADMIN_PASSWORD`, `ACADEMY_API_URL`, `ACADEMY_SYNC_SECRET` va `BOT_DATABASE_URL` qiymatlarini kiriting.
+- `render.yaml` worker sozlamasini o'z ichiga oladi. Worker'da `BOT_TOKEN`, `GEMINI_API_KEY`, `ADMIN_ID`, `ADMIN_PASSWORD`, `ACADEMY_API_URL`, `ACADEMY_SYNC_SECRET` va `BOT_DATABASE_URL` qiymatlarini kiriting.
 - Worker Node.js `22.13.0` yoki undan yangi versiyada ishlashi kerak.
 - `ACADEMY_API_URL` saytning haqiqiy Render URL'i bo'lishi kerak. `ACADEMY_SYNC_SECRET` qiymatini saytdagi `BOT_SYNC_SECRET` bilan aynan bir xil qiling.
+- Bot AI Ustoz kitoblar ro'yxati va PDF fayllarini saytning bot-sync bilan himoyalangan API endpointlaridan oladi; sayt va bot service'dagi secretlar bir xil bo'lishi kerak.
 - Worker'dagi `BOT_DATABASE_URL` uchun saytning mavjud `DATABASE_URL` qiymatini ishlatish mumkin; `BOT_DATABASE_SCHEMA=arab_bot` bot jadvallarini alohida schema'da yaratadi. Shu sabab sayt va botning `users`/`groups` jadvallari aralashmaydi va alohida ma'lumotlar bazasi ochish shart emas. PostgreSQL foydalanuvchisida yangi schema yaratish huquqi bo'lishi kerak.
 - Agar PostgreSQL ulanishi yoki schema yaratish ishlamasa, bot SQLite'ga o'tadi; Render'da uning ma'lumotlari redeploy/restartda saqlanmasligi mumkin.
 - O'quvchi botdagi statistika bo'limida sayt guruhlaridagi o'z baholari va reytingini ko'rishi uchun `ACADEMY_SYNC_SECRET` qiymatini sayt backend'idagi `BOT_SYNC_SECRET` bilan aynan bir xil qiling.

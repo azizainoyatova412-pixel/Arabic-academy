@@ -2,9 +2,12 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.submitAcademyReview = submitAcademyReview;
 exports.getAcademyStudentStats = getAcademyStudentStats;
+exports.getAcademyBooks = getAcademyBooks;
+exports.getAcademyBookText = getAcademyBookText;
 exports.syncAcademyStats = syncAcademyStats;
 const index_js_1 = require("../db/index.js");
 const config_js_1 = require("../config.js");
+const pdfBook_js_1 = require("./pdfBook.js");
 async function sendAcademyRequest(path, payload) {
     if (!config_js_1.config.academyApiUrl || !config_js_1.config.academySyncSecret) {
         throw new Error('ACADEMY_API_URL yoki ACADEMY_SYNC_SECRET sozlanmagan');
@@ -41,6 +44,27 @@ async function submitAcademyReview(telegramId, name, text) {
 }
 async function getAcademyStudentStats(telegramId) {
     return await sendAcademyRequest('/api/bot/student-stats', { telegram_id: telegramId });
+}
+async function getAcademyBooks() {
+    const response = await sendAcademyRequest('/api/bot/books', {});
+    return response.books;
+}
+async function getAcademyBookText(bookId) {
+    const response = await sendAcademyRequest(`/api/bot/books/${bookId}`, {});
+    const book = response;
+    const pdfUrl = new URL(book.pdfPath, `${config_js_1.config.academyApiUrl}/`);
+    if (pdfUrl.origin !== new URL(config_js_1.config.academyApiUrl).origin) {
+        throw new Error('Sayt kitobining PDF manzili noto‘g‘ri');
+    }
+    const pdfResponse = await fetch(pdfUrl);
+    if (!pdfResponse.ok) {
+        throw new Error(`Saytdagi kitob PDF fayli olinmadi (HTTP ${pdfResponse.status})`);
+    }
+    const text = await pdfBook_js_1.PdfBookService.extractTextFromBuffer(Buffer.from(await pdfResponse.arrayBuffer()));
+    if (!text) {
+        throw new Error('Kitob PDF faylidan matn ajratib olinmadi');
+    }
+    return { title: book.title, text };
 }
 async function syncAcademyStats() {
     const [users, groups, tests, gradedStudents] = await Promise.all([

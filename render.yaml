@@ -26,6 +26,10 @@ services:
         value: production
       - key: BOT_TOKEN
         sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY_2
+        sync: false
       - key: ADMIN_ID
         sync: false
       - key: ADMIN_PASSWORD

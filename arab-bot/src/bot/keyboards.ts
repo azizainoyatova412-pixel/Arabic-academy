@@ -20,15 +20,15 @@ export class BotKeyboards {
     const keyboard = new Keyboard();
 
     if (lang === 'ru') {
-      keyboard.text('📊 Общий рейтинг и Статистика').text('👥 Учебные группы').row();
+      keyboard.text('📊 Общий рейтинг и Статистика').row();
       keyboard.text('📝 Тест по арабскому').text('🤖 ИИ Учитель').row();
       keyboard.text('💬 Связь с Администратором');
     } else if (lang === 'en') {
-      keyboard.text('📊 General Ranking & Stats').text('👥 Study Groups').row();
+      keyboard.text('📊 General Ranking & Stats').row();
       keyboard.text('📝 Arabic Quiz').text('🤖 AI Tutor').row();
       keyboard.text('💬 Contact Administrator');
     } else {
-      keyboard.text('📊 Umumiy Reyting va Statistika').text('👥 O\'quv Guruhlari').row();
+      keyboard.text('📊 Umumiy Reyting va Statistika').row();
       keyboard.text('📝 Arab Tili Testi').text('🤖 AI Ustoz').row();
       keyboard.text('💬 Admin bilan bog\'lanish');
     }
@@ -177,6 +177,16 @@ export class BotKeyboards {
         ? '⬅️ Exit AI Tutor'
         : '⬅️ AI Ustoz suhbatidan chiqish';
     return new InlineKeyboard().text(text, 'exit_ai_tutor');
+  }
+
+  public static getTutorBooksKeyboard(books: Array<{ id: number; title: string }>, lang: string = 'uz'): InlineKeyboard {
+    const keyboard = new InlineKeyboard();
+    for (const book of books) {
+      keyboard.text(`📖 ${book.title}`.slice(0, 60), `tutor_book:${book.id}`).row();
+    }
+    const exitText = lang === 'ru' ? '⬅️ Назад' : lang === 'en' ? '⬅️ Back' : '⬅️ Orqaga';
+    keyboard.text(exitText, 'exit_ai_tutor');
+    return keyboard;
   }
 
   public static getGeminiExitKeyboard(lang: string = 'uz'): InlineKeyboard {

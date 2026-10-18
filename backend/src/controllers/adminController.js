@@ -377,6 +377,14 @@ exports.getBotStudentStats = async (req, res) => {
           : null),
         progressDifference: ownProgress?.difference ?? null,
         progressStatus: ownProgress?.status || 'no-data',
+        leaderboard: rows.slice(0, 10).map((row) => ({
+          telegramId: Number(row.telegram_id),
+          fullName: row.full_name,
+          rank: rows.filter(
+            (candidate) => Number(candidate.current_month_points) > Number(row.current_month_points)
+          ).length + 1,
+          monthPoints: Number(row.current_month_points) || 0,
+        })),
       });
     }
 

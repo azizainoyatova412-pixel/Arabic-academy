@@ -243,6 +243,88 @@ Javobni FAQAT toza JSON massiv ko'rinishida qaytaring:
     return this.getFilteredFallbackQuestions(lang, options?.excludedQuestions);
   }
 
+  public static async generateBookQuestion(
+    bookContent: string,
+    lang: string = 'uz',
+    previousQuestion?: string
+  ): Promise<string> {
+    const apiKeys = this.getApiKeys();
+    if (apiKeys.length === 0) {
+      throw new Error('Kitob asosidagi AI savollar uchun GEMINI_API_KEY sozlanmagan');
+    }
+
+    const language = lang === 'ru' ? 'Russian' : lang === 'en' ? 'English' : 'Uzbek';
+    const excerpt = bookContent.slice(0, 14000);
+    const previous = previousQuestion
+      ? `\nOldingi savolni takrorlamang: "${previousQuestion}".`
+      : '';
+    const prompt = `Siz arab tili kitobidan o'quvchiga savol beradigan ustozsiz.
+Faqat quyida berilgan kitob matnidagi aniq ma'lumotlardan foydalaning. Tashqi bilim qo'shmang.
+O'quvchi javobi matndan tekshirilishi mumkin bo'lgan bitta qisqa, aniq savol yozing.
+Javob tilini ${language} qiling. Faqat savolni qaytaring, sarlavha yoki izoh yozmang.${previous}
+
+KITOB MATNI:
+${excerpt}`;
+
+    for (const key of apiKeys) {
+      try {
+        const ai = new GoogleGenerativeAI(key);
+        const model = ai.getGenerativeModel({ model: 'gemini-3.5-flash-lite' });
+        const result = await model.generateContent(prompt);
+        const question = result.response.text().trim();
+        if (question) return question;
+      } catch (error: any) {
+        console.warn('[AI Tutor] Kitob savoli yaratish xatosi:', error?.message || error);
+      }
+    }
+
+    throw new Error('Kitobdan savol yaratish uchun AI xizmatiga ulanib bo‘lmadi');
+  }
+
+  public static async evaluateBookAnswer(
+    bookContent: string,
+    question: string,
+    userAnswer: string,
+    lang: string = 'uz'
+  ): Promise<{ isCorrect: boolean; feedback: string }> {
+    const apiKeys = this.getApiKeys();
+    if (apiKeys.length === 0) {
+      throw new Error('Kitob asosidagi javoblarni tekshirish uchun GEMINI_API_KEY sozlanmagan');
+    }
+
+    const language = lang === 'ru' ? 'Russian' : lang === 'en' ? 'English' : 'Uzbek';
+    const prompt = `Siz o'quvchining javobini faqat berilgan kitob matniga qarab tekshiradigan ustozsiz.
+Kitobda javob bo'lmasa, o'zingizdan ma'lumot qo'shib to'g'ri deb baholamang.
+Savol: "${question}"
+O'quvchi javobi: "${userAnswer}"
+Tekshiruv izohini ${language} tilida qisqa va samimiy yozing. Noto'g'ri bo'lsa, kitobdagi ma'lumotga tayangan holda yo'naltiring.
+Faqat quyidagi JSON shaklida javob bering:
+{"isCorrect": true, "feedback": "Qisqa izoh"}
+
+KITOB MATNI:
+${bookContent.slice(0, 14000)}`;
+
+    for (const key of apiKeys) {
+      try {
+        const ai = new GoogleGenerativeAI(key);
+        const model = ai.getGenerativeModel({ model: 'gemini-3.5-flash-lite' });
+        const result = await model.generateContent(prompt);
+        const text = result.response.text().trim();
+        const start = text.indexOf('{');
+        const end = text.lastIndexOf('}');
+        if (start === -1 || end === -1) continue;
+
+        const parsed = JSON.parse(text.slice(start, end + 1));
+        if (typeof parsed.isCorrect !== 'boolean' || typeof parsed.feedback !== 'string') continue;
+        return { isCorrect: parsed.isCorrect, feedback: parsed.feedback.trim() };
+      } catch (error: any) {
+        console.warn('[AI Tutor] Kitob javobini tekshirish xatosi:', error?.message || error);
+      }
+    }
+
+    throw new Error('Kitob asosida javobni tekshirib bo‘lmadi');
+  }
+
   /**
    * Gemini AI Arab tili ustozi — Erkin savol-javob
    * - Chegaradan chiqmaslik (faqat arab tili ta'limiga oid)
@@ -808,4 +890,3 @@ ${JSON.stringify(payload, null, 2)}`;
     ];
   }
 }
-

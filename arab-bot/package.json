@@ -4,7 +4,6 @@
   "description": "Professional Arab Tili O'quv Boti va Admin Paneli",
   "main": "dist/server.js",
   "scripts": {
- 
     "build": " npm install && tsc",
     "start": "node dist/server.js"
   },
@@ -17,7 +16,7 @@
     "grammy": "^1.35.0",
     "multer": "^2.4.0",
     "pdf-parse": "^2.4.5",
-    "pg": "^8.13.3"
+    "pg": "^8.23.1"
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",

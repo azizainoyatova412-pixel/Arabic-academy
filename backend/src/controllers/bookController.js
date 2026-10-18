@@ -26,6 +26,37 @@ exports.getBooks = async (req, res) => {
   }
 };
 
+exports.getBotBooks = async (_req, res) => {
+  try {
+    const result = await db.query('SELECT id, title, pdf_path AS "pdfPath" FROM books ORDER BY id DESC');
+    res.json({ books: result.rows });
+  } catch (err) {
+    console.error('Bot kitoblar ro‘yxatini olishda xatolik:', err.message);
+    res.status(500).json({ error: 'Kitoblar ro‘yxatini olib bo‘lmadi' });
+  }
+};
+
+exports.getBotBook = async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isSafeInteger(id) || id <= 0) {
+    return res.status(400).json({ error: 'Kitob ID noto‘g‘ri' });
+  }
+
+  try {
+    const result = await db.query(
+      'SELECT id, title, pdf_path AS "pdfPath" FROM books WHERE id = $1',
+      [id]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Kitob topilmadi' });
+    }
+    return res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Bot kitobini olishda xatolik:', err.message);
+    return res.status(500).json({ error: 'Kitobni olib bo‘lmadi' });
+  }
+};
+
 // Yangi PDF kitob yuklash
 exports.uploadBook = async (req, res) => {
   if (!req.file) {

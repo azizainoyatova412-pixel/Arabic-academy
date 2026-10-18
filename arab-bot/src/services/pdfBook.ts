@@ -17,7 +17,15 @@ export class PdfBookService {
   public static async extractTextFromPdf(filePath: string): Promise<string> {
     try {
       const dataBuffer = fs.readFileSync(filePath);
-      // dynamic import for CommonJS pdf-parse module
+      return await this.extractTextFromBuffer(dataBuffer);
+    } catch (err) {
+      console.warn('⚠️ [PDF Parse Error]:', err);
+      return '';
+    }
+  }
+
+  public static async extractTextFromBuffer(dataBuffer: Buffer): Promise<string> {
+    try {
       const pdfParseModule = await import('pdf-parse');
       const pdf = (pdfParseModule as any).default || pdfParseModule;
       const parsed = await pdf(dataBuffer);

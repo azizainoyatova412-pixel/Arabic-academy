@@ -172,6 +172,8 @@ app.post('/api/admin/groups/:groupId/attach-book', adminGuard, bookController.at
 app.post('/api/bot/reviews', botSyncGuard, contentController.submitBotReview);
 app.post('/api/bot/stats', botSyncGuard, adminController.syncBotStats);
 app.post('/api/bot/student-stats', botSyncGuard, adminController.getBotStudentStats);
+app.post('/api/bot/books', botSyncGuard, bookController.getBotBooks);
+app.post('/api/bot/books/:id', botSyncGuard, bookController.getBotBook);
 
 // ============================================================
 // SERVER ISHGA TUSHIRISH
