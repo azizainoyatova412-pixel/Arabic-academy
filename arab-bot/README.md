@@ -46,8 +46,8 @@ npm start
 
 ## 🎯 Bot Imkoniyatlari (v4)
 
-1. **`/start`** → 🇺🇿 O'zbek | 🇷🇺 Русский | 🇬🇧 English.
-   - Til tanlangach asosiy menyu ko'rsatiladi; guruhlar haqida tanishtiruv yoki guruh tanlash tugmasi chiqmaydi.
+1. **`/start`** → saytdagi guruhga biriktirilgan kodni so'raydi.
+   - Kod yagona sayt admin panelidagi guruh kartasida ko'rsatiladi. Kod tasdiqlangach o'quvchi shu guruhga yoziladi va bot menyusi ochiladi.
 2. **`/review`** → o'quvchi sharhini sayt adminiga tasdiqlash uchun yuboradi.
 3. **📊 Sayt statistikasi**:
    - O'quvchining baholari va guruhdagi reytingi sayt admin panelidagi ma'lumotlardan olinadi.
@@ -58,8 +58,9 @@ npm start
    - Admin Telegram havolasi (`ADMIN_TELEGRAM_CONTACT`) ko'rsatiladi.
 6. **👥 Guruhlar**:
    - Guruh tanlanganda kirish kodi so'raladi va to'g'ri bo'lsa qabul qilinadi.
-7. **📝 Test**:
-   - Daraja aniqlash testi.
+7. **📘 Kitob asosida test**:
+   - Savollar saytda o'quvchi guruhiga biriktirilgan kitobdan tuziladi; test murakkabligi shu guruhdagi oxirgi test natijasiga moslashadi.
+   - Guruhga kitob biriktirilmagan bo'lsa test boshlanmaydi. Alifbo va harflarni yodlashga oid umumiy savollar berilmaydi.
 8. **🤖 AI Ustoz**:
    - O'quvchi sayt admin paneliga yuklangan kitobni tanlaydi; savollar faqat tanlangan kitob PDF matnidan tuziladi va javoblar shu matn bo'yicha tekshiriladi.
 

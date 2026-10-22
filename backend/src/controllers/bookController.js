@@ -57,6 +57,33 @@ exports.getBotBook = async (req, res) => {
   }
 };
 
+exports.getBotGroupBook = async (req, res) => {
+  const groupId = Number(req.params.groupId);
+  const telegramId = Number(req.body.telegram_id);
+  if (!Number.isSafeInteger(groupId) || groupId <= 0 || !Number.isSafeInteger(telegramId) || telegramId <= 0) {
+    return res.status(400).json({ error: 'Guruh yoki Telegram ID noto‘g‘ri' });
+  }
+
+  try {
+    const result = await db.query(
+      `SELECT b.id, b.title, b.pdf_path AS "pdfPath"
+       FROM groups g
+       JOIN enrollments e ON e.group_id = g.id AND e.telegram_id = $2 AND e.status = 'active'
+       JOIN books b ON b.pdf_path = g.book_pdf_path
+       WHERE g.id = $1
+       LIMIT 1`,
+      [groupId, telegramId]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Guruhga kitob biriktirilmagan yoki o‘quvchi guruhga yozilmagan' });
+    }
+    return res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Bot guruh kitobini olishda xatolik:', err.message);
+    return res.status(500).json({ error: 'Guruh kitobini olib bo‘lmadi' });
+  }
+};
+
 // Yangi PDF kitob yuklash
 exports.uploadBook = async (req, res) => {
   if (!req.file) {

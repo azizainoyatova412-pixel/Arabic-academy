@@ -348,6 +348,17 @@ class DatabaseManager {
         UNIQUE(telegram_id, topic)
       );`,
 
+      `CREATE TABLE IF NOT EXISTS academy_group_topic_stats (
+        id ${idType},
+        telegram_id BIGINT NOT NULL,
+        academy_group_id INTEGER NOT NULL,
+        topic VARCHAR(100) NOT NULL,
+        correct_count INTEGER DEFAULT 0,
+        wrong_count INTEGER DEFAULT 0,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(telegram_id, academy_group_id, topic)
+      );`,
+
       `CREATE TABLE IF NOT EXISTS user_quiz_history (
         id ${idType},
         telegram_id BIGINT NOT NULL,
@@ -433,6 +444,11 @@ class DatabaseManager {
       'ALTER TABLE users ADD COLUMN grade INTEGER',
       'ALTER TABLE users ADD COLUMN is_paid BOOLEAN DEFAULT FALSE',
       'ALTER TABLE users ADD COLUMN is_teacher BOOLEAN DEFAULT FALSE',
+      'ALTER TABLE users ADD COLUMN academy_group_id INTEGER',
+      'ALTER TABLE users ADD COLUMN academy_group_name VARCHAR(150)',
+      'ALTER TABLE user_tests ADD COLUMN academy_group_id INTEGER',
+      'ALTER TABLE user_quiz_history ADD COLUMN academy_group_id INTEGER',
+      'ALTER TABLE daily_test_attempts ADD COLUMN academy_group_id INTEGER',
       'ALTER TABLE user_tests ADD COLUMN test_type VARCHAR(20) DEFAULT \'practice\'',
       'ALTER TABLE user_tests ADD COLUMN test_date VARCHAR(10)',
       'ALTER TABLE groups ADD COLUMN book_id INTEGER',

@@ -720,7 +720,7 @@ function GradesSection({ onDataChange }) {
                   >
                     <div className="group-item-info">
                       <span className="group-name">{g.name}</span>
-                      <span className="group-code">ID: #{g.id}</span>
+                      <span className="group-code">ID: #{g.id} · Bot kodi: <strong>{g.access_code || 'Kod yo‘q'}</strong></span>
                     </div>
                     <div className="group-item-actions" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <button

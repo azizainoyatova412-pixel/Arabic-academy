@@ -21,15 +21,15 @@ export class BotKeyboards {
 
     if (lang === 'ru') {
       keyboard.text('📊 Общий рейтинг и Статистика').row();
-      keyboard.text('📝 Тест по арабскому').text('🤖 ИИ Учитель').row();
+      keyboard.text('📘 Тест по учебнику').text('🤖 ИИ Учитель').row();
       keyboard.text('💬 Связь с Администратором');
     } else if (lang === 'en') {
       keyboard.text('📊 General Ranking & Stats').row();
-      keyboard.text('📝 Arabic Quiz').text('🤖 AI Tutor').row();
+      keyboard.text('📘 Book-based test').text('🤖 AI Tutor').row();
       keyboard.text('💬 Contact Administrator');
     } else {
       keyboard.text('📊 Umumiy Reyting va Statistika').row();
-      keyboard.text('📝 Arab Tili Testi').text('🤖 AI Ustoz').row();
+      keyboard.text('📘 Kitob asosida test').text('🤖 AI Ustoz').row();
       keyboard.text('💬 Admin bilan bog\'lanish');
     }
 

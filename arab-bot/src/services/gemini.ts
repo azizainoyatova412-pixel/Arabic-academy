@@ -582,20 +582,22 @@ Javobni FAQAT toza JSON ko'rinishida qaytaring:
    * Mavzuda yo'q begona grammatik tushunchalar qo'shilmaydi!
    */
   public static async generateHardTestQuestions(options: {
-    bookText?: string;
+    bookText: string;
     topicsRange?: string;
     questionTypes?: string[];
     count?: number;
     excludedQuestions?: string[];
     lang?: string;
+    difficulty?: 'easy' | 'medium' | 'hard';
   }): Promise<QuizQuestion[]> {
     const apiKeys = this.getApiKeys();
     const count = options.count || 5;
     const lang = options.lang || 'uz';
 
     if (apiKeys.length === 0) {
-      return this.getFilteredFallbackQuestions(lang, options.excludedQuestions).slice(0, count);
+      throw new Error('Kitob asosidagi test uchun GEMINI_API_KEY sozlanmagan');
     }
+    if (!options.bookText.trim()) throw new Error('Guruhga kitob biriktirilmagan yoki kitob matni bo‘sh');
 
     const typesStr = (options.questionTypes && options.questionTypes.length > 0)
       ? options.questionTypes.join(', ')
@@ -603,25 +605,32 @@ Javobni FAQAT toza JSON ko'rinishida qaytaring:
 
     const topicsStr = options.topicsRange && options.topicsRange !== 'all'
       ? `Belgilangan mavzular: ${options.topicsRange}`
-      : "Barcha asosiy o'quv mavzulari";
+      : "Faqat taqdim etilgan kitob matnidagi mavzular";
 
-    const excerpt = (options.bookText || '').slice(0, 12000);
+    const excerpt = options.bookText.slice(0, 12000);
+    const levelInstruction = options.difficulty === 'hard'
+      ? "O'quvchi darajasi yuqori (B1-B2): matn mazmunini chuqur tushunish, qo'llanish, grammatik farqlar va kontekstli lug'atni tekshiring."
+      : options.difficulty === 'medium'
+        ? "O'quvchi darajasi o'rta (A2-B1): matn mazmuni, kundalik muloqot, asosiy grammatik tuzilmalar va kontekstli lug'atni tekshiring."
+        : "O'quvchi boshlang'ich (A1-A2): kitobdagi sodda matnlarni tushunish, kundalik iboralar, asosiy tuzilmalar va kontekstli lug'atni tekshiring.";
 
-    const prompt = `Siz qattiqqo'l, professional Arab tili imtihonchisisiz.
-Quyidagi darslik va mavzular asosida AYNAN ${count} TA JUDA QIYIN, chuqur bilimni talab qiluvchi ko'p variantli (multiple-choice) test savolini tuzing.
+    const prompt = `Siz zamonaviy arab tili dasturining professional imtihon tuzuvchisisiz.
+Quyidagi guruhga biriktirilgan kitob matnidan va o'quvchining darajasidan kelib chiqib ${count} tagacha ko'p variantli test savoli tuzing.
 
 ${topicsStr}
 Savol turlari: ${typesStr}
+${levelInstruction}
 Kitob matnidan parcha:
-${excerpt || '(Standart arab tili darsligi qoidalari)'}
+${excerpt}
 
-JUDA MUHIM QAT'IY MANTIQIY QOIDA:
-1. Savollar FAQAT va FAQAT belgilangan mavzular doirasidan tuzilishi SHART.
-2. AGAR MAVZU MASALAN "BITTA SO'ZNING O'QILISHI / TALAFFUZI" HAQIDA BO'LSA, SAVOL O'SHA SO'ZNING O'ZIGA OID NOZIK TALAFFUZ VA MAXRAJ DETALLARI BILAN MURAKKABLASHTIRILSIN.
-3. LEKIN MAVZUDA BO'LMAGAN BEGONA GRAMMATIK TUSHUNCHALARNI (masalan fe'l, sifat, kelishiklar, agar mavzuda bo'lmasa) MUTLAQO QO'SHMANG! FAQAT MAVJUD MAZMUNNI CHUQURLASHTIRING!
-4. Har bir savolda AYNAN 4 TA unikal variant bo'lsin.
-5. Har bir savolga to'liq, ilmiy va qat'iy "explanation" (nima uchun aynan shu javob to'g'ri ekanligi) yozing.
-6. "correctIndex" 0, 1, 2 yoki 3 bo'lsin.
+QAT'IY TALABLAR:
+1. Savollar javobi faqat kitob matnida bor ma'lumotlarga tayansin; tashqi ma'lumot uydirmang.
+2. Zamonaviy arab tilini qo'llash, tushunish, muloqot, kontekstli lug'at va kitobda o'rgatilgan grammatikani tekshiring.
+3. Arab alifbosi harflarini sanash/tanib olish, yozuv yo'nalishi va harakatlarni alohida yodlash haqida savol BERMANG.
+4. Qiyinlik darajasi ${levelInstruction}
+5. Har bir savolda aynan 4 ta unikal variant bo'lsin.
+6. Har bir javobda qisqa tushuntirish va kitobdagi mavzu nomi bo'lsin.
+7. "correctIndex" 0, 1, 2 yoki 3 bo'lsin.
 
 Javobni FAQAT toza JSON massiv formatida qaytaring:
 [
@@ -661,7 +670,7 @@ Javobni FAQAT toza JSON massiv formatida qaytaring:
       }
     }
 
-    return this.getFilteredFallbackQuestions(lang, options.excludedQuestions).slice(0, count);
+    throw new Error('Kitob asosidagi test savollarini yaratib bo‘lmadi');
   }
 
 

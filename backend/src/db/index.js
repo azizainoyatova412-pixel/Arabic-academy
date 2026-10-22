@@ -121,6 +121,20 @@ const initDb = async () => {
 
       ALTER TABLE groups ADD COLUMN IF NOT EXISTS book_name TEXT;
       ALTER TABLE groups ADD COLUMN IF NOT EXISTS book_pdf_path TEXT;
+      ALTER TABLE groups ADD COLUMN IF NOT EXISTS access_code VARCHAR(16);
+      UPDATE groups
+      SET access_code = upper(substr(md5(random()::text || clock_timestamp()::text), 1, 8))
+      WHERE access_code IS NULL OR btrim(access_code) = '';
+      WITH duplicate_codes AS (
+        SELECT id, row_number() OVER (PARTITION BY upper(access_code) ORDER BY id) AS code_rank
+        FROM groups
+        WHERE access_code IS NOT NULL
+      )
+      UPDATE groups g
+      SET access_code = upper(substr(md5(random()::text || clock_timestamp()::text), 1, 8))
+      FROM duplicate_codes d
+      WHERE g.id = d.id AND d.code_rank > 1;
+      CREATE UNIQUE INDEX IF NOT EXISTS groups_access_code_unique ON groups (upper(access_code));
     `);
     console.log('✅ Baza jadvallari (users, groups, books, monthly_grades) tekshirildi va tayyor.');
 

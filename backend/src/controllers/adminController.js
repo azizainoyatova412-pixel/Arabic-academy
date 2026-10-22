@@ -1,4 +1,5 @@
 const db = require('../db/index');
+const crypto = require('crypto');
 
 function getCurrentMonthKey() {
   const d = new Date();
@@ -21,10 +22,66 @@ exports.createGroup = async (req, res) => {
   const { name } = req.body;
   if (!name) return res.status(400).json({ error: 'name kerak' });
   try {
-    const r = await db.query('INSERT INTO groups (name) VALUES ($1) RETURNING *', [name]);
+    const accessCode = crypto.randomBytes(4).toString('hex').toUpperCase();
+    const r = await db.query(
+      'INSERT INTO groups (name, access_code) VALUES ($1, $2) RETURNING *',
+      [name.trim(), accessCode]
+    );
     res.json({ group: r.rows[0] });
   } catch (e) {
     res.status(500).json({ error: e.message });
+  }
+};
+
+exports.verifyBotGroupCode = async (req, res) => {
+  const accessCode = String(req.body.access_code || '').trim().toUpperCase();
+  const telegramId = Number(req.body.telegram_id);
+  const fullName = String(req.body.full_name || '').trim().slice(0, 120);
+  if (!accessCode || !Number.isSafeInteger(telegramId) || telegramId <= 0 || !fullName) {
+    return res.status(400).json({ error: 'Guruh kodi va o‘quvchi ma’lumotlari kerak' });
+  }
+
+  try {
+    const groupResult = await db.query(
+      `SELECT g.id, g.name, g.access_code, g.book_name, g.book_pdf_path,
+              b.id AS book_id, b.title AS book_title
+       FROM groups g
+       LEFT JOIN books b ON b.pdf_path = g.book_pdf_path
+       WHERE upper(g.access_code) = $1
+       LIMIT 1`,
+      [accessCode]
+    );
+    const group = groupResult.rows[0];
+    if (!group) return res.status(404).json({ error: 'Guruh kodi noto‘g‘ri yoki guruh topilmadi' });
+
+    await db.query(
+      `INSERT INTO users (telegram_id, full_name, lang)
+       VALUES ($1, $2, 'uz')
+       ON CONFLICT (telegram_id) DO UPDATE SET full_name = EXCLUDED.full_name`,
+      [telegramId, fullName]
+    );
+    await db.query(
+      `INSERT INTO enrollments (telegram_id, group_id, status, lesson_grades, current_month_points)
+       VALUES ($1, $2, 'active', '{}'::jsonb, 0)
+       ON CONFLICT (telegram_id, group_id) DO UPDATE SET status = 'active'`,
+      [telegramId, group.id]
+    );
+    await db.query(
+      `INSERT INTO monthly_grades (group_id, telegram_id, month_key, lesson_grades, total_points)
+       VALUES ($1, $2, $3, '{}'::jsonb, 0)
+       ON CONFLICT (group_id, telegram_id, month_key) DO NOTHING`,
+      [group.id, telegramId, getCurrentMonthKey()]
+    );
+
+    return res.json({
+      group: { id: Number(group.id), name: group.name },
+      book: group.book_id && group.book_pdf_path
+        ? { id: Number(group.book_id), title: group.book_title, pdfPath: group.book_pdf_path }
+        : null,
+    });
+  } catch (e) {
+    console.error('Bot guruh kodini tekshirishda xatolik:', e.message);
+    return res.status(500).json({ error: 'Guruh kodini tekshirib bo‘lmadi' });
   }
 };
 

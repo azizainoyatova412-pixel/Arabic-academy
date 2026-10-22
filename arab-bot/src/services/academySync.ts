@@ -31,6 +31,11 @@ export interface AcademyBook {
   pdfPath: string;
 }
 
+export interface AcademyGroupAccess {
+  group: { id: number; name: string };
+  book: { id: number | null; title: string; pdfPath: string } | null;
+}
+
 async function sendAcademyRequest(path: string, payload: Record<string, unknown>): Promise<unknown> {
   if (!config.academyApiUrl || !config.academySyncSecret) {
     throw new Error('ACADEMY_API_URL yoki ACADEMY_SYNC_SECRET sozlanmagan');
@@ -77,6 +82,18 @@ export async function getAcademyBooks(): Promise<AcademyBook[]> {
   return (response as { books: AcademyBook[] }).books;
 }
 
+export async function verifyAcademyGroupCode(
+  accessCode: string,
+  telegramId: number,
+  fullName: string
+): Promise<AcademyGroupAccess> {
+  return await sendAcademyRequest('/api/bot/verify-group-code', {
+    access_code: accessCode,
+    telegram_id: telegramId,
+    full_name: fullName,
+  }) as AcademyGroupAccess;
+}
+
 export async function getAcademyBookText(bookId: number): Promise<{ title: string; text: string }> {
   const response = await sendAcademyRequest(`/api/bot/books/${bookId}`, {});
   const book = response as AcademyBook;
@@ -97,6 +114,27 @@ export async function getAcademyBookText(bookId: number): Promise<{ title: strin
     throw new Error('Kitob PDF faylidan matn ajratib olinmadi');
   }
   return { title: book.title, text };
+}
+
+export async function getAcademyGroupBook(
+  groupId: number,
+  telegramId: number
+): Promise<{ id: number; title: string; text: string }> {
+  const book = await sendAcademyRequest(`/api/bot/groups/${groupId}/book`, {
+    telegram_id: telegramId,
+  }) as AcademyBook;
+  const pdfUrl = new URL(book.pdfPath, `${config.academyApiUrl}/`);
+  if (pdfUrl.origin !== new URL(config.academyApiUrl).origin) {
+    throw new Error('Sayt kitobining PDF manzili noto‘g‘ri');
+  }
+
+  const pdfResponse = await fetch(pdfUrl);
+  if (!pdfResponse.ok) {
+    throw new Error(`Guruh kitobining PDF fayli olinmadi (HTTP ${pdfResponse.status})`);
+  }
+  const text = await PdfBookService.extractTextFromBuffer(Buffer.from(await pdfResponse.arrayBuffer()));
+  if (!text) throw new Error('Guruh kitobining PDF faylidan matn ajratib olinmadi');
+  return { id: book.id, title: book.title, text };
 }
 
 export async function syncAcademyStats(): Promise<void> {
