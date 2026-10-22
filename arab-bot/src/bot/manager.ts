@@ -271,21 +271,21 @@ export class BotManager {
       let welcomeText = '';
       if (langCode === 'ru') {
         welcomeText =
-          `🌟 <b>Ассаламу алейкум ва рахматуллахи ва баракатух!</b>\n` +
+          `🌟 <b>Ассаламу алейкум!</b>\n` +
           `━━━━━━━━━━━━━━━━━━━━\n` +
           `Добро пожаловать в официальный учебный бот Академии арабского языка <b>Aisha Uzbikiyya</b>.\n\n` +
           `📖 В меню доступны ежедневные тесты, статистика и AI Учитель по загруженным книгам.\n\n` +
           `<i>Выберите нужный раздел в меню ниже:</i>`;
       } else if (langCode === 'en') {
         welcomeText =
-          `🌟 <b>Assalamu alaykum wa rahmatullahi wa barakatuh!</b>\n` +
+          `🌟 <b>Assalamu alaykum!</b>\n` +
           `━━━━━━━━━━━━━━━━━━━━\n` +
           `Welcome to the official learning bot of the <b>Aisha Uzbikiyya</b> Arabic Academy.\n\n` +
           `📖 Use the menu below for daily quizzes, statistics, and an AI Tutor based on uploaded books.\n\n` +
           `<i>Please select an option from the menu below:</i>`;
       } else {
         welcomeText =
-          `🌟 <b>Assalomu alaykum va rahmatullohi va barakatuh!</b>\n` +
+          `🌟 <b>Assalomu alaykum!</b>\n` +
           `━━━━━━━━━━━━━━━━━━━━\n` +
           `<b>Aisha Uzbikiyya</b> arab tili akademiyasining rasmiy o'quv botiga xush kelibsiz.\n\n` +
           `📖 Menyuda kunlik testlar, statistika va yuklangan kitoblar asosida ishlaydigan AI Ustoz mavjud.\n\n` +
