@@ -87,6 +87,7 @@ ADMIN_TELEGRAM_CONTACT=<@aishauzbikiyya_admin>
 - `render.yaml` worker sozlamasini o'z ichiga oladi. Worker'da `BOT_TOKEN`, `GEMINI_API_KEY`, `ADMIN_ID`, `ADMIN_PASSWORD`, `ACADEMY_API_URL`, `ACADEMY_SYNC_SECRET` va `BOT_DATABASE_URL` qiymatlarini kiriting.
 - Worker Node.js `22.13.0` yoki undan yangi versiyada ishlashi kerak.
 - `ACADEMY_API_URL` saytning haqiqiy Render URL'i bo'lishi kerak. `ACADEMY_SYNC_SECRET` qiymatini saytdagi `BOT_SYNC_SECRET` bilan aynan bir xil qiling.
+- Production bot sozlamasida `ACADEMY_API_URL` hech qachon `localhost` bo'lmasin; Render worker ichidagi localhost sayt backend'i emas.
 - Bot AI Ustoz kitoblar ro'yxati va PDF fayllarini saytning bot-sync bilan himoyalangan API endpointlaridan oladi; sayt va bot service'dagi secretlar bir xil bo'lishi kerak.
 - Worker'dagi `BOT_DATABASE_URL` uchun saytning mavjud `DATABASE_URL` qiymatini ishlatish mumkin; `BOT_DATABASE_SCHEMA=arab_bot` bot jadvallarini alohida schema'da yaratadi. Shu sabab sayt va botning `users`/`groups` jadvallari aralashmaydi va alohida ma'lumotlar bazasi ochish shart emas. PostgreSQL foydalanuvchisida yangi schema yaratish huquqi bo'lishi kerak.
 - Agar PostgreSQL ulanishi yoki schema yaratish ishlamasa, bot SQLite'ga o'tadi; Render'da uning ma'lumotlari redeploy/restartda saqlanmasligi mumkin.

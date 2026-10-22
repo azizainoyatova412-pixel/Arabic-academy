@@ -41,14 +41,40 @@ async function sendAcademyRequest(path: string, payload: Record<string, unknown>
     throw new Error('ACADEMY_API_URL yoki ACADEMY_SYNC_SECRET sozlanmagan');
   }
 
-  const response = await fetch(`${config.academyApiUrl}${path}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-bot-sync-secret': config.academySyncSecret,
-    },
-    body: JSON.stringify(payload),
-  });
+  let apiUrl: URL;
+  try {
+    apiUrl = new URL(config.academyApiUrl);
+  } catch {
+    throw new Error('ACADEMY_API_URL noto‘g‘ri formatda; saytning to‘liq https:// manzilini kiriting');
+  }
+  if (!['http:', 'https:'].includes(apiUrl.protocol)) {
+    throw new Error('ACADEMY_API_URL http:// yoki https:// bilan boshlanishi kerak');
+  }
+  if (
+    process.env.NODE_ENV === 'production' &&
+    (apiUrl.hostname === 'localhost' || apiUrl.hostname === '127.0.0.1')
+  ) {
+    throw new Error('ACADEMY_API_URL production muhitida localhost bo‘la olmaydi; saytning Render URL manzilini kiriting');
+  }
+
+  let response: Response;
+  try {
+    response = await fetch(new URL(path, `${apiUrl.origin}/`), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-bot-sync-secret': config.academySyncSecret,
+      },
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(30000),
+    });
+  } catch (error) {
+    const cause = error instanceof Error
+      ? (error as Error & { cause?: { code?: string; message?: string } }).cause
+      : undefined;
+    const reason = cause?.code || cause?.message || (error instanceof Error ? error.message : 'noma’lum tarmoq xatosi');
+    throw new Error(`${apiUrl.host} saytiga ulanish amalga oshmadi (${reason}); ACADEMY_API_URL va sayt server holatini tekshiring`);
+  }
   const responseText = await response.text();
   const contentType = response.headers.get('content-type') || '';
   let data: { error?: string };

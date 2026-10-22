@@ -41,6 +41,8 @@ services:
       - key: BOT_DATABASE_SCHEMA
         value: arab_bot
       - key: ACADEMY_API_URL
-        sync: false
+        value: https://arabic-academy.onrender.com
+      - key: ACADEMY_ADMIN_URL
+        value: https://arabic-academy.onrender.com/admin
       - key: ACADEMY_SYNC_SECRET
         sync: false
