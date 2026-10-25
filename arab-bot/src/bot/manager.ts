@@ -19,7 +19,7 @@ export class BotManager {
   private currentToken: string = '';
   private sessions = new Map<number, UserSessionState>();
 
-  private constructor() {}
+  private constructor() { }
 
   public static getInstance(): BotManager {
     if (!BotManager.instance) {
@@ -67,7 +67,7 @@ export class BotManager {
       try {
         const me = await this.bot.api.getMe();
         botUsername = me.username;
-      } catch {}
+      } catch { }
     }
 
     return {
@@ -120,11 +120,11 @@ export class BotManager {
       await this.bot.api.setMyCommands([
         { command: 'start', description: "Botni qayta ishga tushirish" },
         { command: 'review', description: "Kurs haqida sharh yuborish" },
-      ]).catch(() => {});
+      ]).catch(() => { });
 
       await this.bot.api.setChatMenuButton({
         menu_button: { type: 'default' },
-      }).catch(() => {});
+      }).catch(() => { });
 
       this.bot
         .start({
@@ -285,13 +285,13 @@ export class BotManager {
       );
       if (!membership.rows[0]?.academy_group_id) {
         this.getSession(telegramId).state = 'waiting_group_code';
-        await ctx.answerCallbackQuery().catch(() => {});
+        await ctx.answerCallbackQuery().catch(() => { });
         await ctx.reply('Botni ochish uchun avval saytdagi guruhingiz kodini yuboring.');
         return;
       }
 
       await I18nService.setUserLanguage(telegramId, langCode);
-      await ctx.answerCallbackQuery({ text: '✅ Saqlandi' }).catch(() => {});
+      await ctx.answerCallbackQuery({ text: '✅ Saqlandi' }).catch(() => { });
 
       let welcomeText = '';
       if (langCode === 'ru') {
@@ -312,7 +312,7 @@ export class BotManager {
         welcomeText =
           `🌟 <b>Assalomu alaykum!</b>\n` +
           `━━━━━━━━━━━━━━━━━━━━\n` +
-          `<b>Aisha Uzbikiyya</b> arab tili akademiyasining rasmiy o'quv botiga xush kelibsiz.\n\n` +
+          `<b>Uzbikiyya akademiyasi o'quvchilari bilan ishlash guruhi.</b>\n\n` +
           `📖 Menyuda kunlik testlar, statistika va yuklangan kitoblar asosida ishlaydigan AI Ustoz mavjud.\n\n` +
           `<i>Kerakli bo'limni quyidagi menyudan tanlang:</i>`;
       }
@@ -323,7 +323,7 @@ export class BotManager {
 
     // 4. "Kursga yozilish" callback (eski tugmalar bosilganda)
     bot.callbackQuery('action_enroll', async (ctx) => {
-      await ctx.answerCallbackQuery().catch(() => {});
+      await ctx.answerCallbackQuery().catch(() => { });
       const telegramId = ctx.from.id;
       const lang = await I18nService.getUserLanguage(telegramId);
       const mainKb = await BotKeyboards.getMainMenu(lang);
@@ -341,7 +341,7 @@ export class BotManager {
     bot.callbackQuery(/^join_group:(\d+)$/, async (ctx) => {
       const telegramId = ctx.from.id;
       const lang = await I18nService.getUserLanguage(telegramId);
-      await ctx.answerCallbackQuery().catch(() => {});
+      await ctx.answerCallbackQuery().catch(() => { });
       const session = this.getSession(telegramId);
       session.state = 'waiting_group_code';
       await ctx.reply(
@@ -359,16 +359,16 @@ export class BotManager {
       const action = ctx.match[1]; // 'open' or 'close'
       const lang = await I18nService.getUserLanguage(telegramId);
 
-      await ctx.answerCallbackQuery().catch(() => {});
+      await ctx.answerCallbackQuery().catch(() => { });
       await this.renderAllGroupsStatsCard(ctx, telegramId, lang, action === 'open', true);
     });
 
     bot.callbackQuery(/^tutor_book:(\d+)$/, async (ctx) => {
       const telegramId = ctx.from.id;
       const lang = await I18nService.getUserLanguage(telegramId);
-      await ctx.answerCallbackQuery().catch(() => {});
+      await ctx.answerCallbackQuery().catch(() => { });
 
-      await ctx.replyWithChatAction('typing').catch(() => {});
+      await ctx.replyWithChatAction('typing').catch(() => { });
 
       try {
         const membership = await db.query(
@@ -414,11 +414,11 @@ export class BotManager {
     bot.callbackQuery(/^admin_view:(stats|groups|students|tests|refresh)$/, async (ctx) => {
       const telegramId = ctx.from.id;
       if (!this.isUserAdmin(telegramId)) {
-        await ctx.answerCallbackQuery({ text: '⛔️ Sizda administrator huquqi yo\'q', show_alert: true }).catch(() => {});
+        await ctx.answerCallbackQuery({ text: '⛔️ Sizda administrator huquqi yo\'q', show_alert: true }).catch(() => { });
         return;
       }
 
-      await ctx.answerCallbackQuery().catch(() => {});
+      await ctx.answerCallbackQuery().catch(() => { });
       const adminUrl = this.getAcademyAdminUrl();
       await ctx.reply(adminUrl ? `🌐 Yagona admin panel: ${adminUrl}` : 'Sayt admin paneli havolasi sozlanmagan.');
     });
@@ -427,7 +427,7 @@ export class BotManager {
     bot.callbackQuery(/^(exit_gemini|exit_ai_tutor)$/, async (ctx) => {
       const telegramId = ctx.from.id;
       this.clearSession(telegramId);
-      await ctx.answerCallbackQuery({ text: 'AI Ustoz rejimidan chiqildi' }).catch(() => {});
+      await ctx.answerCallbackQuery({ text: 'AI Ustoz rejimidan chiqildi' }).catch(() => { });
       const lang = await I18nService.getUserLanguage(telegramId);
       await ctx.reply("Asosiy menyuga qaytdingiz:", { reply_markup: await BotKeyboards.getMainMenu(lang) });
     });
@@ -440,7 +440,7 @@ export class BotManager {
       const lang = await I18nService.getUserLanguage(telegramId);
 
       if (session.state !== 'taking_test' || !session.testQuestions) {
-        await ctx.answerCallbackQuery().catch(() => {});
+        await ctx.answerCallbackQuery().catch(() => { });
         return;
       }
 
@@ -450,9 +450,9 @@ export class BotManager {
       const isCorrect = selectedIndex === question.correctIndex;
       if (isCorrect) {
         session.testScore = (session.testScore || 0) + 1;
-        await ctx.answerCallbackQuery({ text: '✅ To\'g\'ri!' }).catch(() => {});
+        await ctx.answerCallbackQuery({ text: '✅ To\'g\'ri!' }).catch(() => { });
       } else {
-        await ctx.answerCallbackQuery({ text: '❌ Noto\'g\'ri' }).catch(() => {});
+        await ctx.answerCallbackQuery({ text: '❌ Noto\'g\'ri' }).catch(() => { });
       }
 
       const topicName = question.topic || 'Arab tili';
@@ -539,7 +539,7 @@ export class BotManager {
       const session = this.getSession(telegramId);
       const lang = await I18nService.getUserLanguage(telegramId);
 
-      await ctx.answerCallbackQuery().catch(() => {});
+      await ctx.answerCallbackQuery().catch(() => { });
       const isOpen = action === 'open';
       const text = this.renderQuizSummaryText(session, isOpen, lang);
       const kb = BotKeyboards.getQuizReviewKeyboard(isOpen, lang);
@@ -765,7 +765,7 @@ export class BotManager {
         ? `\n📖 Guruh kitobi: <b>${access.book.title}</b>`
         : '\n⚠️ Guruhga hali kitob biriktirilmagan. Test ishlashi uchun admin saytda kitob biriktirishi kerak.';
       await ctx.reply(
-        `✅ <b>${access.group.name}</b> guruhiga muvaffaqiyatli qo‘shildingiz!${bookMessage}\n\nEndi botdan foydalanishingiz mumkin.`,
+        `✅ <b>${access.group.name}</b> guruhiga muvaffaqiyatli qo‘shildingiz!\nUzbikiyya akademiyasi o'quvchilari bilan ishlash guruhi.${bookMessage}\n\nEndi botdan foydalanishingiz mumkin.`,
         { parse_mode: 'HTML', reply_markup: await BotKeyboards.getMainMenu(lang) }
       );
     } catch (error: any) {
@@ -864,7 +864,7 @@ export class BotManager {
       try {
         await ctx.editMessageText(report, { parse_mode: 'HTML', reply_markup: kb });
         return;
-      } catch (e) {}
+      } catch (e) { }
     }
 
     await ctx.reply(report, { parse_mode: 'HTML', reply_markup: kb });
@@ -998,7 +998,7 @@ export class BotManager {
           reply_markup: keyboard,
         });
         return;
-      } catch (err) {}
+      } catch (err) { }
     }
 
     await ctx.reply(title, { parse_mode: 'HTML', reply_markup: keyboard });
@@ -1153,16 +1153,16 @@ export class BotManager {
       }
       book = await getAcademyGroupBook(groupId, telegramId);
     } catch (error: any) {
-    this.clearSession(telegramId);
-    console.error('[AI Tutor] Guruh kitobini olib bo‘lmadi:', error.message);
-    await ctx.reply(
-      lang === 'ru'
-        ? 'Не удалось получить список книг с сайта. Попробуйте позже.'
-        : lang === 'en'
-          ? 'Could not load the books from the website. Please try again later.'
-          : 'Saytdagi kitoblar ro‘yxatini olib bo‘lmadi. Keyinroq qayta urinib ko‘ring.'
-    );
-    return;
+      this.clearSession(telegramId);
+      console.error('[AI Tutor] Guruh kitobini olib bo‘lmadi:', error.message);
+      await ctx.reply(
+        lang === 'ru'
+          ? 'Не удалось получить список книг с сайта. Попробуйте позже.'
+          : lang === 'en'
+            ? 'Could not load the books from the website. Please try again later.'
+            : 'Saytdagi kitoblar ro‘yxatini olib bo‘lmadi. Keyinroq qayta urinib ko‘ring.'
+      );
+      return;
     }
     if (!book) return;
 
@@ -1203,7 +1203,7 @@ export class BotManager {
       return;
     }
 
-    await ctx.replyWithChatAction('typing').catch(() => {});
+    await ctx.replyWithChatAction('typing').catch(() => { });
     try {
       const evaluation = await GeminiService.evaluateBookAnswer(
         session.activeTutorBookContent,
