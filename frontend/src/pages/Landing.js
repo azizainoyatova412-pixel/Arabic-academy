@@ -90,7 +90,12 @@ const content = {
         {
           icon: '✈️',
           title: 'Xalqaro karyera',
-          desc: "Diplomatiya, xalqaro tashkilotlar, savdo va turizm sohalarida arab tilini bilib keng imkoniyatlarga ega bo‘ling.",
+          desc: "Diplomatiya, xalqaro tashkilotlar, savdo va turizm sohalarda arab tilini bilib keng imkoniyatlarga ega bo‘ling.",
+        },
+        {
+          icon: '🤝',
+          title: 'Elchixonalar, konsulliklar va xalqaro tashkilotlarda maslahatchi yoki mutaxassis',
+          desc: "BMT, Islom taraqqiyot banki kabi xalqaro tashkilotlarda faoliyat yuritish.",
         },
       ],
     },
@@ -421,29 +426,7 @@ function Landing() {
               ))}
             </div>
 
-            <a
-              href="/admin"
-              className="topbar-admin-link"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '6px 14px',
-                borderRadius: '999px',
-                background: 'linear-gradient(135deg, #1A7A5E 0%, #0e4c39 100%)',
-                color: '#ffffff',
-                textDecoration: 'none',
-                fontSize: '0.82rem',
-                fontWeight: '600',
-                letterSpacing: '0.02em',
-                boxShadow: '0 2px 8px rgba(26, 122, 94, 0.25)',
-                transition: 'all 0.2s ease',
-              }}
-              title="Admin boshqaruv paneliga o'tish"
-            >
-              <span>🔐</span>
-              <span>Admin</span>
-            </a>
+
           </div>
         </div>
       </header>
