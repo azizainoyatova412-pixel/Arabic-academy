@@ -1,0 +1,41 @@
+{
+  "name": "arab-tili-boti",
+  "version": "1.0.0",
+  "description": "Professional Arab Tili O'quv Boti va Admin Paneli",
+  "main": "dist/server.js",
+  "scripts": {
+    "build": " npm install && tsc",
+    "start": "node dist/server.js"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.24.0",
+    "@types/multer": "^2.3.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "grammy": "^1.35.0",
+    "multer": "^2.4.0",
+    "pdf-parse": "^2.4.5",
+    "pg": "^8.23.1"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.13.9",
+    "@types/pdf-parse": "^1.1.5",
+    "@types/pg": "^8.11.11",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.2"
+  },
+  "keywords": [
+    "telegram-bot",
+    "grammy",
+    "arabic-learning",
+    "express"
+  ],
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "author": "Antigravity",
+  "license": "MIT"
+}
