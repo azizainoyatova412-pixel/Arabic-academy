@@ -36,63 +36,94 @@ export interface AcademyGroupAccess {
   book: { id: number | null; title: string; pdfPath: string } | null;
 }
 
+/**
+ * Sayt backend API ga so'rov yuborish.
+ * Agar asosiy URL (masalan Render) ishlamasa yoki xato bersa,
+ * lokal backend (http://localhost:5000) ga avtomatik zaxira ulanish amalga oshiriladi.
+ */
 async function sendAcademyRequest(path: string, payload: Record<string, unknown>): Promise<unknown> {
-  if (!config.academyApiUrl || !config.academySyncSecret) {
-    throw new Error('ACADEMY_API_URL yoki ACADEMY_SYNC_SECRET sozlanmagan');
+  const secret = (config.academySyncSecret || process.env.BOT_SYNC_SECRET || process.env.ACADEMY_SYNC_SECRET || '').trim();
+  if (!secret) {
+    throw new Error('BOT_SYNC_SECRET yoki ACADEMY_SYNC_SECRET sozlanmagan');
   }
 
-  let apiUrl: URL;
-  try {
-    apiUrl = new URL(config.academyApiUrl);
-  } catch {
-    throw new Error('ACADEMY_API_URL noto‘g‘ri formatda; saytning to‘liq https:// manzilini kiriting');
-  }
-  if (!['http:', 'https:'].includes(apiUrl.protocol)) {
-    throw new Error('ACADEMY_API_URL http:// yoki https:// bilan boshlanishi kerak');
-  }
-  if (
-    process.env.NODE_ENV === 'production' &&
-    (apiUrl.hostname === 'localhost' || apiUrl.hostname === '127.0.0.1')
-  ) {
-    throw new Error('ACADEMY_API_URL production muhitida localhost bo‘la olmaydi; saytning Render URL manzilini kiriting');
-  }
+  // Ehtimoliy URL'lar ro'yxati (eng birinchi o'rinda .env dagi URL)
+  const primaryUrl = (config.academyApiUrl || 'http://localhost:5000').trim().replace(/\/+$/, '');
+  const candidateUrls = [
+    primaryUrl,
+    'http://localhost:5000',
+    'http://127.0.0.1:5000',
+    'http://localhost:3000',
+  ];
 
-  let response: Response;
-  try {
-    response = await fetch(new URL(path, `${apiUrl.origin}/`), {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-bot-sync-secret': config.academySyncSecret,
-      },
-      body: JSON.stringify(payload),
-      signal: AbortSignal.timeout(30000),
-    });
-  } catch (error) {
-    const cause = error instanceof Error
-      ? (error as Error & { cause?: { code?: string; message?: string } }).cause
-      : undefined;
-    const reason = cause?.code || cause?.message || (error instanceof Error ? error.message : 'noma’lum tarmoq xatosi');
-    throw new Error(`${apiUrl.host} saytiga ulanish amalga oshmadi (${reason}); ACADEMY_API_URL va sayt server holatini tekshiring`);
-  }
-  const responseText = await response.text();
-  const contentType = response.headers.get('content-type') || '';
-  let data: { error?: string };
-
-  if (!contentType.includes('application/json')) {
-    if (response.status === 404 && responseText.includes('Cannot POST')) {
-      throw new Error(`${path} endpointi saytda topilmadi. Sayt backend o‘zgarishlarini deploy qiling.`);
+  // Takrorlanmas qilib olamiz
+  const uniqueUrls: string[] = [];
+  for (const u of candidateUrls) {
+    if (u && !uniqueUrls.includes(u)) {
+      uniqueUrls.push(u);
     }
-    throw new Error(`Sayt API JSON emas javob qaytardi (HTTP ${response.status}, ${contentType || 'content-type yo‘q'}). ACADEMY_API_URL manzilini tekshiring.`);
   }
 
-  try {
-    data = JSON.parse(responseText) as { error?: string };
-  } catch {
-    throw new Error(`Sayt API noto‘g‘ri JSON qaytardi (HTTP ${response.status}).`);
+  let lastError: Error | null = null;
+
+  for (let i = 0; i < uniqueUrls.length; i++) {
+    const targetBase = uniqueUrls[i];
+    let apiUrl: URL;
+    try {
+      apiUrl = new URL(targetBase);
+    } catch {
+      continue;
+    }
+
+    try {
+      const endpointUrl = new URL(path.replace(/^\/+/, ''), `${apiUrl.origin}/`);
+      const response = await fetch(endpointUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-bot-sync-secret': secret,
+        },
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(10000),
+      });
+
+      const contentType = response.headers.get('content-type') || '';
+      const responseText = await response.text();
+
+      if (!contentType.includes('application/json')) {
+        if (response.status === 404 && responseText.includes('Cannot POST')) {
+          throw new Error(`${path} endpointi ${targetBase} manzilida topilmadi`);
+        }
+        throw new Error(`${targetBase} sayt API JSON emas javob qaytardi (HTTP ${response.status})`);
+      }
+
+      let data: { error?: string };
+      try {
+        data = JSON.parse(responseText) as { error?: string };
+      } catch {
+        throw new Error(`${targetBase} API noto‘g‘ri JSON qaytardi (HTTP ${response.status})`);
+      }
+
+      if (!response.ok) {
+        throw new Error(data.error || `Sayt API xatosi (${response.status})`);
+      }
+
+      // Agar zaxira URL orqali muvaffaqiyatli ulangan bo'lsa va bu birinchi URL bo'lmasa, eslatib qo'yamiz
+      if (i > 0 && targetBase !== primaryUrl) {
+        console.log(`ℹ️ [Academy Sync] Asosiy URL (${primaryUrl}) o‘rniga lokal backend (${targetBase}) ga muvaffaqiyatli ulandi.`);
+      }
+
+      return data;
+    } catch (err: any) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+      // Faqat bitta URL bo'lsa yoki oxirgisi bo'lsa, davom etmaymiz
+      if (i === uniqueUrls.length - 1) {
+        break;
+      }
+    }
   }
-  if (!response.ok) throw new Error(data.error || `Akademiya API xatosi: ${response.status}`);
-  return data;
+
+  throw lastError || new Error('Sayt API ga ulanib bo‘lmadi');
 }
 
 export async function submitAcademyReview(telegramId: number, name: string, text: string): Promise<void> {
@@ -120,22 +151,39 @@ export async function verifyAcademyGroupCode(
   }) as AcademyGroupAccess;
 }
 
+async function fetchPdfBuffer(pdfPath: string): Promise<Buffer> {
+  const candidateBases = [
+    (config.academyApiUrl || '').trim().replace(/\/+$/, ''),
+    'http://localhost:5000',
+    'http://127.0.0.1:5000',
+    'http://localhost:3000',
+  ].filter(Boolean);
+
+  const cleanPath = pdfPath.startsWith('/') ? pdfPath : `/${pdfPath}`;
+  let lastErr = '';
+
+  for (const base of candidateBases) {
+    try {
+      const targetUrl = new URL(cleanPath, `${base}/`);
+      const res = await fetch(targetUrl, { signal: AbortSignal.timeout(10000) });
+      if (res.ok) {
+        const arrayBuf = await res.arrayBuffer();
+        return Buffer.from(arrayBuf);
+      }
+      lastErr = `HTTP ${res.status}`;
+    } catch (e: any) {
+      lastErr = e.message;
+    }
+  }
+  throw new Error(`Guruh kitobining PDF fayli olinmadi (${lastErr || '404'})`);
+}
+
 export async function getAcademyBookText(bookId: number): Promise<{ title: string; text: string }> {
   const response = await sendAcademyRequest(`/api/bot/books/${bookId}`, {});
   const book = response as AcademyBook;
-  const pdfUrl = new URL(book.pdfPath, `${config.academyApiUrl}/`);
-  if (pdfUrl.origin !== new URL(config.academyApiUrl).origin) {
-    throw new Error('Sayt kitobining PDF manzili noto‘g‘ri');
-  }
+  const buffer = await fetchPdfBuffer(book.pdfPath);
 
-  const pdfResponse = await fetch(pdfUrl);
-  if (!pdfResponse.ok) {
-    throw new Error(`Saytdagi kitob PDF fayli olinmadi (HTTP ${pdfResponse.status})`);
-  }
-
-  const text = await PdfBookService.extractTextFromBuffer(
-    Buffer.from(await pdfResponse.arrayBuffer())
-  );
+  const text = await PdfBookService.extractTextFromBuffer(buffer);
   if (!text) {
     throw new Error('Kitob PDF faylidan matn ajratib olinmadi');
   }
@@ -149,26 +197,19 @@ export async function getAcademyGroupBook(
   const book = await sendAcademyRequest(`/api/bot/groups/${groupId}/book`, {
     telegram_id: telegramId,
   }) as AcademyBook;
-  const pdfUrl = new URL(book.pdfPath, `${config.academyApiUrl}/`);
-  if (pdfUrl.origin !== new URL(config.academyApiUrl).origin) {
-    throw new Error('Sayt kitobining PDF manzili noto‘g‘ri');
-  }
 
-  const pdfResponse = await fetch(pdfUrl);
-  if (!pdfResponse.ok) {
-    throw new Error(`Guruh kitobining PDF fayli olinmadi (HTTP ${pdfResponse.status})`);
-  }
-  const text = await PdfBookService.extractTextFromBuffer(Buffer.from(await pdfResponse.arrayBuffer()));
+  const buffer = await fetchPdfBuffer(book.pdfPath);
+  const text = await PdfBookService.extractTextFromBuffer(buffer);
   if (!text) throw new Error('Guruh kitobining PDF faylidan matn ajratib olinmadi');
   return { id: book.id, title: book.title, text };
 }
 
 export async function syncAcademyStats(): Promise<void> {
   const [users, groups, tests, gradedStudents] = await Promise.all([
-    db.query("SELECT COUNT(*) AS count FROM users WHERE status = 'active'"),
-    db.query('SELECT COUNT(*) AS count FROM groups WHERE is_active = TRUE'),
-    db.query('SELECT COUNT(*) AS count FROM user_tests'),
-    db.query('SELECT COUNT(*) AS count FROM users WHERE grade IS NOT NULL AND grade > 0'),
+    db.query("SELECT COUNT(*) AS count FROM users WHERE status = 'active'").catch(() => ({ rows: [{ count: 0 }] })),
+    db.query('SELECT COUNT(*) AS count FROM groups WHERE is_active = TRUE').catch(() => ({ rows: [{ count: 0 }] })),
+    db.query('SELECT COUNT(*) AS count FROM user_tests').catch(() => ({ rows: [{ count: 0 }] })),
+    db.query('SELECT COUNT(*) AS count FROM users WHERE grade IS NOT NULL AND grade > 0').catch(() => ({ rows: [{ count: 0 }] })),
   ]);
   const count = (rows: Array<{ count: number | string }>) => Number(rows[0]?.count || 0);
 

@@ -14,7 +14,7 @@ export class BotKeyboards {
   }
 
   /**
-   * Asosiy menyu klaviaturasi (Admin tugmasi yashirin, menyuda ko'rinmaydi)
+   * Asosiy menyu klaviaturasi
    */
   public static async getMainMenu(lang: string = 'uz'): Promise<Keyboard> {
     const keyboard = new Keyboard();
@@ -22,15 +22,15 @@ export class BotKeyboards {
     if (lang === 'ru') {
       keyboard.text('📊 Общий рейтинг и Статистика').row();
       keyboard.text('📘 Тест по учебнику').text('🤖 ИИ Учитель').row();
-      keyboard.text('💬 Связь с Администратором');
+      keyboard.text('✍️ Оставить отзыв').text('💬 Связь с Администратором');
     } else if (lang === 'en') {
       keyboard.text('📊 General Ranking & Stats').row();
       keyboard.text('📘 Book-based test').text('🤖 AI Tutor').row();
-      keyboard.text('💬 Contact Administrator');
+      keyboard.text('✍️ Leave a Review').text('💬 Contact Administrator');
     } else {
       keyboard.text('📊 Umumiy Reyting va Statistika').row();
       keyboard.text('📘 Kitob asosida test').text('🤖 AI Ustoz').row();
-      keyboard.text('💬 Admin bilan bog\'lanish');
+      keyboard.text('✍️ Sharh qoldirish').text('💬 Admin bilan bog\'lanish');
     }
 
     keyboard.resized();
@@ -65,7 +65,6 @@ export class BotKeyboards {
 
   /**
    * Statistika: Bitta tugma bilan ochilib yopiladigan reyting klaviaturasi (⬇️ / ⬆️)
-   * Guruh tanlash olib tashlangan, butun hamma guruhlar 1 ta reytingda ko'rsatiladi
    */
   public static getStatsToggleKeyboard(isOpen: boolean, lang: string = 'uz'): InlineKeyboard {
     const kb = new InlineKeyboard();

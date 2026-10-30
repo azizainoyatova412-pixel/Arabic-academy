@@ -4,7 +4,7 @@
   "description": "Professional Arab Tili O'quv Boti va Admin Paneli",
   "main": "dist/server.js",
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc",
     "dev": "npm run build && node dist/server.js",
     "start": "node dist/server.js"
   },

@@ -745,6 +745,18 @@ export class BotManager {
         return;
       }
 
+      // 5. Sharh qoldirish menyusi
+      if (lower.includes('sharh') || lower.includes('отзыв') || lower.includes('review') || lower.includes('fikr')) {
+        session.state = 'waiting_review_text';
+        const prompts: Record<string, string> = {
+          uz: '✍️ <b>Kurs va ustozlar haqidagi fikr yoki sharhingizni yozing:</b>\n\nSharhingiz administrator tasdig‘idan so‘ng saytda e’lon qilinadi.\n<i>(Bekor qilish uchun /cancel deb yozing)</i>',
+          ru: '✍️ <b>Напишите ваш отзыв о курсе и преподавателях:</b>\n\nВаш отзыв появится на сайте после одобрения администратором.\n<i>(Для отмены отправьте /cancel)</i>',
+          en: '✍️ <b>Write your review about the course and teachers:</b>\n\nYour review will be posted on the website after admin approval.\n<i>(Send /cancel to cancel)</i>',
+        };
+        await ctx.reply(prompts[lang] || prompts.uz, { parse_mode: 'HTML' });
+        return;
+      }
+
       // 6. Aloqa / Yordam menyusi (Admin Telegram shaxsiy chatiga to'g'ridan-to'g'ri o'tish)
       if (lower.includes('aloqa') || lower.includes('yordam') || lower.includes('admin bilan bog\'lanish') || lower.includes('связь') || lower.includes('поддержк') || lower.includes('contact')) {
         await this.handleSupportInfo(ctx, lang);
@@ -818,6 +830,7 @@ export class BotManager {
         `✅ <b>${access.group.name}</b> guruhiga muvaffaqiyatli qo‘shildingiz!\nUzbikiyya akademiyasi o'quvchilari bilan ishlash guruhi.${bookMessage}\n\nEndi botdan foydalanishingiz mumkin.`,
         { parse_mode: 'HTML', reply_markup: await BotKeyboards.getMainMenu(lang) }
       );
+      await this.renderAllGroupsStatsCard(ctx, telegramId, lang, true, false);
     } catch (error: any) {
       console.warn('[Academy Sync] Guruh kodini tasdiqlab bo‘lmadi:', error.message);
       const isInvalidCode = error.message.includes('noto‘g‘ri') || error.message.includes('topilmadi');

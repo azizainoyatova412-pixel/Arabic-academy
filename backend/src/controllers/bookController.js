@@ -71,7 +71,7 @@ exports.getBotGroupBook = async (req, res) => {
       `SELECT b.id, b.title, b.pdf_path AS "pdfPath"
        FROM groups g
        JOIN enrollments e ON e.group_id = g.id AND e.telegram_id = $2 AND e.status = 'active'
-       JOIN books b ON b.pdf_path = g.book_pdf_path
+       JOIN books b ON (b.pdf_path = g.book_pdf_path OR b.title = g.book_name)
        WHERE g.id = $1
        LIMIT 1`,
       [groupId, telegramId]
@@ -94,16 +94,28 @@ exports.serveBookFile = async (req, res, next) => {
 
   try {
     const result = await db.query(
-      'SELECT pdf_data, pdf_content_type FROM books WHERE pdf_path = $1 LIMIT 1',
-      [`/uploads/books/${filename}`]
+      'SELECT pdf_data, pdf_content_type FROM books WHERE pdf_path = $1 OR pdf_path LIKE $2 LIMIT 1',
+      [`/uploads/books/${filename}`, `%${filename}`]
     );
     const book = result.rows[0];
-    if (!book?.pdf_data) return next();
+    if (book?.pdf_data) {
+      res.setHeader('Content-Type', book.pdf_content_type || 'application/pdf');
+      res.setHeader('Content-Length', book.pdf_data.length);
+      res.setHeader('Cache-Control', 'public, max-age=3600');
+      return res.send(book.pdf_data);
+    }
 
-    res.setHeader('Content-Type', book.pdf_content_type || 'application/pdf');
-    res.setHeader('Content-Length', book.pdf_data.length);
-    res.setHeader('Cache-Control', 'public, max-age=3600');
-    return res.send(book.pdf_data);
+    const localFilePath = path.join(__dirname, '../../uploads/books', filename);
+    if (fs.existsSync(localFilePath)) {
+      return res.sendFile(localFilePath);
+    }
+
+    const backendFilePath = path.join(__dirname, '../uploads/books', filename);
+    if (fs.existsSync(backendFilePath)) {
+      return res.sendFile(backendFilePath);
+    }
+
+    return res.status(404).json({ error: 'Kitob fayli topilmadi' });
   } catch (err) {
     console.error('Kitob PDF faylini olishda xatolik:', err.message);
     return res.status(500).json({ error: 'Kitob faylini olib bo‘lmadi' });
@@ -120,8 +132,18 @@ exports.uploadBook = async (req, res) => {
   }
 
   const title = (req.body.title || req.file.originalname.replace(/\.pdf$/i, '')).trim();
-  const pdfPath = '/uploads/books/' + req.file.filename;
+  const ext = path.extname(req.file.originalname || '.pdf') || '.pdf';
+  const filename = req.file.filename || `book_${Date.now()}_${Math.random().toString(36).slice(2)}${ext}`;
+  const pdfPath = '/uploads/books/' + filename;
   const fileSize = req.file.size || 0;
+
+  try {
+    const dir = path.join(__dirname, '../uploads/books');
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, filename), req.file.buffer);
+  } catch (fsErr) {
+    console.warn('Faylni diskka saqlashda ogohlantirish:', fsErr.message);
+  }
 
   try {
     const result = await db.query(
