@@ -105,6 +105,9 @@ async function bootstrap() {
     await db.init();
 
     if (config.academyApiUrl && config.academySyncSecret) {
+      console.info(
+        `[Academy Sync] Sozlama topildi: ${config.academyApiUrl}, secret manbasi ${config.academySyncSecretSource} (qiymat yashirilgan).`,
+      );
       let statsSyncInFlight = false;
       const syncBotStats = async () => {
         if (statsSyncInFlight) return;
@@ -121,7 +124,11 @@ async function bootstrap() {
       const syncInterval = setInterval(syncBotStats, 30000);
       syncInterval.unref();
     } else {
-      console.warn('[Academy Sync] Statistika sinxronlash o‘chiq: ACADEMY_API_URL va ACADEMY_SYNC_SECRET kerak.');
+      const missing = [
+        !config.academyApiUrl && 'ACADEMY_API_URL',
+        !config.academySyncSecret && 'BOT_SYNC_SECRET yoki ACADEMY_SYNC_SECRET',
+      ].filter(Boolean);
+      console.warn(`[Academy Sync] Statistika sinxronlash o‘chiq: sozlanmagan qiymatlar: ${missing.join(', ')}.`);
     }
 
     // 2. Telegram botni ishga tushirish
