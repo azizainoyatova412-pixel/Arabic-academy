@@ -20,10 +20,12 @@ services:
       - key: ADMIN_TELEGRAM_CONTACT
         sync: false
       - fromGroup: arabic-academy-shared
-  - type: worker
-    name: arabic-academy-bot
+  - type: web
+    name: arabic-academy-bot-free
     env: node
+    plan: free
     rootDir: arab-bot
+    healthCheckPath: /health
     buildCommand: npm install && npm run build
     startCommand: node dist/server.js
     envVars:

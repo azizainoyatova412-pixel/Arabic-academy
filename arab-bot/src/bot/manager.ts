@@ -1,4 +1,6 @@
-import { Bot, Context } from 'grammy';
+import { createHmac } from 'crypto';
+import type { NextFunction, Request, Response } from 'express';
+import { Bot, Context, webhookCallback } from 'grammy';
 import { db, getTashkentDate } from '../db/index.js';
 import { config } from '../config.js';
 import { I18nService } from './i18n.js';
@@ -12,10 +14,14 @@ import {
   verifyAcademyGroupCode,
 } from '../services/academySync.js';
 
+type TelegramWebhookHandler = (req: Request, res: Response, next: NextFunction) => Promise<void>;
+
 export class BotManager {
   private static instance: BotManager;
   private bot: Bot | null = null;
+  private webhookHandler: TelegramWebhookHandler | null = null;
   private isRunning: boolean = false;
+  private usesPolling: boolean = false;
   private currentToken: string = '';
   private sessions = new Map<number, UserSessionState>();
 
@@ -126,11 +132,6 @@ export class BotManager {
       this.bot = new Bot(activeToken);
       this.setupHandlers(this.bot);
 
-      // Webhookni tozalash
-      await this.bot.api.deleteWebhook({ drop_pending_updates: true }).catch((err) => {
-        console.warn('⚠️ [Telegram Bot] Webhook tozalashda ogohlantirish:', err.message);
-      });
-
       // Buyruqlarni o'rnatish: Faqat /start
       await this.bot.api.setMyCommands([
         { command: 'start', description: "Botni qayta ishga tushirish" },
@@ -141,6 +142,31 @@ export class BotManager {
         menu_button: { type: 'default' },
       }).catch(() => { });
 
+      if (config.telegramWebhookUrl) {
+        const webhookUrl = new URL('/telegram/webhook', config.telegramWebhookUrl);
+        if (webhookUrl.protocol !== 'https:') {
+          throw new Error('TELEGRAM_WEBHOOK_URL HTTPS manzili bo‘lishi kerak');
+        }
+        const secret = config.telegramWebhookSecret || createHmac('sha256', activeToken)
+          .update('arabic-academy-telegram-webhook')
+          .digest('hex');
+        this.webhookHandler = webhookCallback(this.bot, 'express', { secretToken: secret });
+        await this.bot.api.setWebhook(webhookUrl.toString(), {
+          secret_token: secret,
+          allowed_updates: ['message', 'callback_query'],
+        });
+        this.usesPolling = false;
+        this.isRunning = true;
+        console.log(`🚀 [Telegram Bot] @${me.username} HTTPS webhook bilan ishga tushdi.`);
+        return;
+      }
+
+      this.webhookHandler = null;
+      await this.bot.api.deleteWebhook({ drop_pending_updates: true }).catch((err) => {
+        console.warn('⚠️ [Telegram Bot] Webhook tozalashda ogohlantirish:', err.message);
+      });
+
+      this.usesPolling = true;
       this.bot
         .start({
           onStart: (info) => {
@@ -150,6 +176,7 @@ export class BotManager {
         })
         .catch((err) => {
           this.isRunning = false;
+          this.usesPolling = false;
           const message = err?.message || String(err);
           if (/409|terminated by other getUpdates request|conflict/i.test(message)) {
             console.error('❌ [Telegram Bot] Shu BOT_TOKEN bilan boshqa bot jarayoni ham ishlayapti. Sayt backend va bot service orasida bitta polling nusxasini qoldiring.');
@@ -169,17 +196,25 @@ export class BotManager {
   }
 
   public async stop(): Promise<void> {
-    if (this.bot && this.isRunning) {
+    if (this.bot) {
       try {
-        await this.bot.stop();
-        console.log('🛑 [Telegram Bot] Bot to\'xtatildi.');
+        if (this.usesPolling && this.isRunning) {
+          await this.bot.stop();
+          console.log('🛑 [Telegram Bot] Bot to\'xtatildi.');
+        }
       } catch (err) {
         console.warn('⚠️ [Telegram Bot] To\'xtatishda xato:', err);
       } finally {
         this.isRunning = false;
+        this.usesPolling = false;
         this.bot = null;
+        this.webhookHandler = null;
       }
     }
+  }
+
+  public getWebhookHandler(): TelegramWebhookHandler | null {
+    return this.webhookHandler;
   }
 
   public async sendToUser(telegramId: number | string, message: string): Promise<boolean> {

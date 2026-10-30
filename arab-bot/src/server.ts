@@ -17,6 +17,15 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use('/uploads', express.static(path.resolve(process.cwd(), 'uploads')));
 
+app.post('/telegram/webhook', (req: Request, res: Response, next: NextFunction) => {
+  const handler = botManager.getWebhookHandler();
+  if (!handler) {
+    res.sendStatus(503);
+    return;
+  }
+  void handler(req, res, next).catch(next);
+});
+
 // REST API
 app.use('/api', apiRouter);
 

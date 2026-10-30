@@ -21,6 +21,8 @@ export interface AppConfig {
   academyApiUrl: string;
   academyAdminUrl: string;
   academySyncSecret: string;
+  telegramWebhookUrl: string;
+  telegramWebhookSecret: string;
 }
 
 function parseAdminId(): string {
@@ -45,6 +47,8 @@ export const config: AppConfig = {
   academyAdminUrl: (process.env.ACADEMY_ADMIN_URL || '').trim().replace(/\/$/, ''),
   // Sync secret bir nechta nom bilan kiradi – BOT_SYNC_SECRET yoki ACADEMY_SYNC_SECRET
   academySyncSecret: (process.env.BOT_SYNC_SECRET || process.env.ACADEMY_SYNC_SECRET || '').trim(),
+  telegramWebhookUrl: (process.env.TELEGRAM_WEBHOOK_URL || process.env.RENDER_EXTERNAL_URL || '').trim().replace(/\/$/, ''),
+  telegramWebhookSecret: (process.env.TELEGRAM_WEBHOOK_SECRET || '').trim(),
 };
 
 export function reloadConfig(): AppConfig {
@@ -70,5 +74,7 @@ export function reloadConfig(): AppConfig {
   config.academyApiUrl = (process.env.ACADEMY_API_URL || '').trim().replace(/\/$/, '');
   config.academyAdminUrl = (process.env.ACADEMY_ADMIN_URL || '').trim().replace(/\/$/, '');
   config.academySyncSecret = (process.env.BOT_SYNC_SECRET || process.env.ACADEMY_SYNC_SECRET || '').trim();
+  config.telegramWebhookUrl = (process.env.TELEGRAM_WEBHOOK_URL || process.env.RENDER_EXTERNAL_URL || '').trim().replace(/\/$/, '');
+  config.telegramWebhookSecret = (process.env.TELEGRAM_WEBHOOK_SECRET || '').trim();
   return config;
 }
