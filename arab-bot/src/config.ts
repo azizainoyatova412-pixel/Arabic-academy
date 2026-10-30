@@ -2,6 +2,7 @@ import dotenv from 'dotenv';
 import path from 'path';
 import fs from 'fs';
 
+// .env faylini loyiha ildiziga (..\) qarab o‘qish
 const envPath = path.resolve(__dirname, '..', '.env');
 dotenv.config({ path: envPath, override: true });
 
@@ -39,9 +40,11 @@ export const config: AppConfig = {
   adminPassword: (process.env.ADMIN_PASSWORD || '123').trim(),
   adminId: parseAdminId(),
   adminTelegramContact: (process.env.ADMIN_TELEGRAM_CONTACT || '').trim(),
+  // .env‑da ko‘rsatilgan URL‑lar, oxirgi “/” olib tashlanadi
   academyApiUrl: (process.env.ACADEMY_API_URL || '').trim().replace(/\/$/, ''),
   academyAdminUrl: (process.env.ACADEMY_ADMIN_URL || '').trim().replace(/\/$/, ''),
-  academySyncSecret: (process.env.ACADEMY_SYNC_SECRET || '').trim(),
+  // Sync secret bir nechta nom bilan kiradi – BOT_SYNC_SECRET yoki ACADEMY_SYNC_SECRET
+  academySyncSecret: (process.env.BOT_SYNC_SECRET || process.env.ACADEMY_SYNC_SECRET || '').trim(),
 };
 
 export function reloadConfig(): AppConfig {
@@ -52,6 +55,7 @@ export function reloadConfig(): AppConfig {
       process.env[k] = envConfig[k];
     }
   }
+  // Yangilangan qiymatlarni config ob'ektiga tiklaymiz
   config.port = parseInt(process.env.PORT || '5000', 10);
   config.adminPort = parseInt(process.env.ADMIN_PORT || '3000', 10);
   config.adminPanelUrl = process.env.ADMIN_PANEL_URL || 'http://localhost:3000';
@@ -65,6 +69,6 @@ export function reloadConfig(): AppConfig {
   config.adminTelegramContact = (process.env.ADMIN_TELEGRAM_CONTACT || '').trim();
   config.academyApiUrl = (process.env.ACADEMY_API_URL || '').trim().replace(/\/$/, '');
   config.academyAdminUrl = (process.env.ACADEMY_ADMIN_URL || '').trim().replace(/\/$/, '');
-  config.academySyncSecret = (process.env.ACADEMY_SYNC_SECRET || '').trim();
+  config.academySyncSecret = (process.env.BOT_SYNC_SECRET || process.env.ACADEMY_SYNC_SECRET || '').trim();
   return config;
 }

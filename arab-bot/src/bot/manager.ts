@@ -30,14 +30,29 @@ export class BotManager {
 
   public getSession(telegramId: number): UserSessionState {
     if (!this.sessions.has(telegramId)) {
-      this.sessions.set(telegramId, { state: 'idle' });
+      this.sessions.set(telegramId, {
+        state: 'idle',
+        selectedGroupId: 0,
+        activeStudyTopicNumber: null,
+        activeStudyQuestion: null,
+        activeStudyQuestionType: null,
+        activeStudyReviewTopicNumber: 0,
+      });
     }
     return this.sessions.get(telegramId)!;
   }
 
   public clearSession(telegramId: number): void {
     const s = this.getSession(telegramId);
-    this.sessions.set(telegramId, { state: 'idle', isAdmin: s.isAdmin });
+    this.sessions.set(telegramId, {
+      state: 'idle',
+      isAdmin: s.isAdmin,
+      selectedGroupId: 0,
+      activeStudyTopicNumber: null,
+      activeStudyQuestion: null,
+      activeStudyQuestionType: null,
+      activeStudyReviewTopicNumber: 0,
+    });
   }
 
   /**

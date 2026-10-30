@@ -5,7 +5,9 @@ const fs = require('fs');
 // Kitoblar ro'yxati
 exports.getBooks = async (req, res) => {
   try {
-    const books = await db.query('SELECT * FROM books ORDER BY id DESC');
+    const books = await db.query(
+      'SELECT id, title, pdf_path, file_size, created_at FROM books ORDER BY id DESC'
+    );
     const groups = await db.query('SELECT id, name, book_name, book_pdf_path FROM groups');
 
     const mappedBooks = books.rows.map((b) => {
@@ -84,10 +86,37 @@ exports.getBotGroupBook = async (req, res) => {
   }
 };
 
+exports.serveBookFile = async (req, res, next) => {
+  const filename = path.basename(req.params.filename);
+  if (filename !== req.params.filename) {
+    return res.status(404).json({ error: 'Kitob fayli topilmadi' });
+  }
+
+  try {
+    const result = await db.query(
+      'SELECT pdf_data, pdf_content_type FROM books WHERE pdf_path = $1 LIMIT 1',
+      [`/uploads/books/${filename}`]
+    );
+    const book = result.rows[0];
+    if (!book?.pdf_data) return next();
+
+    res.setHeader('Content-Type', book.pdf_content_type || 'application/pdf');
+    res.setHeader('Content-Length', book.pdf_data.length);
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+    return res.send(book.pdf_data);
+  } catch (err) {
+    console.error('Kitob PDF faylini olishda xatolik:', err.message);
+    return res.status(500).json({ error: 'Kitob faylini olib bo‘lmadi' });
+  }
+};
+
 // Yangi PDF kitob yuklash
 exports.uploadBook = async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: 'Iltimos, PDF fayl tanlang' });
+  }
+  if (!req.file.buffer.subarray(0, 5).equals(Buffer.from('%PDF-'))) {
+    return res.status(400).json({ error: 'Yuklangan fayl haqiqiy PDF emas' });
   }
 
   const title = (req.body.title || req.file.originalname.replace(/\.pdf$/i, '')).trim();
@@ -96,9 +125,9 @@ exports.uploadBook = async (req, res) => {
 
   try {
     const result = await db.query(
-      `INSERT INTO books (title, pdf_path, file_size)
-       VALUES ($1, $2, $3) RETURNING *`,
-      [title, pdfPath, fileSize]
+      `INSERT INTO books (title, pdf_path, file_size, pdf_data, pdf_content_type)
+       VALUES ($1, $2, $3, $4, 'application/pdf') RETURNING id, title, pdf_path, file_size, created_at`,
+      [title, pdfPath, fileSize, req.file.buffer]
     );
 
     res.status(201).json({
@@ -116,7 +145,10 @@ exports.uploadBook = async (req, res) => {
 exports.deleteBook = async (req, res) => {
   const { id } = req.params;
   try {
-    const bookRes = await db.query('SELECT * FROM books WHERE id = $1', [id]);
+    const bookRes = await db.query(
+      'SELECT id, title, pdf_path FROM books WHERE id = $1',
+      [id]
+    );
     if (bookRes.rows.length === 0) {
       return res.status(404).json({ error: 'Kitob topilmadi' });
     }

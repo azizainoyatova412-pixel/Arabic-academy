@@ -13,6 +13,11 @@ export interface QuizAttemptRecord {
 }
 
 export interface UserSessionState {
+  selectedGroupId: number;
+  activeStudyTopicNumber: any;
+  activeStudyQuestion: any;
+  activeStudyQuestionType: any;
+  activeStudyReviewTopicNumber: number;
   state?: 'idle' | 'waiting_group_code' | 'waiting_admin_password' | 'taking_test' | 'waiting_review_text' | 'selecting_ai_tutor_book' | 'chatting_with_gemini' | 'chatting_with_ai_tutor';
   selectedStudentId?: number;
   isAdmin?: boolean;

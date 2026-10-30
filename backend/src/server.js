@@ -16,6 +16,8 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+app.get('/uploads/books/:filename', bookController.serveBookFile);
+
 // Uploads jildini statik sifatida ko'rsatish
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
@@ -42,18 +44,7 @@ const parseResultUpload = (req, res, next) => {
 };
 
 // PDF Kitoblar yuklash uchun multer sozlamasi
-const bookStorage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const dir = path.join(__dirname, '../uploads/books');
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    cb(null, dir);
-  },
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname);
-    cb(null, `book_${Date.now()}_${Math.random().toString(36).slice(2)}${ext}`);
-  }
-});
-const uploadBook = multer({ storage: bookStorage, limits: { fileSize: 50 * 1024 * 1024 } });
+const uploadBook = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
 
 // ============================================================
 // HEALTH CHECK VA ANTI-SLEEP PING ENDPOINTLARI
@@ -97,7 +88,7 @@ let runtimePassword = process.env.ADMIN_PASSWORD || 'admint';
 const adminGuard = (req, res, next) => {
   const providedKey = req.headers['x-admin-key'];
   if (providedKey && providedKey === runtimePassword) return next();
-  res.status(401).json({ error: 'Ruxsatsiz kirish' });
+  res.status(401).json({ error: 'Ruxsatsiz kirish – admin kaliti noto‘g‘ri' });
 };
 
 const botSyncGuard = (req, res, next) => {

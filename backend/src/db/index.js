@@ -119,6 +119,9 @@ const initDb = async () => {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
 
+      ALTER TABLE books ADD COLUMN IF NOT EXISTS pdf_data BYTEA;
+      ALTER TABLE books ADD COLUMN IF NOT EXISTS pdf_content_type TEXT NOT NULL DEFAULT 'application/pdf';
+
       ALTER TABLE groups ADD COLUMN IF NOT EXISTS book_name TEXT;
       ALTER TABLE groups ADD COLUMN IF NOT EXISTS book_pdf_path TEXT;
       ALTER TABLE groups ADD COLUMN IF NOT EXISTS access_code VARCHAR(16);

@@ -32,10 +32,12 @@ if (Test-Path .env.example) { Copy-Item .env.example .env } else { New-Item -Ite
 # Bog'liqliklarni o'rnating
 npm install
 
-# Bot va API'ni ishga tushiring
-npm start
+# Lokal rejimda build qilib, bot va API'ni ishga tushiring
+npm run dev
 ```
 
+- `npm run build` TypeScript kodini `dist/` papkasiga build qiladi.
+- `npm start` oldindan build qilingan `dist/server.js` faylini ishga tushiradi.
 - 🌐 **Backend API**: `http://localhost:5000`
 - Admin boshqaruvi asosiy saytning yagona admin panelida amalga oshiriladi.
 - `.env` va maxfiy sozlamalar GitHub'ga qo'shilmaydi. Render'da ularni Dashboard → Environment bo'limiga kiriting; haqiqiy token va parollarni hech qachon repoga yubormang.
@@ -73,7 +75,7 @@ Botni sayt bilan doimiy ulash uchun bot service environment'ida quyidagilarni so
 ```env
 ACADEMY_API_URL=https://arabic-academy.onrender.com
 ACADEMY_ADMIN_URL=https://arabic-academy.onrender.com/admin
-ACADEMY_SYNC_SECRET=<site bilan bir xil kuchli sir>
+BOT_SYNC_SECRET=<Render shared environment group'dagi qiymat>
 ADMIN_TELEGRAM_CONTACT=<@aishauzbikiyya_admin>
 ```
 
@@ -84,12 +86,14 @@ ADMIN_TELEGRAM_CONTACT=<@aishauzbikiyya_admin>
 - Saytda sharh yozish formasi yo'q: o'quvchilar sharhni botdagi `/review` orqali yuboradi, admin tasdiqlagandan keyin saytda ko'rsatiladi.
 - `/admin` botdagi admin ID uchun saytning yagona admin panel havolasini beradi.
 - Render'da shu repodan alohida **Background Worker** ishga tushiriladi; yangi GitHub repo yoki Google hisobi kerak emas. Worker alohida instance bo'lgani uchun sayt web service'ining CPU/RAM'ini bo'lishmaydi, lekin Render rejasi bo'yicha qo'shimcha xarajat bo'lishi mumkin.
-- `render.yaml` worker sozlamasini o'z ichiga oladi. Worker'da `BOT_TOKEN`, `GEMINI_API_KEY`, `ADMIN_ID`, `ADMIN_PASSWORD`, `ACADEMY_API_URL`, `ACADEMY_SYNC_SECRET` va `BOT_DATABASE_URL` qiymatlarini kiriting.
+- `render.yaml` worker sozlamasini o'z ichiga oladi. Render Dashboard'da worker uchun `BOT_TOKEN`, Gemini kalitlari, `ADMIN_ID`, `ADMIN_PASSWORD`, `ADMIN_TELEGRAM_CONTACT` va `BOT_DATABASE_URL` qiymatlarini kiriting.
 - Worker Node.js `22.13.0` yoki undan yangi versiyada ishlashi kerak.
-- `ACADEMY_API_URL` saytning haqiqiy Render URL'i bo'lishi kerak. `ACADEMY_SYNC_SECRET` qiymatini saytdagi `BOT_SYNC_SECRET` bilan aynan bir xil qiling.
+- `ACADEMY_API_URL` saytning haqiqiy Render URL'i bo'lishi kerak. Bot va sayt backend'i bitta `BOT_SYNC_SECRET` qiymatini ishlatishi kerak.
 - Production bot sozlamasida `ACADEMY_API_URL` hech qachon `localhost` bo'lmasin; Render worker ichidagi localhost sayt backend'i emas.
 - Bot AI Ustoz kitoblar ro'yxati va PDF fayllarini saytning bot-sync bilan himoyalangan API endpointlaridan oladi; sayt va bot service'dagi secretlar bir xil bo'lishi kerak.
+- `render.yaml` ikkala servis uchun umumiy `arabic-academy-shared` environment group yaratadi. Render Blueprint'ni sync qilganda shu group'da `BOT_SYNC_SECRET`ni bir marta kiriting; web service va worker bir xil qiymatni ishlatadi. Worker'da `ACADEMY_SYNC_SECRET` alohida o'rnatish shart emas.
+- Sayt admin paneliga yangi yuklangan PDF kitoblar PostgreSQL'da saqlanadi, Render deploy/restartidan keyin ham qoladi. Oldin yuklangan, lekin fayli yo'qolgan kitoblar avtomatik tiklanmaydi — PDF'ni admin panelidan qayta yuklab, guruhga qayta biriktiring.
 - Worker'dagi `BOT_DATABASE_URL` uchun saytning mavjud `DATABASE_URL` qiymatini ishlatish mumkin; `BOT_DATABASE_SCHEMA=arab_bot` bot jadvallarini alohida schema'da yaratadi. Shu sabab sayt va botning `users`/`groups` jadvallari aralashmaydi va alohida ma'lumotlar bazasi ochish shart emas. PostgreSQL foydalanuvchisida yangi schema yaratish huquqi bo'lishi kerak.
 - Agar PostgreSQL ulanishi yoki schema yaratish ishlamasa, bot SQLite'ga o'tadi; Render'da uning ma'lumotlari redeploy/restartda saqlanmasligi mumkin.
-- O'quvchi botdagi statistika bo'limida sayt guruhlaridagi o'z baholari va reytingini ko'rishi uchun `ACADEMY_SYNC_SECRET` qiymatini sayt backend'idagi `BOT_SYNC_SECRET` bilan aynan bir xil qiling.
+- O'quvchi botdagi statistika bo'limida sayt guruhlaridagi o'z baholari va reytingini ko'radi; umumiy environment group bu aloqaga kerakli `BOT_SYNC_SECRET`ni ikkala servisga beradi.
 - Telegram bot faqat shu `arab-bot` servisida ishlashi kerak. Sayt backend'ida ham bot polling ishlayotgan eski deploy bo'lsa, saytni qayta deploy qiling va `BOT_TOKEN`ni faqat bot service'da qoldiring; aks holda Telegram `409 Conflict` qaytarishi mumkin.

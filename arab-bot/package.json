@@ -4,14 +4,15 @@
   "description": "Professional Arab Tili O'quv Boti va Admin Paneli",
   "main": "dist/server.js",
   "scripts": {
-    "build": " npm install && tsc",
+    "build": "tsc -p tsconfig.json",
+    "dev": "npm run build && node dist/server.js",
     "start": "node dist/server.js"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.0",
     "@types/multer": "^2.3.0",
     "cors": "^2.8.5",
-    "dotenv": "^16.4.7",
+    "dotenv": "^16.6.1",
     "express": "^4.21.2",
     "grammy": "^1.35.0",
     "multer": "^2.4.0",
