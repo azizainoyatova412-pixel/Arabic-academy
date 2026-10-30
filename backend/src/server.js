@@ -92,11 +92,17 @@ const adminGuard = (req, res, next) => {
 };
 
 const botSyncGuard = (req, res, next) => {
-  const expected = (process.env.BOT_SYNC_SECRET || process.env.ACADEMY_SYNC_SECRET || '').trim();
+  const expected = [process.env.BOT_SYNC_SECRET, process.env.ACADEMY_SYNC_SECRET]
+    .map((secret) => (secret || '').trim())
+    .find(Boolean) || '';
   const provided = (req.get('x-bot-sync-secret') || '').trim();
-  const expectedBuffer = Buffer.from(expected);
-  const providedBuffer = Buffer.from(provided);
-  if (!expected || expectedBuffer.length !== providedBuffer.length || !crypto.timingSafeEqual(expectedBuffer, providedBuffer)) {
+  const expectedBuffer = Buffer.from(expected, 'utf8');
+  const providedBuffer = Buffer.from(provided, 'utf8');
+  if (
+    expectedBuffer.length === 0 ||
+    expectedBuffer.length !== providedBuffer.length ||
+    !crypto.timingSafeEqual(expectedBuffer, providedBuffer)
+  ) {
     return res.status(401).json({ error: 'Ruxsatsiz bot sinxronlash' });
   }
   next();
