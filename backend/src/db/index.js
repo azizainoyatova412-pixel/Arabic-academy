@@ -199,7 +199,27 @@ const query = async (text, params, maxRetries = 3) => {
   }
 };
 
+const transaction = async (callback) => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const result = await callback(client);
+    await client.query('COMMIT');
+    return result;
+  } catch (err) {
+    try {
+      await client.query('ROLLBACK');
+    } catch (rollbackError) {
+      console.error('❌ PostgreSQL tranzaksiyasini bekor qilishda xatolik:', rollbackError.message);
+    }
+    throw err;
+  } finally {
+    client.release();
+  }
+};
+
 module.exports = {
   query,
+  transaction,
   initDb,
 };

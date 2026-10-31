@@ -33,6 +33,41 @@ exports.createGroup = async (req, res) => {
   }
 };
 
+exports.deleteGroup = async (req, res) => {
+  const groupId = Number(req.params.groupId);
+  if (!Number.isSafeInteger(groupId) || groupId <= 0) {
+    return res.status(400).json({ error: 'Guruh ID noto‘g‘ri' });
+  }
+
+  try {
+    const deletedGroup = await db.transaction(async (client) => {
+      const groupResult = await client.query(
+        'SELECT id, name FROM public.groups WHERE id = $1 FOR UPDATE',
+        [groupId]
+      );
+      if (groupResult.rowCount === 0) return null;
+
+      await client.query('DELETE FROM public.monthly_grades WHERE group_id = $1', [groupId]);
+      await client.query('DELETE FROM public.payments WHERE group_id = $1', [groupId]);
+      await client.query('DELETE FROM public.enrollments WHERE group_id = $1', [groupId]);
+
+      const result = await client.query(
+        'DELETE FROM public.groups WHERE id = $1 RETURNING id, name',
+        [groupId]
+      );
+      return result.rows[0] || null;
+    });
+
+    if (!deletedGroup) {
+      return res.status(404).json({ error: 'Guruh topilmadi' });
+    }
+    return res.json({ ok: true, group: deletedGroup });
+  } catch (error) {
+    console.error('deleteGroup xatolik:', error.message);
+    return res.status(500).json({ error: 'Guruhni o‘chirishda server xatoligi yuz berdi' });
+  }
+};
+
 exports.verifyBotGroupCode = async (req, res) => {
   const accessCode = String(req.body.access_code || '').trim().toUpperCase();
   const telegramId = Number(req.body.telegram_id);
