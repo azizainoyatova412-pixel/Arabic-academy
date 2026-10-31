@@ -22,6 +22,7 @@ export interface AppConfig {
   academyAdminUrl: string;
   academySyncSecret: string;
   academySyncSecretSource: 'BOT_SYNC_SECRET' | 'ACADEMY_SYNC_SECRET' | '';
+  academySyncSecretsConflict: boolean;
   telegramWebhookUrl: string;
   telegramWebhookSecret: string;
 }
@@ -29,14 +30,22 @@ export interface AppConfig {
 function getAcademySyncSecret(): {
   secret: string;
   source: AppConfig['academySyncSecretSource'];
+  conflict: boolean;
 } {
   const botSecret = (process.env.BOT_SYNC_SECRET || '').trim();
-  if (botSecret) return { secret: botSecret, source: 'BOT_SYNC_SECRET' };
-
   const academySecret = (process.env.ACADEMY_SYNC_SECRET || '').trim();
-  if (academySecret) return { secret: academySecret, source: 'ACADEMY_SYNC_SECRET' };
+  if (botSecret) {
+    return {
+      secret: botSecret,
+      source: 'BOT_SYNC_SECRET',
+      conflict: Boolean(academySecret && academySecret !== botSecret),
+    };
+  }
+  if (academySecret) {
+    return { secret: academySecret, source: 'ACADEMY_SYNC_SECRET', conflict: false };
+  }
 
-  return { secret: '', source: '' };
+  return { secret: '', source: '', conflict: false };
 }
 
 function parseAdminId(): string {
@@ -63,6 +72,7 @@ export const config: AppConfig = {
   academyAdminUrl: (process.env.ACADEMY_ADMIN_URL || '').trim().replace(/\/$/, ''),
   academySyncSecret: academySyncSecret.secret,
   academySyncSecretSource: academySyncSecret.source,
+  academySyncSecretsConflict: academySyncSecret.conflict,
   telegramWebhookUrl: (process.env.TELEGRAM_WEBHOOK_URL || process.env.RENDER_EXTERNAL_URL || '').trim().replace(/\/$/, ''),
   telegramWebhookSecret: (process.env.TELEGRAM_WEBHOOK_SECRET || '').trim(),
 };
@@ -92,6 +102,7 @@ export function reloadConfig(): AppConfig {
   const academySyncSecret = getAcademySyncSecret();
   config.academySyncSecret = academySyncSecret.secret;
   config.academySyncSecretSource = academySyncSecret.source;
+  config.academySyncSecretsConflict = academySyncSecret.conflict;
   config.telegramWebhookUrl = (process.env.TELEGRAM_WEBHOOK_URL || process.env.RENDER_EXTERNAL_URL || '').trim().replace(/\/$/, '');
   config.telegramWebhookSecret = (process.env.TELEGRAM_WEBHOOK_SECRET || '').trim();
   return config;

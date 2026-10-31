@@ -37,126 +37,94 @@ export interface AcademyGroupAccess {
   book: { id: number | null; title: string; pdfPath: string } | null;
 }
 
-/**
- * Sayt backend API ga so'rov yuborish.
- * Agar asosiy URL tarmoq xatosi bersa, zaxira lokal manzilga o'tiladi.
- * Agar serverdan HTTP javob kelsa (masalan 400 yoki 404), bu javob to'g'ridan-to'g'ri qaytariladi.
- */
+function getAcademyApiUrl(): URL {
+  if (!config.academyApiUrl) {
+    throw new Error('ACADEMY_API_URL sozlanmagan');
+  }
+
+  let apiUrl: URL;
+  try {
+    apiUrl = new URL(config.academyApiUrl);
+  } catch {
+    throw new Error('ACADEMY_API_URL to‘liq va to‘g‘ri URL bo‘lishi kerak');
+  }
+  if (!['http:', 'https:'].includes(apiUrl.protocol)) {
+    throw new Error('ACADEMY_API_URL http:// yoki https:// bilan boshlanishi kerak');
+  }
+  if (process.env.NODE_ENV === 'production' && (
+    apiUrl.protocol !== 'https:' ||
+    ['localhost', '127.0.0.1'].includes(apiUrl.hostname)
+  )) {
+    throw new Error('Production muhitida ACADEMY_API_URL HTTPS saytingiz manzili bo‘lishi kerak');
+  }
+  return apiUrl;
+}
+
 async function sendAcademyRequest(path: string, payload: Record<string, unknown>): Promise<unknown> {
-  const secret = (config.academySyncSecret || process.env.BOT_SYNC_SECRET || process.env.ACADEMY_SYNC_SECRET || '').trim();
+  const secret = config.academySyncSecret;
   if (!secret) {
     throw new Error('BOT_SYNC_SECRET yoki ACADEMY_SYNC_SECRET sozlanmagan');
   }
 
-  const primaryUrl = (config.academyApiUrl || 'http://localhost:5000').trim().replace(/\/+$/, '');
-  const candidateUrls = [
-    primaryUrl,
-    'https://arabic-academy.onrender.com',
-    'http://localhost:5000',
-    'http://127.0.0.1:5000',
-  ];
-
-  const uniqueUrls: string[] = [];
-  for (const u of candidateUrls) {
-    if (u && !uniqueUrls.includes(u)) {
-      uniqueUrls.push(u);
-    }
+  const apiUrl = getAcademyApiUrl();
+  const endpointUrl = new URL(path.replace(/^\/+/, ''), `${apiUrl.origin}/`);
+  let response: Response;
+  try {
+    response = await fetch(endpointUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-bot-sync-secret': secret,
+      },
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(15000),
+    });
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : 'noma’lum tarmoq xatosi';
+    throw new Error(`${apiUrl.host} saytiga ulanish amalga oshmadi (${reason})`);
   }
 
-  let lastError: Error | null = null;
-
-  for (let i = 0; i < uniqueUrls.length; i++) {
-    const targetBase = uniqueUrls[i];
-    let apiUrl: URL;
-    try {
-      apiUrl = new URL(targetBase);
-    } catch {
-      continue;
-    }
-
-    let response: Response;
-    try {
-      const endpointUrl = new URL(path.replace(/^\/+/, ''), `${apiUrl.origin}/`);
-      response = await fetch(endpointUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-bot-sync-secret': secret,
-        },
-        body: JSON.stringify(payload),
-        signal: AbortSignal.timeout(10000),
-      });
-    } catch (networkErr: any) {
-      // Tarmoq xatosi yuz bersa, keyingi zaxira URL ga o'tamiz
-      lastError = networkErr instanceof Error ? networkErr : new Error(String(networkErr));
-      continue;
-    }
-
-    // Server javob berdi! Javobni qayta ishlaymiz
-    const responseText = await response.text();
-
-    let data: { error?: string };
-    try {
-      data = JSON.parse(responseText) as { error?: string };
-    } catch {
-      throw new Error(`${targetBase} sayt API noto‘g‘ri javob qaytardi (HTTP ${response.status})`);
-    }
-
-    if (!response.ok) {
-      // Serverning o'zi xabar berdi (masalan: "Guruh kodi noto‘g‘ri yoki guruh topilmadi")
-      throw new Error(data.error || `Sayt API xatosi (${response.status})`);
-    }
-
-    if (i > 0 && targetBase !== primaryUrl) {
-      console.log(`ℹ️ [Academy Sync] Asosiy URL (${primaryUrl}) o‘rniga lokal backend (${targetBase}) ga muvaffaqiyatli ulandi.`);
-    }
-
-    return data;
+  const responseText = await response.text();
+  let data: { error?: string };
+  try {
+    data = JSON.parse(responseText) as { error?: string };
+  } catch {
+    throw new Error(`${apiUrl.host} sayt API JSON bo‘lmagan javob qaytardi (HTTP ${response.status})`);
   }
 
-  throw lastError || new Error('Sayt API ga ulanib bo‘lmadi. Backend server ishlayotganini tekshiring.');
+  if (!response.ok) {
+    if (response.status === 401) {
+      throw new Error(
+        `${apiUrl.host} bot so‘rovini rad etdi (HTTP 401). Sayt va botdagi BOT_SYNC_SECRET qiymatlari bir xil ekanini tekshiring.`,
+      );
+    }
+    if (response.status === 503) {
+      throw new Error(`${apiUrl.host} saytida BOT_SYNC_SECRET sozlanmagan (HTTP 503)`);
+    }
+    throw new Error(data.error || `Sayt API xatosi (HTTP ${response.status})`);
+  }
+
+  return data;
 }
 
 async function fetchPdfBuffer(pdfPath: string): Promise<Buffer> {
-  const candidateBases = [
-    (config.academyApiUrl || '').trim().replace(/\/+$/, ''),
-    'https://arabic-academy.onrender.com',
-    'http://localhost:5000',
-    'http://127.0.0.1:5000',
-  ].filter(Boolean);
-
-  const cleanPath = pdfPath.startsWith('/') ? pdfPath : `/${pdfPath}`;
-  const filename = pdfPath.split('/').pop() || '';
-  let lastErr = '';
-
-  for (const base of candidateBases) {
-    try {
-      const targetUrl = new URL(cleanPath.replace(/^\/+/, ''), `${base}/`);
-      const res = await fetch(targetUrl, { signal: AbortSignal.timeout(10000) });
-      if (res.ok) {
-        const arrayBuf = await res.arrayBuffer();
-        return Buffer.from(arrayBuf);
-      }
-      lastErr = `HTTP ${res.status}`;
-    } catch (e: any) {
-      lastErr = e.message;
-    }
+  const apiUrl = getAcademyApiUrl();
+  const targetUrl = new URL(pdfPath, `${apiUrl.origin}/`);
+  if (targetUrl.origin !== apiUrl.origin) {
+    throw new Error('Sayt kitobining PDF manzili noto‘g‘ri hostga yo‘naltirildi');
   }
 
-  // HTTP orqali topilmasa, to'g'ridan-to'g'ri bazadan qidiramiz
+  let response: Response;
   try {
-    const dbResult = await db.query(
-      'SELECT pdf_data FROM books WHERE pdf_path = $1 OR pdf_path LIKE $2 LIMIT 1',
-      [cleanPath, `%${filename}`]
-    );
-    if (dbResult.rows.length > 0 && dbResult.rows[0].pdf_data) {
-      return Buffer.from(dbResult.rows[0].pdf_data);
-    }
-  } catch (dbErr: any) {
-    console.warn('[Academy Sync] DB dan kitob PDF olishda xatolik:', dbErr.message);
+    response = await fetch(targetUrl, { signal: AbortSignal.timeout(15000) });
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : 'noma’lum tarmoq xatosi';
+    throw new Error(`Kitob PDF fayliga ulanish amalga oshmadi (${reason})`);
   }
-
-  throw new Error(`Guruh kitobining PDF fayli olinmadi (${lastErr || '404'})`);
+  if (!response.ok) {
+    throw new Error(`Kitob PDF fayli olinmadi (HTTP ${response.status})`);
+  }
+  return Buffer.from(await response.arrayBuffer());
 }
 
 export async function submitAcademyReview(telegramId: number, name: string, text: string): Promise<void> {
@@ -214,10 +182,10 @@ export async function getAcademyGroupBook(
 
 export async function syncAcademyStats(): Promise<void> {
   const [users, groups, tests, gradedStudents] = await Promise.all([
-    db.query("SELECT COUNT(*) AS count FROM users WHERE status = 'active'").catch(() => ({ rows: [{ count: 0 }] })),
-    db.query('SELECT COUNT(*) AS count FROM groups WHERE is_active = TRUE').catch(() => ({ rows: [{ count: 0 }] })),
-    db.query('SELECT COUNT(*) AS count FROM user_tests').catch(() => ({ rows: [{ count: 0 }] })),
-    db.query('SELECT COUNT(*) AS count FROM users WHERE grade IS NOT NULL AND grade > 0').catch(() => ({ rows: [{ count: 0 }] })),
+    db.query("SELECT COUNT(*) AS count FROM users WHERE status = 'active'"),
+    db.query('SELECT COUNT(*) AS count FROM groups WHERE is_active = TRUE'),
+    db.query('SELECT COUNT(*) AS count FROM user_tests'),
+    db.query('SELECT COUNT(*) AS count FROM users WHERE grade IS NOT NULL AND grade > 0'),
   ]);
   const count = (rows: Array<{ count: number | string }>) => Number(rows[0]?.count || 0);
 

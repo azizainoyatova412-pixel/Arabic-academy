@@ -90,6 +90,9 @@ ADMIN_TELEGRAM_CONTACT=<@aishauzbikiyya_admin>
 - `render.yaml` xizmatini `Arabic-academy` repozitoriyasining `main` branch'i va `arab-bot` root directory'si bilan deploy qiling. Render Dashboard'da bot uchun `BOT_TOKEN`, Gemini kalitlari, `ADMIN_ID`, `ADMIN_PASSWORD`, `ADMIN_TELEGRAM_CONTACT` va `BOT_DATABASE_URL` qiymatlarini kiriting.
 - Bot service Node.js `22.13.0` yoki undan yangi versiyada ishlashi kerak.
 - `ACADEMY_API_URL` saytning haqiqiy Render URL'i bo'lishi kerak. Bot va sayt backend'i bitta `BOT_SYNC_SECRET` qiymatini ishlatishi kerak.
+- Bot so‘rovlarni faqat `ACADEMY_API_URL` manziliga yuboradi; boshqa domen yoki `localhost`ga avtomatik zaxira yo‘q. Render’da bu qiymat `https://arabic-academy.onrender.com` bo‘lishi kerak.
+- `BOT_SYNC_SECRET` va `ACADEMY_SYNC_SECRET` bot service’da ikkalasi ham kiritilsa, ular bir xil bo‘lishi shart; aks holda bot `BOT_SYNC_SECRET`ni tanlab, farq haqida log yozadi.
+- Sync secret faqat Render Environment yoki umumiy Environment Group’da saqlansin. Uni kodga yoki Git repozitoriyga yozmang.
 - Production bot sozlamasida `ACADEMY_API_URL` hech qachon `localhost` bo'lmasin; Render service ichidagi localhost sayt backend'i emas.
 - Bot AI Ustoz kitoblar ro'yxati va PDF fayllarini saytning bot-sync bilan himoyalangan API endpointlaridan oladi; sayt va bot service'dagi secretlar bir xil bo'lishi kerak.
 - `render.yaml` ikkala servis uchun umumiy `arabic-academy-shared` environment group yaratadi. Render Blueprint'ni sync qilganda shu group'da `BOT_SYNC_SECRET`ni bir marta kiriting; sayt va bot web service bir xil qiymatni ishlatadi. Botda `ACADEMY_SYNC_SECRET` alohida o'rnatish shart emas.

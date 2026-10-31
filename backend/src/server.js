@@ -92,18 +92,23 @@ const adminGuard = (req, res, next) => {
 };
 
 const botSyncGuard = (req, res, next) => {
-  const allowed = [
+  const allowedSecrets = [
     process.env.BOT_SYNC_SECRET,
     process.env.ACADEMY_SYNC_SECRET,
-    'comeonedont0987soeasyimfineshy',
-    'poiuytrewq1234567890mnbvcxz'
-  ].filter(Boolean).map(s => s.trim());
-
+  ].map((secret) => (secret || '').trim()).filter(Boolean);
   const provided = (req.get('x-bot-sync-secret') || '').trim();
-  if (provided && allowed.includes(provided)) {
-    return next();
+  if (allowedSecrets.length === 0) {
+    return res.status(503).json({ error: 'Bot sinxronlash serverda sozlanmagan' });
   }
-  return res.status(401).json({ error: 'Ruxsatsiz bot sinxronlash' });
+
+  const providedBuffer = Buffer.from(provided, 'utf8');
+  const authorized = providedBuffer.length > 0 && allowedSecrets.some((secret) => {
+    const expectedBuffer = Buffer.from(secret, 'utf8');
+    return expectedBuffer.length === providedBuffer.length
+      && crypto.timingSafeEqual(expectedBuffer, providedBuffer);
+  });
+  if (!authorized) return res.status(401).json({ error: 'Ruxsatsiz bot sinxronlash' });
+  return next();
 };
 
 // Parolni o'zgartirish endpointi
