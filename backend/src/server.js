@@ -246,6 +246,9 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', async () => {
   console.log(`🚀 Api server localhost:${PORT} portida ishga tushdi`);
   await db.initDb();
+  console.info(
+    `[Bot Sync] BOT_SYNC_SECRET ${String(Boolean((process.env.BOT_SYNC_SECRET || '').trim()))}; qiymat logga chiqarilmaydi.`,
+  );
 
   // ============================================================
   // ANTI-SLEEP AUTO SELF-PING (Render 15 daqiqada uxlab qolmasligi uchun)
