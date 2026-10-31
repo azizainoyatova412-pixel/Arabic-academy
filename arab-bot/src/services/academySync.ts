@@ -37,6 +37,12 @@ export interface AcademyGroupAccess {
   book: { id: number | null; title: string; pdfPath: string } | null;
 }
 
+export interface AcademyStudentMembership {
+  group: { id: number; name: string };
+  fullName: string;
+  studentCode: string | null;
+}
+
 function getAcademyApiUrl(): URL {
   if (!config.academyApiUrl) {
     throw new Error('ACADEMY_API_URL sozlanmagan');
@@ -140,17 +146,28 @@ export async function getAcademyBooks(): Promise<AcademyBook[]> {
   return (response as { books: AcademyBook[] }).books;
 }
 
+export async function getAcademyStudentMembership(
+  telegramId: number
+): Promise<AcademyStudentMembership | null> {
+  const response = await sendAcademyRequest('/api/bot/student-membership', {
+    telegram_id: telegramId,
+  }) as { membership: AcademyStudentMembership | null };
+  return response.membership;
+}
+
 export async function verifyAcademyGroupCode(
   accessCode: string,
   telegramId: number,
   fullName: string,
-  studentCode?: string
+  studentCode?: string,
+  verifyOnly = false
 ): Promise<AcademyGroupAccess> {
   return await sendAcademyRequest('/api/bot/verify-group-code', {
     access_code: accessCode,
     telegram_id: telegramId,
     full_name: fullName,
     student_code: studentCode || '',
+    verify_only: verifyOnly,
   }) as AcademyGroupAccess;
 }
 

@@ -1,6 +1,6 @@
 import { createHmac } from 'crypto';
 import type { NextFunction, Request, Response } from 'express';
-import { Bot, Context, webhookCallback } from 'grammy';
+import { Bot, Context, GrammyError, HttpError, webhookCallback } from 'grammy';
 import { db, getTashkentDate } from '../db/index.js';
 import { config } from '../config.js';
 import { I18nService } from './i18n.js';
@@ -9,6 +9,7 @@ import { UserSessionState } from './types.js';
 import { GeminiService, QuizQuestion } from '../services/gemini.js';
 import {
   getAcademyGroupBook,
+  getAcademyStudentMembership,
   getAcademyStudentStats,
   submitAcademyReview,
   verifyAcademyGroupCode,
@@ -24,6 +25,7 @@ export class BotManager {
   private usesPolling: boolean = false;
   private currentToken: string = '';
   private sessions = new Map<number, UserSessionState>();
+  private lastInvalidAttemptAt = new Map<number, number>();
 
   private constructor() { }
 
@@ -236,6 +238,21 @@ export class BotManager {
 
   private setupHandlers(bot: Bot): void {
     bot.catch(async (err) => {
+      if (err.error instanceof GrammyError && err.error.error_code === 403) {
+        console.info('[Telegram Bot] Xabar yuborilmadi: foydalanuvchi botni bloklagan yoki chat mavjud emas.');
+        return;
+      }
+      if (err.error instanceof GrammyError && err.error.error_code === 429) {
+        console.warn(
+          `[Telegram Bot] Telegram so‘rovlarni vaqtincha chekladi; ${err.error.parameters.retry_after ?? 'keyinroq'} soniyadan so‘ng davom etiladi.`
+        );
+        return;
+      }
+      if (err.error instanceof HttpError) {
+        console.warn('[Telegram Bot] Telegram API bilan tarmoq aloqasi uzildi; bot faoliyati davom etadi:', err.error.message);
+        return;
+      }
+
       console.error('[Telegram Bot Error]:', err.error);
       const ctx = err.ctx;
       if (ctx && ctx.chat) {
@@ -273,13 +290,31 @@ export class BotManager {
         [telegramId, username, firstName]
       ).catch(() => {});
 
+      let linkedGroup: { id: number; name: string } | null;
+      try {
+        linkedGroup = await this.getLinkedAcademyGroup(telegramId);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.warn('[Academy Sync] O‘quvchi guruhini tekshirib bo‘lmadi:', message);
+        await ctx.reply('Sayt bilan vaqtincha bog‘lanib bo‘lmadi. Iltimos, birozdan keyin /start ni qayta yuboring.');
+        return;
+      }
+
       this.clearSession(telegramId);
+      if (linkedGroup) {
+        const lang = await I18nService.getUserLanguage(telegramId);
+        await ctx.reply(
+          `Assalomu alaykum! Siz ${linkedGroup.name} guruhiga avvaldan bog‘langansiz.\n\n` +
+          `Guruh kodini qayta kiritishingiz shart emas. Quyidagi menyudan davom eting:`,
+          { reply_markup: await BotKeyboards.getMainMenu(lang) }
+        );
+        return;
+      }
+
       this.getSession(telegramId).state = 'waiting_group_code';
       await ctx.reply(
-        `Assalomu alaykum! Arab tili akademiyasi botiga xush kelibsiz.\n\n` +
-        `Iltimos, admin panelda guruhingiz uchun berilgan <b>Guruh kodini</b> kiriting (masalan: 5B6A38D6):\n\n` +
-        `<i>(Guruh kodi kiritilgach, sizga 3 xonali talaba raqamingiz so'raladi)</i>`,
-        { parse_mode: 'HTML' }
+        'Assalomu alaykum! Sizni bu yerda ko‘rishdan xursandmiz.\n\n' +
+        'Sizga berilgan guruhga kirish kodini kiriting va botdan foydalanishda davom eting.'
       );
     });
 
@@ -319,7 +354,7 @@ export class BotManager {
       if (!membership.rows[0]?.academy_group_id) {
         this.getSession(telegramId).state = 'waiting_group_code';
         await ctx.answerCallbackQuery().catch(() => { });
-        await ctx.reply('Botni ochish uchun avval saytdagi guruhingiz kodini yuboring.');
+        await ctx.reply('Botdan foydalanish uchun sizga berilgan guruhga kirish kodini kiriting.');
         return;
       }
 
@@ -375,15 +410,7 @@ export class BotManager {
       const telegramId = ctx.from.id;
       const lang = await I18nService.getUserLanguage(telegramId);
       await ctx.answerCallbackQuery().catch(() => { });
-      const session = this.getSession(telegramId);
-      session.state = 'waiting_group_code';
-      await ctx.reply(
-        lang === 'ru'
-          ? 'Введите код группы из единой панели сайта:'
-          : lang === 'en'
-            ? 'Enter the group code shown in the website admin panel:'
-            : 'Sayt admin panelidagi guruh kodini yuboring:'
-      );
+      await this.handleGroupsList(ctx, telegramId, lang);
     });
 
     // 6. Statistika: Bitta tugma bilan ochib-yopish callback (⬇️ / ⬆️)
@@ -638,6 +665,10 @@ export class BotManager {
           await ctx.reply('Guruh kodini bot bilan shaxsiy chatda yuboring.');
           return;
         }
+        if (!/^[a-f\d]{8}$/i.test(text)) {
+          await this.replyInvalidAccessAttempt(ctx, telegramId);
+          return;
+        }
         await this.handleAcademyGroupCodeVerification(ctx, telegramId, text, lang);
         return;
       }
@@ -646,6 +677,10 @@ export class BotManager {
       if (session.state === 'waiting_student_code') {
         if (ctx.chat.type !== 'private') {
           await ctx.reply('Talaba raqamini shaxsiy chatda yuboring.');
+          return;
+        }
+        if (text !== '0' && !/^\d{3}$/.test(text)) {
+          await this.replyInvalidAccessAttempt(ctx, telegramId);
           return;
         }
         await this.handleStudentCodeVerification(ctx, telegramId, text, lang);
@@ -685,9 +720,22 @@ export class BotManager {
         'SELECT academy_group_id FROM users WHERE telegram_id = $1',
         [telegramId]
       );
-      if (!membership.rows[0]?.academy_group_id) {
+      let linkedGroup = membership.rows[0]?.academy_group_id
+        ? { id: Number(membership.rows[0].academy_group_id), name: '' }
+        : null;
+      if (!linkedGroup && config.academyApiUrl && config.academySyncSecret) {
+        try {
+          linkedGroup = await this.getLinkedAcademyGroup(telegramId);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          console.warn('[Academy Sync] O‘quvchi guruhini tekshirib bo‘lmadi:', message);
+          await ctx.reply('Sayt bilan vaqtincha bog‘lanib bo‘lmadi. Keyinroq qayta urinib ko‘ring.');
+          return;
+        }
+      }
+      if (!linkedGroup) {
         session.state = 'waiting_group_code';
-        await ctx.reply('Botdan foydalanish uchun saytdagi guruhingizga biriktirilgan kirish kodini yuboring:');
+        await ctx.reply('Botdan foydalanish uchun sizga berilgan guruhga kirish kodini kiriting.');
         return;
       }
 
@@ -800,6 +848,32 @@ export class BotManager {
     return config.academyAdminUrl || (config.academyApiUrl ? `${config.academyApiUrl}/admin` : '');
   }
 
+  private async getLinkedAcademyGroup(telegramId: number): Promise<{ id: number; name: string } | null> {
+    const localMembership = await db.query(
+      'SELECT academy_group_id, academy_group_name FROM users WHERE telegram_id = $1',
+      [telegramId]
+    );
+    const localGroupId = Number(localMembership.rows[0]?.academy_group_id);
+    if (Number.isSafeInteger(localGroupId) && localGroupId > 0) {
+      return {
+        id: localGroupId,
+        name: localMembership.rows[0].academy_group_name || 'Guruh',
+      };
+    }
+
+    if (!config.academyApiUrl || !config.academySyncSecret) return null;
+    const membership = await getAcademyStudentMembership(telegramId);
+    if (!membership) return null;
+
+    await db.query(
+      `UPDATE users
+       SET academy_group_id = $1, academy_group_name = $2, student_code = $3
+       WHERE telegram_id = $4`,
+      [membership.group.id, membership.group.name, membership.studentCode, telegramId]
+    );
+    return membership.group;
+  }
+
   private async handleAcademyGroupCodeVerification(
     ctx: Context,
     telegramId: number,
@@ -809,7 +883,7 @@ export class BotManager {
     try {
       const firstName = [ctx.from?.first_name, ctx.from?.last_name].filter(Boolean).join(' ') || 'Telegram o‘quvchi';
       const cleanCode = enteredCode.trim().toUpperCase();
-      const access = await verifyAcademyGroupCode(cleanCode, telegramId, firstName, '');
+      const access = await verifyAcademyGroupCode(cleanCode, telegramId, firstName, '', true);
 
       const session = this.getSession(telegramId);
       session.tempGroupCode = cleanCode;
@@ -819,19 +893,34 @@ export class BotManager {
 
       await ctx.reply(
         `✅ <b>${access.group.name}</b> guruhi muvaffaqiyatli topildi!\n━━━━━━━━━━━━━━━━━━━━\n\n` +
-        `Endi admin panelda siz uchun ajratilgan <b>3 xonali talaba raqamingizni</b> kiriting (masalan: 101, 102, 106...):\n\n` +
-        `<i>(Agar sizga hali talaba raqami berilmagan bo'lsa yoki bilmasangiz, <b>0</b> deb yuboring)</i>`,
+        `Endi admin panelda siz uchun ajratilgan <b>3 xonali talaba raqamingizni</b> kiriting.\n\n` +
+        `<i>Agar sizga hali talaba raqami berilmagan bo'lsa yoki bilmasangiz, <b>0</b> deb yuboring.</i>`,
         { parse_mode: 'HTML' }
       );
     } catch (error: any) {
       console.warn('[Academy Sync] Guruh kodini tasdiqlab bo‘lmadi:', error.message);
       const msg = error.message || '';
       if (msg.includes('noto‘g‘ri') || msg.includes('topilmadi')) {
-        await ctx.reply('❌ Kod noto‘g‘ri yoki guruh topilmadi. Saytdagi guruh kodini tekshirib qayta yuboring:');
+        await this.replyInvalidAccessAttempt(ctx, telegramId);
       } else {
-        await ctx.reply('❌ Xatolik: ' + msg + '\n\nIltimos, guruh kodini tekshirib qaytadan yuboring:');
+        await ctx.reply('Sayt bilan vaqtincha bog‘lanib bo‘lmadi. Iltimos, birozdan keyin qayta urinib ko‘ring.');
       }
     }
+  }
+
+  private async replyInvalidAccessAttempt(ctx: Context, telegramId: number): Promise<void> {
+    const now = Date.now();
+    const lastReplyAt = this.lastInvalidAttemptAt.get(telegramId) || 0;
+    if (now - lastReplyAt < 5000) return;
+
+    this.lastInvalidAttemptAt.set(telegramId, now);
+    if (this.lastInvalidAttemptAt.size > 10000) {
+      for (const [userId, timestamp] of this.lastInvalidAttemptAt) {
+        if (now - timestamp >= 5000) this.lastInvalidAttemptAt.delete(userId);
+      }
+    }
+
+    await ctx.reply('Noto‘g‘ri urinish. Iltimos, qayta urinmang. Admin bilan bog‘lanib, kodingizni aniqlab oling.');
   }
 
   private async handleStudentCodeVerification(
@@ -876,19 +965,41 @@ export class BotManager {
       await this.renderPersonalStudentCard(ctx, telegramId, access.group.id, access.group.name, lang);
     } catch (error: any) {
       console.warn('[Academy Sync] Talaba raqamini tasdiqlab bo‘lmadi:', error.message);
-      await ctx.reply('❌ Xatolik: ' + (error.message || 'Qaytadan urinib ko‘ring') + '\n\nIltimos, 3 xonali talaba raqamingizni qaytadan kiriting (yoki 0 deb yozing):');
+      const message = error instanceof Error ? error.message : String(error);
+      if (message.includes('topilmadi')) {
+        await this.replyInvalidAccessAttempt(ctx, telegramId);
+      } else {
+        await ctx.reply('Sayt bilan vaqtincha bog‘lanib bo‘lmadi. Iltimos, birozdan keyin qayta urinib ko‘ring.');
+      }
     }
   }
 
   private async handleGroupsList(ctx: Context, telegramId: number, lang: string): Promise<void> {
+    let linkedGroup: { id: number; name: string } | null;
+    try {
+      linkedGroup = await this.getLinkedAcademyGroup(telegramId);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.warn('[Academy Sync] O‘quvchi guruhini tekshirib bo‘lmadi:', message);
+      await ctx.reply('Sayt bilan vaqtincha bog‘lanib bo‘lmadi. Keyinroq qayta urinib ko‘ring.');
+      return;
+    }
+
+    if (linkedGroup) {
+      this.getSession(telegramId).state = 'idle';
+      await ctx.reply(
+        `Siz ${linkedGroup.name} guruhiga bog‘langansiz. Guruh kodini qayta kiritish shart emas.`,
+        { reply_markup: await BotKeyboards.getMainMenu(lang) }
+      );
+      return;
+    }
+
     this.getSession(telegramId).state = 'waiting_group_code';
-    await ctx.reply(
-      lang === 'ru'
-        ? 'Введите код группы из единой панели сайта:'
-        : lang === 'en'
-          ? 'Enter the group code shown in the website admin panel:'
-          : 'Sayt admin panelidagi guruh kodini yuboring:'
-    );
+    await ctx.reply(lang === 'ru'
+      ? 'Введите код группы из панели сайта:'
+      : lang === 'en'
+        ? 'Enter the group code from the website admin panel:'
+        : 'Botdan foydalanish uchun sizga berilgan guruhga kirish kodini kiriting.');
   }
 
   /**

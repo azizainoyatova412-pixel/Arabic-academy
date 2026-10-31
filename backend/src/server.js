@@ -172,6 +172,7 @@ app.post('/api/bot/reviews', botSyncGuard, contentController.submitBotReview);
 app.post('/api/bot/verify-group-code', botSyncGuard, adminController.verifyBotGroupCode);
 app.post('/api/bot/stats', botSyncGuard, adminController.syncBotStats);
 app.post('/api/bot/student-stats', botSyncGuard, adminController.getBotStudentStats);
+app.post('/api/bot/student-membership', botSyncGuard, adminController.getBotStudentMembership);
 app.post('/api/bot/books', botSyncGuard, bookController.getBotBooks);
 app.post('/api/bot/books/:id', botSyncGuard, bookController.getBotBook);
 app.post('/api/bot/groups/:groupId/book', botSyncGuard, bookController.getBotGroupBook);

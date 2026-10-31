@@ -2,10 +2,69 @@ const db = require('../db/index');
 const crypto = require('crypto');
 
 function getCurrentMonthKey() {
-  const d = new Date();
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Tashkent',
+    year: 'numeric',
+    month: '2-digit',
+  }).formatToParts(new Date());
+  const year = parts.find((part) => part.type === 'year')?.value;
+  const month = parts.find((part) => part.type === 'month')?.value;
   return `${year}-${month}`;
+}
+
+async function migrateLegacyCurrentMonthGrades(groupId = null) {
+  const currentMonth = getCurrentMonthKey();
+  await db.query(
+    `INSERT INTO public.monthly_grades
+       (group_id, telegram_id, month_key, lesson_grades, total_points, updated_at)
+     SELECT e.group_id, e.telegram_id, $1,
+            COALESCE(e.lesson_grades, '{}'::jsonb),
+            COALESCE(e.current_month_points, 0),
+            CURRENT_TIMESTAMP
+     FROM public.enrollments e
+     WHERE ($2::integer IS NULL OR e.group_id = $2)
+       AND (
+         COALESCE(e.lesson_grades, '{}'::jsonb) <> '{}'::jsonb
+         OR COALESCE(e.current_month_points, 0) > 0
+       )
+       AND NOT EXISTS (
+         SELECT 1
+         FROM public.monthly_grades existing
+         WHERE existing.group_id = e.group_id
+           AND existing.telegram_id = e.telegram_id
+       )
+     ON CONFLICT (group_id, telegram_id, month_key) DO NOTHING`,
+    [currentMonth, groupId]
+  );
+}
+
+async function assignMissingStudentCodes(groupId) {
+  await db.query(
+    `WITH missing AS (
+       SELECT u.telegram_id,
+              row_number() OVER (ORDER BY u.full_name, u.telegram_id) AS code_order
+       FROM public.users u
+       JOIN public.enrollments e ON e.telegram_id = u.telegram_id
+       WHERE e.group_id = $1
+         AND u.student_code IS NULL
+     ),
+     available AS (
+       SELECT candidate::text AS student_code,
+              row_number() OVER (ORDER BY candidate) AS code_order
+       FROM generate_series(101, 999) AS candidate
+       WHERE NOT EXISTS (
+         SELECT 1
+         FROM public.users existing
+         WHERE existing.student_code = candidate::text
+       )
+     )
+     UPDATE public.users u
+     SET student_code = available.student_code
+     FROM missing
+     JOIN available USING (code_order)
+     WHERE u.telegram_id = missing.telegram_id`,
+    [groupId]
+  );
 }
 
 // ====== GROUPS ======
@@ -91,6 +150,17 @@ exports.verifyBotGroupCode = async (req, res) => {
     const group = groupResult.rows[0];
     if (!group) return res.status(404).json({ error: 'Guruh kodi noto‘g‘ri yoki guruh topilmadi' });
 
+    const groupAccess = {
+      group: { id: group.id, name: group.name },
+      student: null,
+      book: group.book_title || group.book_pdf_path
+        ? { id: group.book_id || null, title: group.book_title || group.book_name || 'Darslik', pdfPath: group.book_pdf_path }
+        : null,
+    };
+    if (req.body.verify_only === true) {
+      return res.json(groupAccess);
+    }
+
     // Agar 3 xonali talaba raqami berilgan bo'lsa, mavjud o'quvchi profiliga bog'laymiz
     let matchedStudent = null;
     if (studentCode) {
@@ -102,14 +172,16 @@ exports.verifyBotGroupCode = async (req, res) => {
          LIMIT 1`,
         [studentCode, group.id]
       );
-      if (matchRes.rows.length > 0) {
-        matchedStudent = matchRes.rows[0];
-        const oldTid = Number(matchedStudent.telegram_id);
-        if (oldTid !== telegramId) {
-          await db.query('UPDATE public.enrollments SET telegram_id = $1 WHERE telegram_id = $2 AND group_id = $3', [telegramId, oldTid, group.id]).catch(() => {});
-          await db.query('UPDATE public.monthly_grades SET telegram_id = $1 WHERE telegram_id = $2 AND group_id = $3', [telegramId, oldTid, group.id]).catch(() => {});
-          await db.query('UPDATE public.users SET student_code = $1 WHERE telegram_id = $2', [studentCode, telegramId]).catch(() => {});
-        }
+      if (matchRes.rows.length === 0) {
+        return res.status(404).json({ error: '3 xonali talaba raqami bu guruhda topilmadi' });
+      }
+
+      matchedStudent = matchRes.rows[0];
+      const oldTid = Number(matchedStudent.telegram_id);
+      if (oldTid !== telegramId) {
+        await db.query('UPDATE public.enrollments SET telegram_id = $1 WHERE telegram_id = $2 AND group_id = $3', [telegramId, oldTid, group.id]).catch(() => {});
+        await db.query('UPDATE public.monthly_grades SET telegram_id = $1 WHERE telegram_id = $2 AND group_id = $3', [telegramId, oldTid, group.id]).catch(() => {});
+        await db.query('UPDATE public.users SET student_code = NULL WHERE telegram_id = $1', [oldTid]).catch(() => {});
       }
     }
 
@@ -134,11 +206,8 @@ exports.verifyBotGroupCode = async (req, res) => {
     );
 
     return res.json({
-      group: { id: group.id, name: group.name },
+      ...groupAccess,
       student: matchedStudent ? { student_code: matchedStudent.student_code, full_name: matchedStudent.full_name } : null,
-      book: group.book_title || group.book_pdf_path
-        ? { id: group.book_id || null, title: group.book_title || group.book_name || 'Darslik', pdfPath: group.book_pdf_path }
-        : null,
     });
   } catch (err) {
     console.error('verifyBotGroupCode xatolik:', err.message);
@@ -146,10 +215,46 @@ exports.verifyBotGroupCode = async (req, res) => {
   }
 };
 
+exports.getBotStudentMembership = async (req, res) => {
+  const telegramId = Number(req.body.telegram_id);
+  if (!Number.isSafeInteger(telegramId) || telegramId <= 0) {
+    return res.status(400).json({ error: 'Telegram ID noto‘g‘ri' });
+  }
+
+  try {
+    const result = await db.query(
+      `SELECT g.id AS group_id, g.name AS group_name, u.full_name, u.student_code
+       FROM public.enrollments e
+       JOIN public.groups g ON g.id = e.group_id
+       JOIN public.users u ON u.telegram_id = e.telegram_id
+       WHERE e.telegram_id = $1 AND e.status = 'active'
+       ORDER BY e.id
+       LIMIT 1`,
+      [telegramId]
+    );
+    const row = result.rows[0];
+    return res.json({
+      membership: row
+        ? {
+            group: { id: Number(row.group_id), name: row.group_name },
+            fullName: row.full_name,
+            studentCode: row.student_code,
+          }
+        : null,
+    });
+  } catch (error) {
+    console.error('getBotStudentMembership xatolik:', error.message);
+    return res.status(500).json({ error: 'O‘quvchi guruhini aniqlab bo‘lmadi' });
+  }
+};
+
 exports.getStudents = async (req, res) => {
   const { groupId } = req.params;
   const month = req.query.month || getCurrentMonthKey();
   try {
+    await migrateLegacyCurrentMonthGrades(groupId);
+    await assignMissingStudentCodes(groupId);
+
     // 1. Shu guruhdagi barcha oylar ro'yxati
     const monthsResult = await db.query(
       `SELECT DISTINCT month_key FROM monthly_grades WHERE group_id = $1 ORDER BY month_key DESC`,
@@ -170,15 +275,16 @@ exports.getStudents = async (req, res) => {
        `SELECT 
           COALESCE(u.telegram_id, e.telegram_id) as telegram_id, 
           COALESCE(u.full_name, 'O''quvchi #' || e.telegram_id) as full_name, 
+          u.student_code,
           e.status,
-          COALESCE(mg.lesson_grades, e.lesson_grades, '{}'::jsonb) as lesson_grades,
-          COALESCE(mg.total_points, e.current_month_points, 0) as current_month_points,
+          COALESCE(mg.lesson_grades, '{}'::jsonb) as lesson_grades,
+          COALESCE(mg.total_points, 0) as current_month_points,
           e.total_points as total_all_time_points
         FROM public.enrollments e
         LEFT JOIN public.users u ON e.telegram_id = u.telegram_id
         LEFT JOIN public.monthly_grades mg ON mg.telegram_id = e.telegram_id AND mg.group_id = e.group_id AND mg.month_key = $2
         WHERE e.group_id = $1
-        ORDER BY COALESCE(mg.total_points, e.current_month_points, 0) DESC, COALESCE(u.full_name, '') ASC`,
+        ORDER BY COALESCE(mg.total_points, 0) DESC, COALESCE(u.full_name, '') ASC`,
       [groupId, month]
     );
 
@@ -199,21 +305,18 @@ exports.addStudent = async (req, res) => {
   const targetMonth = month_key || getCurrentMonthKey();
 
   try {
-    // 3 xonali talaba raqamini aniqlash (101 - 999)
-    const existingCodes = await db.query(
-      "SELECT student_code FROM public.users WHERE student_code IS NOT NULL"
+    const codeResult = await db.query(
+      `SELECT candidate::text AS student_code
+       FROM generate_series(101, 999) AS candidate
+       WHERE NOT EXISTS (
+         SELECT 1 FROM public.users WHERE student_code = candidate::text
+       )
+       ORDER BY candidate
+       LIMIT 1`
     );
-    const usedCodes = new Set(existingCodes.rows.map((r) => r.student_code));
-    let studentCode = '';
-    for (let c = 101; c <= 999; c++) {
-      const codeStr = String(c);
-      if (!usedCodes.has(codeStr)) {
-        studentCode = codeStr;
-        break;
-      }
-    }
+    const studentCode = codeResult.rows[0]?.student_code;
     if (!studentCode) {
-      studentCode = String(Math.floor(100 + Math.random() * 900));
+      return res.status(409).json({ error: '3 xonali o‘quvchi raqamlari tugagan (101–999)' });
     }
 
     const tid = telegram_id ? parseInt(telegram_id, 10) : (Date.now() + Math.floor(Math.random() * 100000));
@@ -268,24 +371,19 @@ exports.updateLessonGrade = async (req, res) => {
   }
 
   try {
-    // 1. Tanlangan oydagi mavjud baholarni olish
+    if (targetMonth === getCurrentMonthKey()) {
+      await migrateLegacyCurrentMonthGrades(group_id);
+    }
+
     let lessonGrades = {};
     const existing = await db.query(
       `SELECT COALESCE(lesson_grades, '{}'::jsonb) as lesson_grades, total_points 
        FROM monthly_grades WHERE telegram_id = $1 AND group_id = $2 AND month_key = $3`,
       [studentId, group_id, targetMonth]
-    ).catch(() => ({ rowCount: 0, rows: [] }));
+    );
 
     if (existing.rowCount > 0 && existing.rows[0].lesson_grades) {
       lessonGrades = existing.rows[0].lesson_grades;
-    } else {
-      const enroll = await db.query(
-        `SELECT COALESCE(lesson_grades, '{}'::jsonb) as lesson_grades FROM enrollments WHERE telegram_id = $1 AND group_id = $2`,
-        [studentId, group_id]
-      );
-      if (enroll.rowCount > 0 && enroll.rows[0].lesson_grades) {
-        lessonGrades = enroll.rows[0].lesson_grades;
-      }
     }
 
     if (numericGrade === null) {
@@ -375,17 +473,18 @@ exports.getGroupStats = async (req, res) => {
   const { groupId } = req.params;
   const month = req.query.month || getCurrentMonthKey();
   try {
+    await migrateLegacyCurrentMonthGrades(groupId);
     const result = await db.query(
       `SELECT 
          u.telegram_id, 
          u.full_name, 
-         COALESCE(mg.lesson_grades, CASE WHEN $2 = $3 THEN e.lesson_grades END, '{}'::jsonb) as current_lesson_grades
+         COALESCE(mg.lesson_grades, '{}'::jsonb) as current_lesson_grades
        FROM enrollments e
        JOIN users u ON e.telegram_id = u.telegram_id
        LEFT JOIN monthly_grades mg ON mg.telegram_id = u.telegram_id AND mg.group_id = e.group_id AND mg.month_key = $2
        WHERE e.group_id = $1
        ORDER BY u.full_name ASC`,
-      [groupId, month, getCurrentMonthKey()]
+      [groupId, month]
     );
 
     res.json({
@@ -446,14 +545,15 @@ exports.getBotStudentStats = async (req, res) => {
 
   const month = getCurrentMonthKey();
   try {
+    await migrateLegacyCurrentMonthGrades();
     const result = await db.query(
       `SELECT
          e.group_id,
          g.name AS group_name,
          u.telegram_id,
          u.full_name,
-         COALESCE(mg.lesson_grades, e.lesson_grades, '{}'::jsonb) AS current_lesson_grades,
-         COALESCE(mg.total_points, e.current_month_points, 0)::int AS current_month_points,
+         COALESCE(mg.lesson_grades, '{}'::jsonb) AS current_lesson_grades,
+         COALESCE(mg.total_points, 0)::int AS current_month_points,
          COALESCE(e.total_points, 0)::int AS total_points
        FROM enrollments e
        JOIN users u ON u.telegram_id = e.telegram_id

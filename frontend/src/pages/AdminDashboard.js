@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../index.css';
 
@@ -331,9 +331,13 @@ export default function AdminDashboard() {
 // =====================================================================
 function GradesSection({ onDataChange }) {
   const getCurrentMonthStr = () => {
-    const d = new Date();
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Tashkent',
+      year: 'numeric',
+      month: '2-digit',
+    }).formatToParts(new Date());
+    const year = parts.find((part) => part.type === 'year')?.value;
+    const month = parts.find((part) => part.type === 'month')?.value;
     return `${year}-${month}`;
   };
 
@@ -341,6 +345,7 @@ function GradesSection({ onDataChange }) {
   const [selectedGroup, setSelectedGroup] = useState(null);
   const [students, setStudents] = useState([]);
   const [selectedMonth, setSelectedMonth] = useState(getCurrentMonthStr());
+  const currentMonthRef = useRef(getCurrentMonthStr());
   const [availableMonths, setAvailableMonths] = useState([getCurrentMonthStr()]);
   const [newMonthInput, setNewMonthInput] = useState('');
   const [showAddMonth, setShowAddMonth] = useState(false);
@@ -434,6 +439,24 @@ function GradesSection({ onDataChange }) {
   useEffect(() => {
     loadGroups();
   }, []);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const currentMonth = getCurrentMonthStr();
+      if (currentMonth === currentMonthRef.current) return;
+
+      currentMonthRef.current = currentMonth;
+      setSelectedMonth(currentMonth);
+      setAvailableMonths((previous) => (
+        previous.includes(currentMonth) ? previous : [currentMonth, ...previous]
+      ));
+      if (selectedGroup) {
+        loadStudents(selectedGroup, currentMonth);
+      }
+    }, 60000);
+
+    return () => clearInterval(interval);
+  }, [selectedGroup]);
 
   const handleMonthSelect = (month) => {
     setSelectedMonth(month);
@@ -970,6 +993,7 @@ function GradesSection({ onDataChange }) {
                               <div>
                                 <strong className="student-name">{s.full_name}</strong>
                                 <div className="student-journal-meta">
+                                  <span className="badge-total-pts">Talaba raqami: #{s.student_code || '—'}</span>
                                   <span className="badge-total-pts">Jami: {totalPts} ball</span>
                                   <span className="badge-avg-pts">O'rtacha: {avgGrade} ★</span>
                                   <span className="badge-lessons-count">{gradedLessons.length}/12 dars baholandi</span>
