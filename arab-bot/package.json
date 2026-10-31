@@ -5,8 +5,8 @@
   "main": "dist/server.js",
   "scripts": {
     "build": "tsc",
-    "dev": "npm run build && node dist/server.js",
-    "start": "node dist/server.js"
+    "dev": "tsc && node dist/server.js",
+    "start": "tsc && node dist/server.js"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.0",

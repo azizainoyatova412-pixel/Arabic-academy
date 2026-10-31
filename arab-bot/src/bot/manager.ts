@@ -833,10 +833,12 @@ export class BotManager {
       await this.renderAllGroupsStatsCard(ctx, telegramId, lang, true, false);
     } catch (error: any) {
       console.warn('[Academy Sync] Guruh kodini tasdiqlab bo‘lmadi:', error.message);
-      const isInvalidCode = error.message.includes('noto‘g‘ri') || error.message.includes('topilmadi');
-      await ctx.reply(isInvalidCode
-        ? '❌ Kod noto‘g‘ri yoki guruh topilmadi. Saytdagi guruh kodini tekshirib qayta yuboring:'
-        : '❌ Kodni hozir tekshirib bo‘lmadi. Birozdan so‘ng qayta yuboring.');
+      const msg = error.message || '';
+      if (msg.includes('noto‘g‘ri') || msg.includes('topilmadi')) {
+        await ctx.reply('❌ Kod noto‘g‘ri yoki guruh topilmadi. Saytdagi guruh kodini tekshirib qayta yuboring:');
+      } else {
+        await ctx.reply('❌ Xatolik: ' + msg + '\n\nIltimos, guruh kodini tekshirib qaytadan yuboring:');
+      }
     }
   }
 

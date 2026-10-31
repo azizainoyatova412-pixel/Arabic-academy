@@ -38,8 +38,8 @@ export interface AcademyGroupAccess {
 
 /**
  * Sayt backend API ga so'rov yuborish.
- * Agar asosiy URL (masalan Render) ishlamasa yoki xato bersa,
- * lokal backend (http://localhost:5000) ga avtomatik zaxira ulanish amalga oshiriladi.
+ * Agar asosiy URL tarmoq xatosi bersa, zaxira lokal manzilga o'tiladi.
+ * Agar serverdan HTTP javob kelsa (masalan 400 yoki 404), bu javob to'g'ridan-to'g'ri qaytariladi.
  */
 async function sendAcademyRequest(path: string, payload: Record<string, unknown>): Promise<unknown> {
   const secret = (config.academySyncSecret || process.env.BOT_SYNC_SECRET || process.env.ACADEMY_SYNC_SECRET || '').trim();
@@ -47,16 +47,13 @@ async function sendAcademyRequest(path: string, payload: Record<string, unknown>
     throw new Error('BOT_SYNC_SECRET yoki ACADEMY_SYNC_SECRET sozlanmagan');
   }
 
-  // Ehtimoliy URL'lar ro'yxati (eng birinchi o'rinda .env dagi URL)
   const primaryUrl = (config.academyApiUrl || 'http://localhost:5000').trim().replace(/\/+$/, '');
   const candidateUrls = [
     primaryUrl,
     'http://localhost:5000',
     'http://127.0.0.1:5000',
-    'http://localhost:3000',
   ];
 
-  // Takrorlanmas qilib olamiz
   const uniqueUrls: string[] = [];
   for (const u of candidateUrls) {
     if (u && !uniqueUrls.includes(u)) {
@@ -75,9 +72,10 @@ async function sendAcademyRequest(path: string, payload: Record<string, unknown>
       continue;
     }
 
+    let response: Response;
     try {
       const endpointUrl = new URL(path.replace(/^\/+/, ''), `${apiUrl.origin}/`);
-      const response = await fetch(endpointUrl, {
+      response = await fetch(endpointUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -86,44 +84,61 @@ async function sendAcademyRequest(path: string, payload: Record<string, unknown>
         body: JSON.stringify(payload),
         signal: AbortSignal.timeout(10000),
       });
-
-      const contentType = response.headers.get('content-type') || '';
-      const responseText = await response.text();
-
-      if (!contentType.includes('application/json')) {
-        if (response.status === 404 && responseText.includes('Cannot POST')) {
-          throw new Error(`${path} endpointi ${targetBase} manzilida topilmadi`);
-        }
-        throw new Error(`${targetBase} sayt API JSON emas javob qaytardi (HTTP ${response.status})`);
-      }
-
-      let data: { error?: string };
-      try {
-        data = JSON.parse(responseText) as { error?: string };
-      } catch {
-        throw new Error(`${targetBase} API noto‘g‘ri JSON qaytardi (HTTP ${response.status})`);
-      }
-
-      if (!response.ok) {
-        throw new Error(data.error || `Sayt API xatosi (${response.status})`);
-      }
-
-      // Agar zaxira URL orqali muvaffaqiyatli ulangan bo'lsa va bu birinchi URL bo'lmasa, eslatib qo'yamiz
-      if (i > 0 && targetBase !== primaryUrl) {
-        console.log(`ℹ️ [Academy Sync] Asosiy URL (${primaryUrl}) o‘rniga lokal backend (${targetBase}) ga muvaffaqiyatli ulandi.`);
-      }
-
-      return data;
-    } catch (err: any) {
-      lastError = err instanceof Error ? err : new Error(String(err));
-      // Faqat bitta URL bo'lsa yoki oxirgisi bo'lsa, davom etmaymiz
-      if (i === uniqueUrls.length - 1) {
-        break;
-      }
+    } catch (networkErr: any) {
+      // Tarmoq xatosi yuz bersa, keyingi zaxira URL ga o'tamiz
+      lastError = networkErr instanceof Error ? networkErr : new Error(String(networkErr));
+      continue;
     }
+
+    // Server javob berdi! Javobni qayta ishlaymiz
+    const responseText = await response.text();
+
+    let data: { error?: string };
+    try {
+      data = JSON.parse(responseText) as { error?: string };
+    } catch {
+      throw new Error(`${targetBase} sayt API noto‘g‘ri javob qaytardi (HTTP ${response.status})`);
+    }
+
+    if (!response.ok) {
+      // Serverning o'zi xabar berdi (masalan: "Guruh kodi noto‘g‘ri yoki guruh topilmadi")
+      throw new Error(data.error || `Sayt API xatosi (${response.status})`);
+    }
+
+    if (i > 0 && targetBase !== primaryUrl) {
+      console.log(`ℹ️ [Academy Sync] Asosiy URL (${primaryUrl}) o‘rniga lokal backend (${targetBase}) ga muvaffaqiyatli ulandi.`);
+    }
+
+    return data;
   }
 
-  throw lastError || new Error('Sayt API ga ulanib bo‘lmadi');
+  throw lastError || new Error('Sayt API ga ulanib bo‘lmadi. Backend server ishlayotganini tekshiring.');
+}
+
+async function fetchPdfBuffer(pdfPath: string): Promise<Buffer> {
+  const candidateBases = [
+    (config.academyApiUrl || '').trim().replace(/\/+$/, ''),
+    'http://localhost:5000',
+    'http://127.0.0.1:5000',
+  ].filter(Boolean);
+
+  const cleanPath = pdfPath.startsWith('/') ? pdfPath : `/${pdfPath}`;
+  let lastErr = '';
+
+  for (const base of candidateBases) {
+    try {
+      const targetUrl = new URL(cleanPath, `${base}/`);
+      const res = await fetch(targetUrl, { signal: AbortSignal.timeout(10000) });
+      if (res.ok) {
+        const arrayBuf = await res.arrayBuffer();
+        return Buffer.from(arrayBuf);
+      }
+      lastErr = `HTTP ${res.status}`;
+    } catch (e: any) {
+      lastErr = e.message;
+    }
+  }
+  throw new Error(`Guruh kitobining PDF fayli olinmadi (${lastErr || '404'})`);
 }
 
 export async function submitAcademyReview(telegramId: number, name: string, text: string): Promise<void> {
@@ -149,33 +164,6 @@ export async function verifyAcademyGroupCode(
     telegram_id: telegramId,
     full_name: fullName,
   }) as AcademyGroupAccess;
-}
-
-async function fetchPdfBuffer(pdfPath: string): Promise<Buffer> {
-  const candidateBases = [
-    (config.academyApiUrl || '').trim().replace(/\/+$/, ''),
-    'http://localhost:5000',
-    'http://127.0.0.1:5000',
-    'http://localhost:3000',
-  ].filter(Boolean);
-
-  const cleanPath = pdfPath.startsWith('/') ? pdfPath : `/${pdfPath}`;
-  let lastErr = '';
-
-  for (const base of candidateBases) {
-    try {
-      const targetUrl = new URL(cleanPath, `${base}/`);
-      const res = await fetch(targetUrl, { signal: AbortSignal.timeout(10000) });
-      if (res.ok) {
-        const arrayBuf = await res.arrayBuffer();
-        return Buffer.from(arrayBuf);
-      }
-      lastErr = `HTTP ${res.status}`;
-    } catch (e: any) {
-      lastErr = e.message;
-    }
-  }
-  throw new Error(`Guruh kitobining PDF fayli olinmadi (${lastErr || '404'})`);
 }
 
 export async function getAcademyBookText(bookId: number): Promise<{ title: string; text: string }> {
