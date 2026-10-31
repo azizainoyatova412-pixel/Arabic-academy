@@ -447,6 +447,7 @@ class DatabaseManager {
 
     // Mavjud bazalar uchun yangi ustunlarni xavfsiz qo'shish (Auto-migration)
     const alterColumns = [
+      'ALTER TABLE users ADD COLUMN full_name TEXT',
       'ALTER TABLE users ADD COLUMN grade INTEGER',
       'ALTER TABLE users ADD COLUMN is_paid BOOLEAN DEFAULT FALSE',
       'ALTER TABLE users ADD COLUMN is_teacher BOOLEAN DEFAULT FALSE',

@@ -50,6 +50,7 @@ async function sendAcademyRequest(path: string, payload: Record<string, unknown>
   const primaryUrl = (config.academyApiUrl || 'http://localhost:5000').trim().replace(/\/+$/, '');
   const candidateUrls = [
     primaryUrl,
+    'https://arabic-academy.onrender.com',
     'http://localhost:5000',
     'http://127.0.0.1:5000',
   ];
@@ -118,16 +119,18 @@ async function sendAcademyRequest(path: string, payload: Record<string, unknown>
 async function fetchPdfBuffer(pdfPath: string): Promise<Buffer> {
   const candidateBases = [
     (config.academyApiUrl || '').trim().replace(/\/+$/, ''),
+    'https://arabic-academy.onrender.com',
     'http://localhost:5000',
     'http://127.0.0.1:5000',
   ].filter(Boolean);
 
   const cleanPath = pdfPath.startsWith('/') ? pdfPath : `/${pdfPath}`;
+  const filename = pdfPath.split('/').pop() || '';
   let lastErr = '';
 
   for (const base of candidateBases) {
     try {
-      const targetUrl = new URL(cleanPath, `${base}/`);
+      const targetUrl = new URL(cleanPath.replace(/^\/+/, ''), `${base}/`);
       const res = await fetch(targetUrl, { signal: AbortSignal.timeout(10000) });
       if (res.ok) {
         const arrayBuf = await res.arrayBuffer();
@@ -138,6 +141,20 @@ async function fetchPdfBuffer(pdfPath: string): Promise<Buffer> {
       lastErr = e.message;
     }
   }
+
+  // HTTP orqali topilmasa, to'g'ridan-to'g'ri bazadan qidiramiz
+  try {
+    const dbResult = await db.query(
+      'SELECT pdf_data FROM books WHERE pdf_path = $1 OR pdf_path LIKE $2 LIMIT 1',
+      [cleanPath, `%${filename}`]
+    );
+    if (dbResult.rows.length > 0 && dbResult.rows[0].pdf_data) {
+      return Buffer.from(dbResult.rows[0].pdf_data);
+    }
+  } catch (dbErr: any) {
+    console.warn('[Academy Sync] DB dan kitob PDF olishda xatolik:', dbErr.message);
+  }
+
   throw new Error(`Guruh kitobining PDF fayli olinmadi (${lastErr || '404'})`);
 }
 

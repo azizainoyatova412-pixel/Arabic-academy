@@ -61,23 +61,24 @@ exports.getBotBook = async (req, res) => {
 
 exports.getBotGroupBook = async (req, res) => {
   const groupId = Number(req.params.groupId);
-  const telegramId = Number(req.body.telegram_id);
-  if (!Number.isSafeInteger(groupId) || groupId <= 0 || !Number.isSafeInteger(telegramId) || telegramId <= 0) {
-    return res.status(400).json({ error: 'Guruh yoki Telegram ID noto‘g‘ri' });
+  if (!Number.isSafeInteger(groupId) || groupId <= 0) {
+    return res.status(400).json({ error: 'Guruh ID noto‘g‘ri' });
   }
 
   try {
     const result = await db.query(
-      `SELECT b.id, b.title, b.pdf_path AS "pdfPath"
-       FROM groups g
-       JOIN enrollments e ON e.group_id = g.id AND e.telegram_id = $2 AND e.status = 'active'
-       JOIN books b ON (b.pdf_path = g.book_pdf_path OR b.title = g.book_name)
+      `SELECT 
+         COALESCE(b.id, 0) AS id, 
+         COALESCE(b.title, g.book_name, 'Darslik') AS title, 
+         COALESCE(b.pdf_path, g.book_pdf_path) AS "pdfPath"
+       FROM public.groups g
+       LEFT JOIN public.books b ON (b.pdf_path = g.book_pdf_path OR b.title = g.book_name)
        WHERE g.id = $1
        LIMIT 1`,
-      [groupId, telegramId]
+      [groupId]
     );
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Guruhga kitob biriktirilmagan yoki o‘quvchi guruhga yozilmagan' });
+    if (result.rows.length === 0 || !result.rows[0].pdfPath) {
+      return res.status(404).json({ error: 'Guruhga kitob biriktirilmagan' });
     }
     return res.json(result.rows[0]);
   } catch (err) {

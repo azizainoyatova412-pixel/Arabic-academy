@@ -125,18 +125,18 @@ exports.getStudents = async (req, res) => {
 
     // 2. Shu guruh o'quvchilari va ularning tanlangan oydagi baholari
     const r = await db.query(
-      `SELECT 
-         u.telegram_id, 
-         u.full_name, 
-         e.status,
-         COALESCE(mg.lesson_grades, e.lesson_grades, '{}'::jsonb) as lesson_grades,
-         COALESCE(mg.total_points, e.current_month_points, 0) as current_month_points,
-         e.total_points as total_all_time_points
-       FROM enrollments e
-       JOIN users u ON e.telegram_id = u.telegram_id
-       LEFT JOIN monthly_grades mg ON mg.telegram_id = u.telegram_id AND mg.group_id = e.group_id AND mg.month_key = $2
-       WHERE e.group_id = $1
-       ORDER BY COALESCE(mg.total_points, e.current_month_points, 0) DESC, u.full_name ASC`,
+       `SELECT 
+          COALESCE(u.telegram_id, e.telegram_id) as telegram_id, 
+          COALESCE(u.full_name, 'O''quvchi #' || e.telegram_id) as full_name, 
+          e.status,
+          COALESCE(mg.lesson_grades, e.lesson_grades, '{}'::jsonb) as lesson_grades,
+          COALESCE(mg.total_points, e.current_month_points, 0) as current_month_points,
+          e.total_points as total_all_time_points
+        FROM public.enrollments e
+        LEFT JOIN public.users u ON e.telegram_id = u.telegram_id
+        LEFT JOIN public.monthly_grades mg ON mg.telegram_id = e.telegram_id AND mg.group_id = e.group_id AND mg.month_key = $2
+        WHERE e.group_id = $1
+        ORDER BY COALESCE(mg.total_points, e.current_month_points, 0) DESC, COALESCE(u.full_name, '') ASC`,
       [groupId, month]
     );
 

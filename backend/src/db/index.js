@@ -25,6 +25,11 @@ pool.on('error', (err) => {
   console.error('❌ PostgreSQL ulanishida xatolik:', err.message);
 });
 
+// Neon yoki multi-schema muhitda doim public schemani ishlatish
+pool.on('connect', (client) => {
+  client.query('SET search_path TO public').catch(() => {});
+});
+
 // Bazadagi jadvallarni avtomatik yaratish va dastlabki test ma'lumotlarini kiritish
 const initDb = async () => {
   if (!rawUrl || rawUrl.includes('parol@localhost')) {

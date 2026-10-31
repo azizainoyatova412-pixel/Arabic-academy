@@ -827,10 +827,14 @@ export class BotManager {
         ? `\n📖 Guruh kitobi: <b>${access.book.title}</b>`
         : '\n⚠️ Guruhga hali kitob biriktirilmagan. Test ishlashi uchun admin saytda kitob biriktirishi kerak.';
       await ctx.reply(
-        `✅ <b>${access.group.name}</b> guruhiga muvaffaqiyatli qo‘shildingiz!\nUzbikiyya akademiyasi o'quvchilari bilan ishlash guruhi.${bookMessage}\n\nEndi botdan foydalanishingiz mumkin.`,
+        `✅ <b>${access.group.name}</b> guruhiga muvaffaqiyatli qo‘shildingiz!\nUzbikiyya akademiyasi o'quvchilari bilan ishlash guruhi.${bookMessage}\n\n📊 Guruhdagi talabalar statistikasi va umumiy reyting:`,
         { parse_mode: 'HTML', reply_markup: await BotKeyboards.getMainMenu(lang) }
       );
       await this.renderAllGroupsStatsCard(ctx, telegramId, lang, true, false);
+
+      // Talabalar statistikasi chiqqach, tanlangan/joriy o'quvchi ma'lumotlari biroz kechroq (2 soniyadan so'ng) chiqadi:
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      await this.renderPersonalStudentCard(ctx, telegramId, access.group.id, access.group.name, lang);
     } catch (error: any) {
       console.warn('[Academy Sync] Guruh kodini tasdiqlab bo‘lmadi:', error.message);
       const msg = error.message || '';
@@ -861,7 +865,38 @@ export class BotManager {
    * Guruh tanlash olib tashlangan — butun maktab bitta reytingda ko'rsatiladi.
    * Bitta ⬇️ / ⬆️ tugmasi bilan ochilib-yopiladi, bot chati to'lib ketmaydi!
    */
-  private async renderAllGroupsStatsCard(
+    private async renderPersonalStudentCard(
+    ctx: Context,
+    telegramId: number,
+    groupId: number,
+    groupName: string,
+    lang: string
+  ): Promise<void> {
+    try {
+      const stats = await getAcademyStudentStats(telegramId).catch(() => null);
+      const targetGroup = stats?.groups.find((g) => g.groupId === groupId) || stats?.groups[0];
+
+      let msg = `👤 <b>SIZNING O'QUVCHI KARTANGIZ</b>\n`;
+      msg += `━━━━━━━━━━━━━━━━━━━━\n`;
+      msg += `🏫 Guruh: <b>${groupName}</b>\n`;
+      if (targetGroup) {
+        msg += `🏅 Guruhdagi o'rningiz: <b>${targetGroup.rank}-o'rin</b> (jami ${targetGroup.groupSize} ta o'quvchi)\n`;
+        msg += `⭐ Joriy oy to'plagan ballingiz: <b>${targetGroup.monthPoints} ball</b>\n`;
+        msg += `🌟 Barcha vaqtlardagi jami ball: <b>${targetGroup.totalPoints} ball</b>\n`;
+        msg += `📊 O'rtacha baho: <b>${targetGroup.averageGrade ?? 'Hali baholanmagan'}</b>\n`;
+        msg += `📝 Baholangan darslar soni: <b>${targetGroup.gradedLessons} ta</b>\n`;
+      } else {
+        msg += `ℹ️ <i>Sizning baholaringiz o'qituvchi tomonidan tez orada kiritiladi.</i>\n`;
+      }
+      msg += `\n🎯 <i>Darslarni faol o'zlashtiring va botdagi kunlik testlarni topshirib borishni unutmang!</i>`;
+
+      await ctx.reply(msg, { parse_mode: 'HTML' });
+    } catch (e: any) {
+      console.warn('[PersonalCard] Shaxsiy kartani ko\'rsatishda xatolik:', e.message);
+    }
+  }
+
+private async renderAllGroupsStatsCard(
     ctx: Context,
     telegramId: number,
     lang: string,
