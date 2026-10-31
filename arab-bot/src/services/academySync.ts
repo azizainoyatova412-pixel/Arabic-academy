@@ -63,7 +63,7 @@ function getAcademyApiUrl(): URL {
 async function sendAcademyRequest(path: string, payload: Record<string, unknown>): Promise<unknown> {
   const secret = config.academySyncSecret;
   if (!secret) {
-    throw new Error('BOT_SYNC_SECRET yoki ACADEMY_SYNC_SECRET sozlanmagan');
+    throw new Error('BOT_SYNC_SECRET sozlanmagan');
   }
 
   const apiUrl = getAcademyApiUrl();

@@ -7,7 +7,7 @@ dotenv.config();
 /**
  * Send student stats (or other payload) to the Academy API.
  * The request is protected by the `x-bot-sync-secret` header which must match
- * the value defined in `.env` (`BOT_SYNC_SECRET` or `ACADEMY_SYNC_SECRET`).
+ * the value defined in `.env` (`BOT_SYNC_SECRET`).
  *
  * @param {Object} payload  The JSON payload to send to the Academy endpoint.
  * @returns {Promise<Object>} The parsed JSON response from the academy server.
@@ -19,7 +19,7 @@ export async function syncStudentStats(payload) {
     throw new Error('ACADEMY_API_URL .env‑da belgilanmagan');
   }
 
-  const secret = process.env.BOT_SYNC_SECRET || process.env.ACADEMY_SYNC_SECRET;
+  const secret = process.env.BOT_SYNC_SECRET?.trim();
   if (!secret) {
     throw new Error('BOT_SYNC_SECRET .env‑da belgilanmagan');
   }

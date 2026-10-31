@@ -104,15 +104,9 @@ async function bootstrap() {
     // 1. Bazani initsializatsiya qilish (Token'dan mustaqil, ma'lumotlar yo'qolmaydi)
     await db.init();
 
-    if (config.academySyncSecretsConflict) {
-      console.warn(
-        '[Academy Sync] BOT_SYNC_SECRET va ACADEMY_SYNC_SECRET bir-biridan farq qiladi. Bot BOT_SYNC_SECRET qiymatini ishlatadi; ikkisini tenglang yoki ACADEMY_SYNC_SECRET ni olib tashlang.',
-      );
-    }
-
     if (config.academyApiUrl && config.academySyncSecret) {
       console.info(
-        `[Academy Sync] Sozlama topildi: ${config.academyApiUrl}, secret manbasi ${config.academySyncSecretSource} (qiymat yashirilgan).`,
+        `[Academy Sync] Sozlama topildi: ${config.academyApiUrl}; BOT_SYNC_SECRET o‘qildi (qiymat yashirilgan).`,
       );
       let statsSyncInFlight = false;
       const syncBotStats = async () => {
@@ -133,7 +127,7 @@ async function bootstrap() {
     } else {
       const missing = [
         !config.academyApiUrl && 'ACADEMY_API_URL',
-        !config.academySyncSecret && 'BOT_SYNC_SECRET yoki ACADEMY_SYNC_SECRET',
+        !config.academySyncSecret && 'BOT_SYNC_SECRET',
       ].filter(Boolean);
       console.warn(`[Academy Sync] Statistika sinxronlash o‘chiq: sozlanmagan qiymatlar: ${missing.join(', ')}.`);
     }
