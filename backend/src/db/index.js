@@ -143,6 +143,17 @@ const initDb = async () => {
       FROM duplicate_codes d
       WHERE g.id = d.id AND d.code_rank > 1;
       CREATE UNIQUE INDEX IF NOT EXISTS groups_access_code_unique ON groups (upper(access_code));
+
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS language_code VARCHAR(10) DEFAULT 'uz';
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS academy_group_id INTEGER;
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS academy_group_name VARCHAR(150);
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'active';
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS grade INTEGER DEFAULT 0;
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS is_paid BOOLEAN DEFAULT FALSE;
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS is_teacher BOOLEAN DEFAULT FALSE;
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS student_code VARCHAR(10);
+      ALTER TABLE groups ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;
+
     `);
     console.log('✅ Baza jadvallari (users, groups, books, monthly_grades) tekshirildi va tayyor.');
 

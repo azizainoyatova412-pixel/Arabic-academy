@@ -37,6 +37,8 @@ exports.verifyBotGroupCode = async (req, res) => {
   const accessCode = String(req.body.access_code || '').trim().toUpperCase();
   const telegramId = Number(req.body.telegram_id);
   const fullName = String(req.body.full_name || '').trim().slice(0, 120);
+  const studentCode = String(req.body.student_code || '').trim();
+
   if (!accessCode || !Number.isSafeInteger(telegramId) || telegramId <= 0 || !fullName) {
     return res.status(400).json({ error: 'Guruh kodi va o‘quvchi ma’lumotlari kerak' });
   }
@@ -45,8 +47,8 @@ exports.verifyBotGroupCode = async (req, res) => {
     const groupResult = await db.query(
       `SELECT g.id, g.name, g.access_code, g.book_name, g.book_pdf_path,
               b.id AS book_id, b.title AS book_title
-       FROM groups g
-       LEFT JOIN books b ON b.pdf_path = g.book_pdf_path
+       FROM public.groups g
+       LEFT JOIN public.books b ON (b.pdf_path = g.book_pdf_path OR b.title = g.book_name)
        WHERE upper(g.access_code) = $1
        LIMIT 1`,
       [accessCode]
@@ -54,56 +56,61 @@ exports.verifyBotGroupCode = async (req, res) => {
     const group = groupResult.rows[0];
     if (!group) return res.status(404).json({ error: 'Guruh kodi noto‘g‘ri yoki guruh topilmadi' });
 
+    // Agar 3 xonali talaba raqami berilgan bo'lsa, mavjud o'quvchi profiliga bog'laymiz
+    let matchedStudent = null;
+    if (studentCode) {
+      const matchRes = await db.query(
+        `SELECT u.telegram_id, u.full_name, u.student_code 
+         FROM public.users u
+         JOIN public.enrollments e ON e.telegram_id = u.telegram_id
+         WHERE u.student_code = $1 AND e.group_id = $2
+         LIMIT 1`,
+        [studentCode, group.id]
+      );
+      if (matchRes.rows.length > 0) {
+        matchedStudent = matchRes.rows[0];
+        const oldTid = Number(matchedStudent.telegram_id);
+        if (oldTid !== telegramId) {
+          await db.query('UPDATE public.enrollments SET telegram_id = $1 WHERE telegram_id = $2 AND group_id = $3', [telegramId, oldTid, group.id]).catch(() => {});
+          await db.query('UPDATE public.monthly_grades SET telegram_id = $1 WHERE telegram_id = $2 AND group_id = $3', [telegramId, oldTid, group.id]).catch(() => {});
+          await db.query('UPDATE public.users SET student_code = $1 WHERE telegram_id = $2', [studentCode, telegramId]).catch(() => {});
+        }
+      }
+    }
+
+    const assignedName = matchedStudent?.full_name || fullName;
+
     await db.query(
-      `INSERT INTO users (telegram_id, full_name, lang)
-       VALUES ($1, $2, 'uz')
-       ON CONFLICT (telegram_id) DO UPDATE SET full_name = EXCLUDED.full_name`,
-      [telegramId, fullName]
+      `INSERT INTO public.users (telegram_id, full_name, lang, language_code, status, academy_group_id, academy_group_name, student_code)
+       VALUES ($1, $2, 'uz', 'uz', 'active', $3, $4, $5)
+       ON CONFLICT (telegram_id) DO UPDATE SET 
+         academy_group_id = EXCLUDED.academy_group_id,
+         academy_group_name = EXCLUDED.academy_group_name,
+         student_code = COALESCE(public.users.student_code, EXCLUDED.student_code),
+         status = 'active'`,
+      [telegramId, assignedName, group.id, group.name, studentCode || matchedStudent?.student_code || null]
     );
+
     await db.query(
-      `INSERT INTO enrollments (telegram_id, group_id, status, lesson_grades, current_month_points)
+      `INSERT INTO public.enrollments (telegram_id, group_id, status, lesson_grades, current_month_points)
        VALUES ($1, $2, 'active', '{}'::jsonb, 0)
        ON CONFLICT (telegram_id, group_id) DO UPDATE SET status = 'active'`,
       [telegramId, group.id]
     );
-    await db.query(
-      `INSERT INTO monthly_grades (group_id, telegram_id, month_key, lesson_grades, total_points)
-       VALUES ($1, $2, $3, '{}'::jsonb, 0)
-       ON CONFLICT (group_id, telegram_id, month_key) DO NOTHING`,
-      [group.id, telegramId, getCurrentMonthKey()]
-    );
 
     return res.json({
-      group: { id: Number(group.id), name: group.name },
-      book: group.book_id && group.book_pdf_path
-        ? { id: Number(group.book_id), title: group.book_title, pdfPath: group.book_pdf_path }
+      group: { id: group.id, name: group.name },
+      student: matchedStudent ? { student_code: matchedStudent.student_code, full_name: matchedStudent.full_name } : null,
+      book: group.book_title || group.book_pdf_path
+        ? { id: group.book_id || null, title: group.book_title || group.book_name || 'Darslik', pdfPath: group.book_pdf_path }
         : null,
     });
-  } catch (e) {
-    console.error('Bot guruh kodini tekshirishda xatolik:', e.message);
+  } catch (err) {
+    console.error('verifyBotGroupCode xatolik:', err.message);
     return res.status(500).json({ error: 'Guruh kodini tekshirib bo‘lmadi' });
   }
 };
 
-exports.deleteGroup = async (req, res) => {
-  const { groupId } = req.params;
-  const gId = parseInt(groupId, 10);
-  const targetId = isNaN(gId) ? groupId : gId;
-
-  try {
-    await db.query('DELETE FROM monthly_grades WHERE group_id = $1', [targetId]).catch(() => {});
-    await db.query('DELETE FROM enrollments WHERE group_id = $1', [targetId]).catch(() => {});
-    await db.query('DELETE FROM payments WHERE group_id = $1', [targetId]).catch(() => {});
-    const result = await db.query('DELETE FROM groups WHERE id = $1 RETURNING *', [targetId]);
-
-    res.json({ ok: true, message: 'Guruh muvaffaqiyatli o‘chirildi', group: result.rows[0] || null });
-  } catch (e) {
-    console.error('deleteGroup xatolik:', e.message);
-    res.status(500).json({ error: e.message });
-  }
-};
-
-// ====== STUDENTS & MONTHLY GRADES ======
 exports.getStudents = async (req, res) => {
   const { groupId } = req.params;
   const month = req.query.month || getCurrentMonthKey();
@@ -155,25 +162,56 @@ exports.addStudent = async (req, res) => {
   const { full_name, telegram_id, month_key } = req.body;
   if (!full_name) return res.status(400).json({ error: 'full_name kerak' });
   const targetMonth = month_key || getCurrentMonthKey();
-  const tid = telegram_id ? parseInt(telegram_id, 10) : (Date.now() + Math.floor(Math.random() * 100000));
 
   try {
-    await db.query(
-      `INSERT INTO users (telegram_id, full_name) VALUES ($1, $2) ON CONFLICT (telegram_id) DO UPDATE SET full_name = EXCLUDED.full_name`,
-      [tid, full_name]
+    // 3 xonali talaba raqamini aniqlash (101 - 999)
+    const existingCodes = await db.query(
+      "SELECT student_code FROM public.users WHERE student_code IS NOT NULL"
     );
+    const usedCodes = new Set(existingCodes.rows.map((r) => r.student_code));
+    let studentCode = '';
+    for (let c = 101; c <= 999; c++) {
+      const codeStr = String(c);
+      if (!usedCodes.has(codeStr)) {
+        studentCode = codeStr;
+        break;
+      }
+    }
+    if (!studentCode) {
+      studentCode = String(Math.floor(100 + Math.random() * 900));
+    }
+
+    const tid = telegram_id ? parseInt(telegram_id, 10) : (Date.now() + Math.floor(Math.random() * 100000));
+
     await db.query(
-      `INSERT INTO enrollments (telegram_id, group_id, status, lesson_grades, current_month_points) 
+      `INSERT INTO public.users (telegram_id, full_name, student_code, status) 
+       VALUES ($1, $2, $3, 'active') 
+       ON CONFLICT (telegram_id) DO UPDATE SET full_name = EXCLUDED.full_name, student_code = COALESCE(public.users.student_code, EXCLUDED.student_code)`,
+      [tid, full_name, studentCode]
+    );
+
+    await db.query(
+      `INSERT INTO public.enrollments (telegram_id, group_id, status, lesson_grades, current_month_points) 
        VALUES ($1, $2, 'active', '{}'::jsonb, 0) ON CONFLICT (telegram_id, group_id) DO NOTHING`,
       [tid, groupId]
     );
+
     await db.query(
-      `INSERT INTO monthly_grades (group_id, telegram_id, month_key, lesson_grades, total_points) 
+      `INSERT INTO public.monthly_grades (group_id, telegram_id, month_key, lesson_grades, total_points) 
        VALUES ($1, $2, $3, '{}'::jsonb, 0) ON CONFLICT (group_id, telegram_id, month_key) DO NOTHING`,
       [groupId, tid, targetMonth]
     ).catch(() => {});
 
-    res.json({ ok: true, student: { telegram_id: tid, full_name, lesson_grades: {}, current_month_points: 0 } });
+    res.json({ 
+      ok: true, 
+      student: { 
+        telegram_id: tid, 
+        full_name, 
+        student_code: studentCode, 
+        lesson_grades: {}, 
+        current_month_points: 0 
+      } 
+    });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }

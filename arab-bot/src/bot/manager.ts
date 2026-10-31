@@ -266,37 +266,20 @@ export class BotManager {
       const firstName = ctx.from?.first_name || '';
       const username = ctx.from?.username || '';
 
-      const userRes = await db.query('SELECT * FROM users WHERE telegram_id = $1', [telegramId]);
-      if (userRes.rows.length === 0) {
-        await db.query(
-          `INSERT INTO users (telegram_id, username, first_name, language_code, status, is_paid)
-           VALUES ($1, $2, $3, 'uz', 'active', FALSE)`,
-          [telegramId, username, firstName]
-        );
-      } else {
-        await db.query(
-          `UPDATE users SET last_active = CURRENT_TIMESTAMP, first_name = $1, username = $2 WHERE telegram_id = $3`,
-          [firstName, username, telegramId]
-        );
-      }
+      await db.query(
+        `INSERT INTO users (telegram_id, username, first_name, full_name, language_code, status, is_paid)
+         VALUES ($1, $2, $3, $3, 'uz', 'active', FALSE)
+         ON CONFLICT (telegram_id) DO UPDATE SET last_active = CURRENT_TIMESTAMP, first_name = EXCLUDED.first_name, username = EXCLUDED.username`,
+        [telegramId, username, firstName]
+      ).catch(() => {});
 
       this.clearSession(telegramId);
-      const membership = await db.query(
-        'SELECT academy_group_id, academy_group_name FROM users WHERE telegram_id = $1',
-        [telegramId]
-      );
-      const joinedGroup = membership.rows[0]?.academy_group_id;
-      if (joinedGroup) {
-        await ctx.reply(
-          `Assalomu alaykum! <b>${membership.rows[0].academy_group_name || 'Guruhingiz'}</b> uchun botga xush kelibsiz.`,
-          { parse_mode: 'HTML', reply_markup: await BotKeyboards.getMainMenu(await I18nService.getUserLanguage(telegramId)) }
-        );
-        return;
-      }
-
       this.getSession(telegramId).state = 'waiting_group_code';
       await ctx.reply(
-        "Assalomu alaykum! Botdan foydalanish uchun saytdagi guruhingizga biriktirilgan kirish kodini yuboring:"
+        `Assalomu alaykum! Arab tili akademiyasi botiga xush kelibsiz.\n\n` +
+        `Iltimos, admin panelda guruhingiz uchun berilgan <b>Guruh kodini</b> kiriting (masalan: 5B6A38D6):\n\n` +
+        `<i>(Guruh kodi kiritilgach, sizga 3 xonali talaba raqamingiz so'raladi)</i>`,
+        { parse_mode: 'HTML' }
       );
     });
 
@@ -659,6 +642,16 @@ export class BotManager {
         return;
       }
 
+      // Agar 3 xonali talaba raqamini kutayotgan bo'lsa
+      if (session.state === 'waiting_student_code') {
+        if (ctx.chat.type !== 'private') {
+          await ctx.reply('Talaba raqamini shaxsiy chatda yuboring.');
+          return;
+        }
+        await this.handleStudentCodeVerification(ctx, telegramId, text, lang);
+        return;
+      }
+
       // Agar admin parolini kutayotgan bo'lsa
       if (session.state === 'waiting_admin_password') {
         const enteredPass = text.trim();
@@ -815,26 +808,21 @@ export class BotManager {
   ): Promise<void> {
     try {
       const firstName = [ctx.from?.first_name, ctx.from?.last_name].filter(Boolean).join(' ') || 'Telegram o‘quvchi';
-      const access = await verifyAcademyGroupCode(enteredCode, telegramId, firstName);
-      await db.query(
-        `UPDATE users
-         SET academy_group_id = $1, academy_group_name = $2
-         WHERE telegram_id = $3`,
-        [access.group.id, access.group.name, telegramId]
-      );
-      this.clearSession(telegramId);
-      const bookMessage = access.book
-        ? `\n📖 Guruh kitobi: <b>${access.book.title}</b>`
-        : '\n⚠️ Guruhga hali kitob biriktirilmagan. Test ishlashi uchun admin saytda kitob biriktirishi kerak.';
-      await ctx.reply(
-        `✅ <b>${access.group.name}</b> guruhiga muvaffaqiyatli qo‘shildingiz!\nUzbikiyya akademiyasi o'quvchilari bilan ishlash guruhi.${bookMessage}\n\n📊 Guruhdagi talabalar statistikasi va umumiy reyting:`,
-        { parse_mode: 'HTML', reply_markup: await BotKeyboards.getMainMenu(lang) }
-      );
-      await this.renderAllGroupsStatsCard(ctx, telegramId, lang, true, false);
+      const cleanCode = enteredCode.trim().toUpperCase();
+      const access = await verifyAcademyGroupCode(cleanCode, telegramId, firstName, '');
 
-      // Talabalar statistikasi chiqqach, tanlangan/joriy o'quvchi ma'lumotlari biroz kechroq (2 soniyadan so'ng) chiqadi:
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-      await this.renderPersonalStudentCard(ctx, telegramId, access.group.id, access.group.name, lang);
+      const session = this.getSession(telegramId);
+      session.tempGroupCode = cleanCode;
+      session.tempGroupName = access.group.name;
+      session.tempGroupBook = access.book;
+      session.state = 'waiting_student_code';
+
+      await ctx.reply(
+        `✅ <b>${access.group.name}</b> guruhi muvaffaqiyatli topildi!\n━━━━━━━━━━━━━━━━━━━━\n\n` +
+        `Endi admin panelda siz uchun ajratilgan <b>3 xonali talaba raqamingizni</b> kiriting (masalan: 101, 102, 106...):\n\n` +
+        `<i>(Agar sizga hali talaba raqami berilmagan bo'lsa yoki bilmasangiz, <b>0</b> deb yuboring)</i>`,
+        { parse_mode: 'HTML' }
+      );
     } catch (error: any) {
       console.warn('[Academy Sync] Guruh kodini tasdiqlab bo‘lmadi:', error.message);
       const msg = error.message || '';
@@ -846,9 +834,52 @@ export class BotManager {
     }
   }
 
-  /**
-   * Guruhlar ro'yxati
-   */
+  private async handleStudentCodeVerification(
+    ctx: Context,
+    telegramId: number,
+    codeText: string,
+    lang: string
+  ): Promise<void> {
+    const session = this.getSession(telegramId);
+    const groupCode = session.tempGroupCode || '';
+    const studentCode = codeText.trim() === '0' ? '' : codeText.trim();
+    const firstName = [ctx.from?.first_name, ctx.from?.last_name].filter(Boolean).join(' ') || 'Telegram o‘quvchi';
+
+    try {
+      const access = await verifyAcademyGroupCode(groupCode, telegramId, firstName, studentCode);
+      session.state = 'idle';
+
+      await db.query(
+        `UPDATE users
+         SET academy_group_id = $1, academy_group_name = $2, student_code = COALESCE($3, student_code)
+         WHERE telegram_id = $4`,
+        [access.group.id, access.group.name, studentCode || null, telegramId]
+      );
+
+      const studentName = access.student?.full_name || firstName;
+      const codeInfo = access.student?.student_code ? `\n🔢 Talaba raqamingiz: <b>#${access.student.student_code}</b>` : '';
+      const bookMessage = access.book
+        ? `\n📖 Guruh kitobi: <b>${access.book.title}</b>`
+        : '\n⚠️ Guruhga hali kitob biriktirilmagan.';
+
+      await ctx.reply(
+        `✅ <b>${access.group.name}</b> guruhiga muvaffaqiyatli bog'landingiz!\n` +
+        `👤 O'quvchi: <b>${studentName}</b>${codeInfo}${bookMessage}\n\n` +
+        `📊 Quyida talabalar statistikasi va umumiy reyting:`,
+        { parse_mode: 'HTML', reply_markup: await BotKeyboards.getMainMenu(lang) }
+      );
+
+      await this.renderAllGroupsStatsCard(ctx, telegramId, lang, true, false);
+
+      // 2 soniyadan so'ng tanlangan o'quvchi kartasi
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      await this.renderPersonalStudentCard(ctx, telegramId, access.group.id, access.group.name, lang);
+    } catch (error: any) {
+      console.warn('[Academy Sync] Talaba raqamini tasdiqlab bo‘lmadi:', error.message);
+      await ctx.reply('❌ Xatolik: ' + (error.message || 'Qaytadan urinib ko‘ring') + '\n\nIltimos, 3 xonali talaba raqamingizni qaytadan kiriting (yoki 0 deb yozing):');
+    }
+  }
+
   private async handleGroupsList(ctx: Context, telegramId: number, lang: string): Promise<void> {
     this.getSession(telegramId).state = 'waiting_group_code';
     await ctx.reply(

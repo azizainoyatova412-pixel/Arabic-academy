@@ -33,6 +33,7 @@ export interface AcademyBook {
 
 export interface AcademyGroupAccess {
   group: { id: number; name: string };
+  student?: { student_code: string; full_name: string } | null;
   book: { id: number | null; title: string; pdfPath: string } | null;
 }
 
@@ -174,12 +175,14 @@ export async function getAcademyBooks(): Promise<AcademyBook[]> {
 export async function verifyAcademyGroupCode(
   accessCode: string,
   telegramId: number,
-  fullName: string
+  fullName: string,
+  studentCode?: string
 ): Promise<AcademyGroupAccess> {
   return await sendAcademyRequest('/api/bot/verify-group-code', {
     access_code: accessCode,
     telegram_id: telegramId,
     full_name: fullName,
+    student_code: studentCode || '',
   }) as AcademyGroupAccess;
 }
 
