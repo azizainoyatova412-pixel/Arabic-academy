@@ -39,21 +39,27 @@ class DatabaseManager {
         const pool = new Pool({
           connectionString: rawUrl,
           ssl: isCloudDb ? { rejectUnauthorized: false } : false,
-          options: config.databaseSchema ? `-c search_path=${config.databaseSchema}` : undefined,
+          // options removed for Neon pooler compatibility
           connectionTimeoutMillis: 10000,
           idleTimeoutMillis: 10000,
           keepAlive: true,
         });
 
+        pool.on('connect', (client) => {
+          if (config.databaseSchema) {
+            client.query(`SET search_path TO "${config.databaseSchema}", public`).catch(() => {});
+          }
+        });
+
         // Test so'rov
         const client = await pool.connect();
         await client.query('SELECT 1');
-        client.release();
-
         if (config.databaseSchema) {
-          await pool.query(`CREATE SCHEMA IF NOT EXISTS "${config.databaseSchema}"`);
+          await client.query(`CREATE SCHEMA IF NOT EXISTS "${config.databaseSchema}"`);
+          await client.query(`SET search_path TO "${config.databaseSchema}", public`);
           console.log(`[DB] Bot jadvallari uchun "${config.databaseSchema}" schema ishlatiladi.`);
         }
+        client.release();
 
         this.pgPool = pool;
         this.engine = 'postgres';
