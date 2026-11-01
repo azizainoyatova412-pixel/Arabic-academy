@@ -25,14 +25,18 @@ export class PdfBookService {
   }
 
   public static async extractTextFromBuffer(dataBuffer: Buffer): Promise<string> {
+    let destroyParser: (() => Promise<void>) | undefined;
     try {
-      const pdfParseModule = await import('pdf-parse');
-      const pdf = (pdfParseModule as any).default || pdfParseModule;
-      const parsed = await pdf(dataBuffer);
+      const { PDFParse } = await import('pdf-parse');
+      const parser = new PDFParse({ data: new Uint8Array(dataBuffer) });
+      destroyParser = () => parser.destroy();
+      const parsed = await parser.getText();
       return (parsed.text || '').trim();
     } catch (err) {
-      console.warn('⚠️ [PDF Parse Error]:', err);
-      return '';
+      console.error('⚠️ [PDF Parse Error]:', err);
+      throw err;
+    } finally {
+      await destroyParser?.();
     }
   }
 
