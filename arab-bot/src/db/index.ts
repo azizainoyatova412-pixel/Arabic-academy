@@ -18,6 +18,7 @@ class DatabaseManager {
   private sqliteDb: DatabaseSync | null = null;
   private engine: DbEngine = 'sqlite';
   private isInitialized = false;
+  private configuredPgClients = new WeakSet<PoolClient>();
 
   public getEngine(): DbEngine {
     return this.engine;
@@ -44,11 +45,8 @@ class DatabaseManager {
           idleTimeoutMillis: 10000,
           keepAlive: true,
         });
-
-        pool.on('connect', (client) => {
-          if (config.databaseSchema) {
-            client.query(`SET search_path TO "${config.databaseSchema}", public`).catch(() => {});
-          }
+        pool.on('error', (error) => {
+          console.warn('[DB Postgres Pool] Bo‘sh ulanish xatosi; pool keyingi so‘rovda yangi ulanish ochadi:', error.message);
         });
 
         // Test so'rov
@@ -59,6 +57,7 @@ class DatabaseManager {
           await client.query(`SET search_path TO "${config.databaseSchema}", public`);
           console.log(`[DB] Bot jadvallari uchun "${config.databaseSchema}" schema ishlatiladi.`);
         }
+        this.configuredPgClients.add(client);
         client.release();
 
         this.pgPool = pool;
@@ -99,9 +98,11 @@ class DatabaseManager {
 
     if (this.engine === 'postgres' && this.pgPool) {
       for (let attempt = 1; attempt <= 3; attempt++) {
+        let client: PoolClient | undefined;
         try {
-          // Postgres uchun $1, $2 parametri ishlatiladi
-          const res = await this.pgPool.query(sql, params);
+          client = await this.pgPool.connect();
+          await this.configurePgClient(client);
+          const res = await client.query(sql, params);
           return { rows: res.rows as T[], rowCount: res.rowCount || 0 };
         } catch (err: any) {
           const isTransient = /ECONNRESET|Connection terminated|closed|timeout|socket/i.test(err?.message || '');
@@ -111,6 +112,8 @@ class DatabaseManager {
           }
           console.error('[DB Postgres Query Error]:', err, sql, params);
           throw err;
+        } finally {
+          client?.release();
         }
       }
     } else if (this.sqliteDb) {
@@ -160,6 +163,7 @@ class DatabaseManager {
     if (this.engine === 'postgres' && this.pgPool) {
       const client: PoolClient = await this.pgPool.connect();
       try {
+        await this.configurePgClient(client);
         await client.query('BEGIN');
         const trxManager = Object.create(this);
         trxManager.query = async (sql: string, params: any[] = []) => {
@@ -187,6 +191,14 @@ class DatabaseManager {
         throw e;
       }
     }
+  }
+
+  private async configurePgClient(client: PoolClient): Promise<void> {
+    if (this.configuredPgClients.has(client)) return;
+    if (config.databaseSchema) {
+      await client.query(`SET search_path TO "${config.databaseSchema}", public`);
+    }
+    this.configuredPgClients.add(client);
   }
 
   private async setupSchema(): Promise<void> {
@@ -439,7 +451,7 @@ class DatabaseManager {
 
     for (const sql of statements) {
       if (this.engine === 'postgres' && this.pgPool) {
-        await this.pgPool.query(sql);
+        await this.query(sql);
       } else if (this.sqliteDb) {
         this.sqliteDb.exec(sql);
       }
@@ -484,7 +496,7 @@ class DatabaseManager {
     for (const alterSql of alterColumns) {
       try {
         if (this.engine === 'postgres' && this.pgPool) {
-          await this.pgPool.query(alterSql);
+          await this.query(alterSql);
         } else if (this.sqliteDb) {
           this.sqliteDb.exec(alterSql);
         }
