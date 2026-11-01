@@ -8,6 +8,7 @@ import { BotKeyboards } from './keyboards.js';
 import { UserSessionState } from './types.js';
 import { GeminiService, QuizQuestion } from '../services/gemini.js';
 import {
+  AcademyGroupAccess,
   getAcademyGroupBook,
   getAcademyStudentMembership,
   getAcademyStudentStats,
@@ -934,44 +935,51 @@ export class BotManager {
     const studentCode = codeText.trim() === '0' ? '' : codeText.trim();
     const firstName = [ctx.from?.first_name, ctx.from?.last_name].filter(Boolean).join(' ') || 'Telegram o‘quvchi';
 
+    let access: AcademyGroupAccess;
     try {
-      const access = await verifyAcademyGroupCode(groupCode, telegramId, firstName, studentCode);
-      session.state = 'idle';
+      access = await verifyAcademyGroupCode(groupCode, telegramId, firstName, studentCode);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.warn('[Academy Sync] Talaba raqamini tasdiqlab bo‘lmadi:', message);
+      if (message.includes('topilmadi')) {
+        await this.replyInvalidAccessAttempt(ctx, telegramId);
+      } else {
+        await ctx.reply('Sayt bilan vaqtincha bog‘lanib bo‘lmadi. Iltimos, birozdan keyin qayta urinib ko‘ring.');
+      }
+      return;
+    }
 
+    session.state = 'idle';
+    try {
       await db.query(
         `UPDATE users
          SET academy_group_id = $1, academy_group_name = $2, student_code = COALESCE($3, student_code)
          WHERE telegram_id = $4`,
         [access.group.id, access.group.name, studentCode || null, telegramId]
       );
-
-      const studentName = access.student?.full_name || firstName;
-      const codeInfo = access.student?.student_code ? `\n🔢 Talaba raqamingiz: <b>#${access.student.student_code}</b>` : '';
-      const bookMessage = access.book
-        ? `\n📖 Guruh kitobi: <b>${access.book.title}</b>`
-        : '\n⚠️ Guruhga hali kitob biriktirilmagan.';
-
-      await ctx.reply(
-        `✅ <b>${access.group.name}</b> guruhiga muvaffaqiyatli bog'landingiz!\n` +
-        `👤 O'quvchi: <b>${studentName}</b>${codeInfo}${bookMessage}\n\n` +
-        `📊 Quyida talabalar statistikasi va umumiy reyting:`,
-        { parse_mode: 'HTML', reply_markup: await BotKeyboards.getMainMenu(lang) }
-      );
-
-      await this.renderAllGroupsStatsCard(ctx, telegramId, lang, true, false);
-
-      // 2 soniyadan so'ng tanlangan o'quvchi kartasi
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-      await this.renderPersonalStudentCard(ctx, telegramId, access.group.id, access.group.name, lang);
-    } catch (error: any) {
-      console.warn('[Academy Sync] Talaba raqamini tasdiqlab bo‘lmadi:', error.message);
+    } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      if (message.includes('topilmadi')) {
-        await this.replyInvalidAccessAttempt(ctx, telegramId);
-      } else {
-        await ctx.reply('Sayt bilan vaqtincha bog‘lanib bo‘lmadi. Iltimos, birozdan keyin qayta urinib ko‘ring.');
-      }
+      console.warn('[Bot DB] Saytda tasdiqlangan o‘quvchini lokal keshga saqlab bo‘lmadi:', message);
     }
+
+    const studentName = access.student?.full_name || firstName;
+    const codeInfo = access.student?.student_code ? `\n🔢 Talaba raqamingiz: <b>#${access.student.student_code}</b>` : '';
+    const bookMessage = access.book
+      ? `\n📖 Guruh kitobi: <b>${access.book.title}</b>`
+      : '\n⚠️ Guruhga hali kitob biriktirilmagan.';
+
+    await ctx.reply(
+      `✅ <b>${access.group.name}</b> guruhiga muvaffaqiyatli bog'landingiz!\n` +
+      `👤 O'quvchi: <b>${studentName}</b>${codeInfo}${bookMessage}\n\n` +
+      `📊 Quyida talabalar statistikasi va umumiy reyting:`,
+      { parse_mode: 'HTML', reply_markup: await BotKeyboards.getMainMenu(lang) }
+    );
+
+    await this.renderAllGroupsStatsCard(ctx, telegramId, lang, true, false);
+
+    // 2 soniyadan so'ng tanlangan o'quvchi kartasi
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    await this.renderPersonalStudentCard(ctx, telegramId, access.group.id, access.group.name, lang);
   }
 
   private async handleGroupsList(ctx: Context, telegramId: number, lang: string): Promise<void> {

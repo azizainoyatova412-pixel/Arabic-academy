@@ -12,32 +12,6 @@ function getCurrentMonthKey() {
   return `${year}-${month}`;
 }
 
-async function migrateLegacyCurrentMonthGrades(groupId = null) {
-  const currentMonth = getCurrentMonthKey();
-  await db.query(
-    `INSERT INTO public.monthly_grades
-       (group_id, telegram_id, month_key, lesson_grades, total_points, updated_at)
-     SELECT e.group_id, e.telegram_id, $1,
-            COALESCE(e.lesson_grades, '{}'::jsonb),
-            COALESCE(e.current_month_points, 0),
-            CURRENT_TIMESTAMP
-     FROM public.enrollments e
-     WHERE ($2::integer IS NULL OR e.group_id = $2)
-       AND (
-         COALESCE(e.lesson_grades, '{}'::jsonb) <> '{}'::jsonb
-         OR COALESCE(e.current_month_points, 0) > 0
-       )
-       AND NOT EXISTS (
-         SELECT 1
-         FROM public.monthly_grades existing
-         WHERE existing.group_id = e.group_id
-           AND existing.telegram_id = e.telegram_id
-       )
-     ON CONFLICT (group_id, telegram_id, month_key) DO NOTHING`,
-    [currentMonth, groupId]
-  );
-}
-
 async function assignMissingStudentCodes(groupId) {
   await db.query(
     `WITH missing AS (
@@ -252,7 +226,6 @@ exports.getStudents = async (req, res) => {
   const { groupId } = req.params;
   const month = req.query.month || getCurrentMonthKey();
   try {
-    await migrateLegacyCurrentMonthGrades(groupId);
     await assignMissingStudentCodes(groupId);
 
     // 1. Shu guruhdagi barcha oylar ro'yxati
@@ -371,10 +344,6 @@ exports.updateLessonGrade = async (req, res) => {
   }
 
   try {
-    if (targetMonth === getCurrentMonthKey()) {
-      await migrateLegacyCurrentMonthGrades(group_id);
-    }
-
     let lessonGrades = {};
     const existing = await db.query(
       `SELECT COALESCE(lesson_grades, '{}'::jsonb) as lesson_grades, total_points 
@@ -473,7 +442,6 @@ exports.getGroupStats = async (req, res) => {
   const { groupId } = req.params;
   const month = req.query.month || getCurrentMonthKey();
   try {
-    await migrateLegacyCurrentMonthGrades(groupId);
     const result = await db.query(
       `SELECT 
          u.telegram_id, 
@@ -545,7 +513,6 @@ exports.getBotStudentStats = async (req, res) => {
 
   const month = getCurrentMonthKey();
   try {
-    await migrateLegacyCurrentMonthGrades();
     const result = await db.query(
       `SELECT
          e.group_id,

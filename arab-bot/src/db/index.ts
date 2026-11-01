@@ -281,6 +281,7 @@ class DatabaseManager {
         first_name VARCHAR(150),
         language_code VARCHAR(10) DEFAULT 'uz',
         joined_group_id INTEGER,
+        student_code VARCHAR(10),
         grade INTEGER,
         is_paid BOOLEAN DEFAULT FALSE,
         is_teacher BOOLEAN DEFAULT FALSE,
@@ -460,6 +461,7 @@ class DatabaseManager {
     // Mavjud bazalar uchun yangi ustunlarni xavfsiz qo'shish (Auto-migration)
     const alterColumns = [
       'ALTER TABLE users ADD COLUMN full_name TEXT',
+      'ALTER TABLE users ADD COLUMN student_code VARCHAR(10)',
       'ALTER TABLE users ADD COLUMN grade INTEGER',
       'ALTER TABLE users ADD COLUMN is_paid BOOLEAN DEFAULT FALSE',
       'ALTER TABLE users ADD COLUMN is_teacher BOOLEAN DEFAULT FALSE',
