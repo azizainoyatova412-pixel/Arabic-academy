@@ -468,6 +468,7 @@ class DatabaseManager {
       'ALTER TABLE users ADD COLUMN academy_group_id INTEGER',
       'ALTER TABLE users ADD COLUMN academy_group_name VARCHAR(150)',
       'ALTER TABLE user_tests ADD COLUMN academy_group_id INTEGER',
+      "ALTER TABLE user_tests ADD COLUMN level VARCHAR(50) NOT NULL DEFAULT 'A1'",
       'ALTER TABLE user_quiz_history ADD COLUMN academy_group_id INTEGER',
       'ALTER TABLE daily_test_attempts ADD COLUMN academy_group_id INTEGER',
       'ALTER TABLE user_tests ADD COLUMN test_type VARCHAR(20) DEFAULT \'practice\'',
@@ -498,7 +499,7 @@ class DatabaseManager {
     for (const alterSql of alterColumns) {
       try {
         if (this.engine === 'postgres' && this.pgPool) {
-          await this.query(alterSql);
+          await this.query(alterSql.replace('ADD COLUMN ', 'ADD COLUMN IF NOT EXISTS '));
         } else if (this.sqliteDb) {
           this.sqliteDb.exec(alterSql);
         }
