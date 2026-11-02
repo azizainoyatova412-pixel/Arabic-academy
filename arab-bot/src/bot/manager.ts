@@ -1373,7 +1373,7 @@ private async renderAllGroupsStatsCard(
     }
 
     if (academyStats?.groups.length) {
-      report += `\n\nℹ️ <i>Baholar darsda faolligingiz uyga vazifalarni qarab qo‘yiladi. Bu haqida shikoyat qilishdan avval talablarga javob bering</i>`;
+      report += `\n\nℹ️ <i>Baholar darsda faolligingiz uyga vazifalarni bajarganingizga qarab qo‘yiladi. Bu haqida shikoyat qilishdan avval talablarga javob bering</i>`;
     }
 
     const kb = BotKeyboards.getStatsToggleKeyboard(isExpanded, lang);

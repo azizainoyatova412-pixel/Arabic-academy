@@ -749,7 +749,7 @@ function Landing() {
                 </div>
                 <h2>{t.contact.title}</h2>
                 <p className="contact-copy">{t.contact.desc}</p>
-                <div style={{ marginTop: '18px', display: 'flex', flexWrap: 'wrap', gap: '14px' }}>
+                <div className="contact-actions">
                   <a href={telegramAdminUrl} className="telegram-btn">
                     {t.contact.btn} ✦
                   </a>
