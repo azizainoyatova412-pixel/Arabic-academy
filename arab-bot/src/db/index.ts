@@ -390,6 +390,15 @@ class DatabaseManager {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );`,
 
+      `CREATE TABLE IF NOT EXISTS ai_tutor_question_history (
+        id ${idType},
+        telegram_id BIGINT NOT NULL,
+        academy_group_id INTEGER NOT NULL,
+        book_id INTEGER NOT NULL,
+        question TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );`,
+
       `CREATE TABLE IF NOT EXISTS user_study_progress (
         id ${idType},
         user_id INTEGER,
@@ -507,6 +516,13 @@ class DatabaseManager {
         // Agar ustun allaqachon mavjud bo'lsa xatoni e'tiborsiz qoldiramiz
       }
     }
+
+    await this.query(
+      'CREATE INDEX IF NOT EXISTS idx_ai_tutor_question_history_recent ON ai_tutor_question_history (telegram_id, academy_group_id, created_at)'
+    );
+    await this.query(
+      'CREATE INDEX IF NOT EXISTS idx_user_quiz_history_recent ON user_quiz_history (telegram_id, academy_group_id, created_at)'
+    );
 
     // Soxta/test ma'lumotlarni tozalash (Band 1 talabi: soxta ma'lumotlar bo'lmasin)
     try {

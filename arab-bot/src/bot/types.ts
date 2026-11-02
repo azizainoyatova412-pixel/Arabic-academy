@@ -26,6 +26,7 @@ export interface UserSessionState {
   isAdmin?: boolean;
   activeTutorBookId?: number;
   activeTutorBookTitle?: string;
+  activeTutorGroupId?: number;
   activeTutorBookContent?: string;
   activeTutorQuestion?: string;
   testQuestions?: QuizQuestion[];

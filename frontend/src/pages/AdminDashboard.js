@@ -1608,7 +1608,8 @@ function BooksSection() {
   const [selectedFile, setSelectedFile] = useState(null);
   const [message, setMessage] = useState({ type: '', text: '' });
   const [attachModalBook, setAttachModalBook] = useState(null);
-  const [selectedGroupId, setSelectedGroupId] = useState('');
+  const [selectedGroupIds, setSelectedGroupIds] = useState([]);
+  const [attaching, setAttaching] = useState(false);
 
   const authKey = sessionStorage.getItem('admin_auth') || '';
 
@@ -1687,24 +1688,27 @@ function BooksSection() {
 
   const handleAttach = async (e) => {
     e.preventDefault();
-    if (!attachModalBook) return;
+    if (!attachModalBook || selectedGroupIds.length === 0) return;
+    setAttaching(true);
     try {
-      const res = await fetch(`${API}/api/admin/groups/${selectedGroupId}/attach-book`, {
+      const res = await fetch(`${API}/api/admin/books/${attachModalBook.id}/attach-groups`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'x-admin-key': authKey,
         },
-        body: JSON.stringify({ bookId: attachModalBook.id }),
+        body: JSON.stringify({ groupIds: selectedGroupIds }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Biriktirishda xatolik');
-      setMessage({ type: 'success', text: data.message || 'Kitob guruhga muvaffaqiyatli biriktirildi!' });
+      setMessage({ type: 'success', text: data.message || 'Kitob tanlangan guruhlarga biriktirildi!' });
       setAttachModalBook(null);
-      setSelectedGroupId('');
+      setSelectedGroupIds([]);
       loadData();
     } catch (err) {
       setMessage({ type: 'danger', text: err.message });
+    } finally {
+      setAttaching(false);
     }
   };
 
@@ -1734,6 +1738,9 @@ function BooksSection() {
       {/* Yangi PDF Kitob yuklash formasi */}
       <div className="admin-card" style={{ marginBottom: '28px' }}>
         <h3 className="admin-card-title">📤 Yangi PDF Kitob yuklash</h3>
+        <p style={{ margin: '-8px 0 18px', color: '#475569', fontSize: '0.92rem' }}>
+          Yangi kitob yuklashdan oldin mavjud kitoblarni ko‘zdan kechiring, balki sizga keraklisi allaqachon mavjuddir — uni guruhga biriktiring, tamom!
+        </p>
         <form onSubmit={handleUpload} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '16px', alignItems: 'end' }}>
           <div className="admin-field" style={{ margin: 0 }}>
             <label>Kitob / Darslik nomi:</label>
@@ -1854,7 +1861,7 @@ function BooksSection() {
                     style={{ background: '#f1f5f9', color: '#0f172a' }}
                     onClick={() => {
                       setAttachModalBook(b);
-                      setSelectedGroupId(groups[0]?.id || '');
+                      setSelectedGroupIds((b.attachedGroups || []).map((group) => group.id));
                     }}
                   >
                     👥 Guruhga
@@ -1902,37 +1909,48 @@ function BooksSection() {
               👥 Guruhga kitob biriktirish
             </h3>
             <p style={{ margin: '0 0 18px 0', color: '#64748b', fontSize: '0.88rem' }}>
-              <strong>"{attachModalBook.title}"</strong> kitobini qaysi o'quv guruhiga biriktirmoqchisiz?
+              <strong>"{attachModalBook.title}"</strong> kitobini bir yoki bir nechta o‘quv guruhiga biriktiring.
             </p>
 
             <form onSubmit={handleAttach}>
               <div className="admin-field">
-                <label>Guruhni tanlang:</label>
-                <select
-                  value={selectedGroupId}
-                  onChange={(e) => setSelectedGroupId(e.target.value)}
-                  className="admin-input"
-                  required
-                >
-                  <option value="">-- Guruhni tanlang --</option>
-                  {groups.map((g) => (
-                    <option key={g.id} value={g.id}>
-                      {g.name}
-                    </option>
-                  ))}
-                </select>
+                <label>Guruhlarni tanlang:</label>
+                {groups.length === 0 ? (
+                  <p>Hozircha guruhlar mavjud emas.</p>
+                ) : (
+                  <div style={{ display: 'grid', gap: '8px', maxHeight: '240px', overflowY: 'auto' }}>
+                    {groups.map((g) => (
+                      <label key={g.id} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <input
+                          type="checkbox"
+                          checked={selectedGroupIds.includes(g.id)}
+                          onChange={(e) => setSelectedGroupIds((current) =>
+                            e.target.checked
+                              ? [...current, g.id]
+                              : current.filter((id) => id !== g.id)
+                          )}
+                        />
+                        {g.name}
+                      </label>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '20px' }}>
                 <button
                   type="button"
                   className="admin-btn"
-                  onClick={() => setAttachModalBook(null)}
+                  disabled={attaching}
+                  onClick={() => {
+                    setAttachModalBook(null);
+                    setSelectedGroupIds([]);
+                  }}
                 >
                   Bekor qilish
                 </button>
-                <button type="submit" className="admin-btn primary">
-                  ✅ Biriktirish
+                <button type="submit" className="admin-btn primary" disabled={attaching || selectedGroupIds.length === 0}>
+                  {attaching ? '⏳ Biriktirilmoqda...' : '✅ Tanlangan guruhlarga biriktirish'}
                 </button>
               </div>
             </form>

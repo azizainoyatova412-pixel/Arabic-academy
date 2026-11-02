@@ -43,6 +43,10 @@ export interface AcademyStudentMembership {
   studentCode: string | null;
 }
 
+const bookTextCache = new Map<string, { text: string; expiresAt: number }>();
+const BOOK_TEXT_CACHE_TTL_MS = 30 * 60 * 1000;
+const BOOK_TEXT_CACHE_LIMIT = 10;
+
 function getAcademyApiUrl(): URL {
   if (!config.academyApiUrl) {
     throw new Error('ACADEMY_API_URL sozlanmagan');
@@ -133,6 +137,23 @@ async function fetchPdfBuffer(pdfPath: string): Promise<Buffer> {
   return Buffer.from(await response.arrayBuffer());
 }
 
+async function getBookText(pdfPath: string): Promise<string> {
+  const cached = bookTextCache.get(pdfPath);
+  if (cached && cached.expiresAt > Date.now()) return cached.text;
+  if (cached) bookTextCache.delete(pdfPath);
+
+  const buffer = await fetchPdfBuffer(pdfPath);
+  const text = await PdfBookService.extractTextFromBuffer(buffer);
+  if (!text) throw new Error('Kitob PDF faylidan matn ajratib olinmadi');
+
+  if (bookTextCache.size >= BOOK_TEXT_CACHE_LIMIT) {
+    const oldestKey = bookTextCache.keys().next().value;
+    if (oldestKey) bookTextCache.delete(oldestKey);
+  }
+  bookTextCache.set(pdfPath, { text, expiresAt: Date.now() + BOOK_TEXT_CACHE_TTL_MS });
+  return text;
+}
+
 export async function submitAcademyReview(telegramId: number, name: string, text: string): Promise<void> {
   await sendAcademyRequest('/api/bot/reviews', { telegram_id: telegramId, name, text });
 }
@@ -174,13 +195,7 @@ export async function verifyAcademyGroupCode(
 export async function getAcademyBookText(bookId: number): Promise<{ title: string; text: string }> {
   const response = await sendAcademyRequest(`/api/bot/books/${bookId}`, {});
   const book = response as AcademyBook;
-  const buffer = await fetchPdfBuffer(book.pdfPath);
-
-  const text = await PdfBookService.extractTextFromBuffer(buffer);
-  if (!text) {
-    throw new Error('Kitob PDF faylidan matn ajratib olinmadi');
-  }
-  return { title: book.title, text };
+  return { title: book.title, text: await getBookText(book.pdfPath) };
 }
 
 export async function getAcademyGroupBook(
@@ -191,10 +206,7 @@ export async function getAcademyGroupBook(
     telegram_id: telegramId,
   }) as AcademyBook;
 
-  const buffer = await fetchPdfBuffer(book.pdfPath);
-  const text = await PdfBookService.extractTextFromBuffer(buffer);
-  if (!text) throw new Error('Guruh kitobining PDF faylidan matn ajratib olinmadi');
-  return { id: book.id, title: book.title, text };
+  return { id: book.id, title: book.title, text: await getBookText(book.pdfPath) };
 }
 
 export async function syncAcademyStats(): Promise<void> {

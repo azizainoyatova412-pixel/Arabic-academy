@@ -246,7 +246,8 @@ Javobni FAQAT toza JSON massiv ko'rinishida qaytaring:
   public static async generateBookQuestion(
     bookContent: string,
     lang: string = 'uz',
-    previousQuestion?: string
+    previousQuestion?: string,
+    excludedQuestions: string[] = []
   ): Promise<string> {
     const apiKeys = this.getApiKeys();
     if (apiKeys.length === 0) {
@@ -255,8 +256,10 @@ Javobni FAQAT toza JSON massiv ko'rinishida qaytaring:
 
     const language = lang === 'ru' ? 'Russian' : lang === 'en' ? 'English' : 'Uzbek';
     const excerpt = bookContent.slice(0, 14000);
-    const previous = previousQuestion
-      ? `\nOldingi savolni takrorlamang: "${previousQuestion}".`
+    const recentQuestions = [...new Set([previousQuestion, ...excludedQuestions].filter(Boolean))]
+      .slice(0, 20);
+    const previous = recentQuestions.length > 0
+      ? `\nQuyidagi savollarni mazmunan ham, jumla shaklida ham takrorlamang; kitobning boshqa mavzusi yoki yangi jihatini tanlang:\n${recentQuestions.map((item) => `- ${item}`).join('\n')}`
       : '';
     const prompt = `Siz arab tili kitobidan o'quvchiga savol beradigan ustozsiz.
 Faqat quyida berilgan kitob matnidagi aniq ma'lumotlardan foydalaning. Tashqi bilim qo'shmang.
@@ -346,9 +349,6 @@ ${bookContent.slice(0, 14000)}`;
     const candidateModels = [
       'gemini-3.5-flash-lite',
       'gemini-3.1-flash-lite',
-      'gemini-3.8-flash',
-      'gemini-3.7-flash',
-      'gemini-2.5-pro',
     ];
 
     const langInstruction =
@@ -608,6 +608,11 @@ Javobni FAQAT toza JSON ko'rinishida qaytaring:
       : "Faqat taqdim etilgan kitob matnidagi mavzular";
 
     const excerpt = options.bookText.slice(0, 12000);
+    const excludedQuestions = [...new Set((options.excludedQuestions || []).map((question) => question.trim()).filter(Boolean))]
+      .slice(0, 30);
+    const excludedInstruction = excludedQuestions.length > 0
+      ? `\nAvvalgi AI ustoz yoki test savollarini takrorlamang, ularni mazmunan qayta tuzib ham bermang:\n${excludedQuestions.map((question) => `- ${question}`).join('\n')}\nBu test ichidagi savollar ham bir-biridan farqli bo‘lsin.`
+      : '\nTest ichidagi savollar bir-biridan mazmunan farqli bo‘lsin.';
     const levelInstruction = options.difficulty === 'hard'
       ? "O'quvchi darajasi yuqori (B1-B2): matn mazmunini chuqur tushunish, qo'llanish, grammatik farqlar va kontekstli lug'atni tekshiring."
       : options.difficulty === 'medium'
@@ -620,6 +625,7 @@ Quyidagi guruhga biriktirilgan kitob matnidan va o'quvchining darajasidan kelib 
 ${topicsStr}
 Savol turlari: ${typesStr}
 ${levelInstruction}
+${excludedInstruction}
 Kitob matnidan parcha:
 ${excerpt}
 
@@ -656,9 +662,16 @@ Javobni FAQAT toza JSON massiv formatida qaytaring:
           const parsed = JSON.parse(text);
           if (Array.isArray(parsed) && parsed.length >= 2) {
             const list: QuizQuestion[] = [];
+            const normalizeQuestion = (question: string) =>
+              question.toLocaleLowerCase().replace(/[\s.,!?؟،؛:()[\]{}"'`-]+/g, ' ').trim();
+            const seenQuestions = new Set(excludedQuestions.map(normalizeQuestion));
             for (const item of parsed) {
               const clean = sanitizeQuizQuestion(item);
-              if (clean) list.push(clean);
+              const normalizedQuestion = clean ? normalizeQuestion(clean.question) : '';
+              if (clean && normalizedQuestion && !seenQuestions.has(normalizedQuestion)) {
+                seenQuestions.add(normalizedQuestion);
+                list.push(clean);
+              }
             }
             if (list.length >= 2) {
               return list.slice(0, count);

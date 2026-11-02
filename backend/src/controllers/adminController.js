@@ -41,6 +41,18 @@ async function assignMissingStudentCodes(groupId) {
   );
 }
 
+async function ensureCurrentMonthGrades(groupId) {
+  await db.query(
+    `INSERT INTO public.monthly_grades
+       (group_id, telegram_id, month_key, lesson_grades, total_points)
+     SELECT e.group_id, e.telegram_id, $2, '{}'::jsonb, 0
+     FROM public.enrollments e
+     WHERE e.group_id = $1 AND e.status = 'active'
+     ON CONFLICT (group_id, telegram_id, month_key) DO NOTHING`,
+    [groupId, getCurrentMonthKey()]
+  );
+}
+
 // ====== GROUPS ======
 exports.getGroups = async (req, res) => {
   try {
@@ -227,6 +239,7 @@ exports.getStudents = async (req, res) => {
   const month = req.query.month || getCurrentMonthKey();
   try {
     await assignMissingStudentCodes(groupId);
+    await ensureCurrentMonthGrades(groupId);
 
     // 1. Shu guruhdagi barcha oylar ro'yxati
     const monthsResult = await db.query(

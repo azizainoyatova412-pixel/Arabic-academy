@@ -166,6 +166,7 @@ app.get('/api/admin/books', adminGuard, bookController.getBooks);
 app.post('/api/admin/books', adminGuard, uploadBook.single('pdf'), bookController.uploadBook);
 app.delete('/api/admin/books/:id', adminGuard, bookController.deleteBook);
 app.post('/api/admin/groups/:groupId/attach-book', adminGuard, bookController.attachBookToGroup);
+app.post('/api/admin/books/:bookId/attach-groups', adminGuard, bookController.attachBookToGroups);
 
 // Botdan kelgan sharh/statistika (shared secret bilan himoyalanadi)
 app.post('/api/bot/reviews', botSyncGuard, contentController.submitBotReview);

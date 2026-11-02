@@ -240,3 +240,62 @@ exports.attachBookToGroup = async (req, res) => {
     res.status(500).json({ error: 'Guruhga kitob biriktirishda xatolik' });
   }
 };
+
+exports.attachBookToGroups = async (req, res) => {
+  const bookId = Number(req.params.bookId);
+  const groupIds = Array.isArray(req.body.groupIds)
+    ? [...new Set(req.body.groupIds.map(Number))]
+    : [];
+
+  if (!Number.isSafeInteger(bookId) || bookId <= 0) {
+    return res.status(400).json({ error: 'Kitob ID noto‘g‘ri' });
+  }
+  if (groupIds.length === 0 || groupIds.some((id) => !Number.isSafeInteger(id) || id <= 0)) {
+    return res.status(400).json({ error: 'Kamida bitta to‘g‘ri guruhni tanlang' });
+  }
+
+  try {
+    const result = await db.transaction(async (client) => {
+      const bookResult = await client.query(
+        'SELECT id, title, pdf_path FROM books WHERE id = $1',
+        [bookId]
+      );
+      if (bookResult.rowCount === 0) return { error: 'book' };
+
+      const groupsResult = await client.query(
+        'SELECT id FROM groups WHERE id = ANY($1::int[])',
+        [groupIds]
+      );
+      if (groupsResult.rowCount !== groupIds.length) return { error: 'groups' };
+
+      const book = bookResult.rows[0];
+      await client.query(
+        `UPDATE groups
+         SET book_name = NULL, book_pdf_path = NULL
+         WHERE (book_pdf_path = $1 OR (book_pdf_path IS NULL AND book_name = $2))
+           AND id <> ALL($3::int[])`,
+        [book.pdf_path, book.title, groupIds]
+      );
+      await client.query(
+        'UPDATE groups SET book_name = $1, book_pdf_path = $2 WHERE id = ANY($3::int[])',
+        [book.title, book.pdf_path, groupIds]
+      );
+      return { book, groupCount: groupIds.length };
+    });
+
+    if (result.error === 'book') {
+      return res.status(404).json({ error: 'Kitob topilmadi' });
+    }
+    if (result.error === 'groups') {
+      return res.status(404).json({ error: 'Tanlangan guruhlardan biri topilmadi' });
+    }
+    return res.json({
+      success: true,
+      message: `"${result.book.title}" kitobi ${result.groupCount} ta guruhga biriktirildi!`,
+      groupCount: result.groupCount,
+    });
+  } catch (err) {
+    console.error('attachBookToGroups xatolik:', err.message);
+    return res.status(500).json({ error: 'Kitobni tanlangan guruhlarga biriktirishda xatolik' });
+  }
+};

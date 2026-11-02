@@ -64,6 +64,43 @@ export class BotManager {
     });
   }
 
+  private async getRecentBookQuestions(telegramId: number, groupId: number): Promise<string[]> {
+    const [quizResult, tutorResult] = await Promise.all([
+      db.query(
+        `SELECT question FROM user_quiz_history
+         WHERE telegram_id = $1 AND academy_group_id = $2
+        ORDER BY created_at DESC LIMIT 15`,
+        [telegramId, groupId]
+      ),
+      db.query(
+        `SELECT question FROM ai_tutor_question_history
+         WHERE telegram_id = $1 AND academy_group_id = $2
+        ORDER BY created_at DESC LIMIT 15`,
+        [telegramId, groupId]
+      ),
+    ]);
+
+    return [...new Set(
+      [...quizResult.rows, ...tutorResult.rows]
+        .map((row: any) => String(row.question || '').trim().slice(0, 300))
+        .filter(Boolean)
+    )].slice(0, 30);
+  }
+
+  private async saveTutorQuestion(
+    telegramId: number,
+    groupId: number,
+    bookId: number,
+    question: string
+  ): Promise<void> {
+    await db.query(
+      `INSERT INTO ai_tutor_question_history
+       (telegram_id, academy_group_id, book_id, question)
+       VALUES ($1, $2, $3, $4)`,
+      [telegramId, groupId, bookId, question]
+    );
+  }
+
   /**
    * Admin bilan to'g'ridan-to'g'ri Telegram shaxsiy chatiga o'tish havolasi
    * Faqat bitta ADMIN_ID ishlatiladi!
@@ -436,8 +473,12 @@ export class BotManager {
           'SELECT academy_group_id FROM users WHERE telegram_id = $1',
           [telegramId]
         );
+        const groupId = Number(membership.rows[0]?.academy_group_id);
+        if (!Number.isSafeInteger(groupId) || groupId <= 0) {
+          throw new Error('Foydalanuvchining faol guruhi topilmadi');
+        }
         const book = await getAcademyGroupBook(
-          Number(membership.rows[0]?.academy_group_id),
+          groupId,
           telegramId
         );
         if (book.id !== Number(ctx.match[1])) {
@@ -447,14 +488,19 @@ export class BotManager {
         const session = this.getSession(telegramId);
         session.state = 'chatting_with_ai_tutor';
         session.activeTutorBookId = Number(ctx.match[1]);
+        session.activeTutorGroupId = groupId;
         session.activeTutorBookTitle = book.title;
         const bookContent = book.text.slice(0, 16000);
         session.activeTutorBookContent = bookContent;
+        const excludedQuestions = await this.getRecentBookQuestions(telegramId, groupId);
         const question = await GeminiService.generateBookQuestion(
           bookContent,
-          lang
+          lang,
+          undefined,
+          excludedQuestions
         );
         session.activeTutorQuestion = question;
+        await this.saveTutorQuestion(telegramId, groupId, book.id, question);
         await ctx.reply(`📖 Kitob asosidagi savol:\n\n${question}\n\nJavobingizni yozing.`, {
           reply_markup: BotKeyboards.getAITutorExitKeyboard(lang),
         });
@@ -1178,13 +1224,7 @@ private async renderAllGroupsStatsCard(
       }
 
       const book = await getAcademyGroupBook(groupId, telegramId);
-      const prevCorrectRes = await db.query(
-        `SELECT DISTINCT question FROM user_quiz_history 
-         WHERE telegram_id = $1 AND academy_group_id = $2 AND is_correct = TRUE
-         ORDER BY question ASC LIMIT 50`,
-        [telegramId, groupId]
-      );
-      const excludedQuestions = prevCorrectRes.rows.map((r: any) => r.question);
+      const excludedQuestions = await this.getRecentBookQuestions(telegramId, groupId);
       const latestResult = await db.query(
         `SELECT level FROM user_tests
          WHERE telegram_id = $1 AND academy_group_id = $2
@@ -1455,6 +1495,17 @@ private async renderAllGroupsStatsCard(
 
     await ctx.replyWithChatAction('typing').catch(() => { });
     try {
+      const groupId = Number(session.activeTutorGroupId);
+      const bookId = Number(session.activeTutorBookId);
+      if (!Number.isSafeInteger(groupId) || groupId <= 0 || !Number.isSafeInteger(bookId) || bookId <= 0) {
+        throw new Error('AI ustoz sessiyasi uchun guruh yoki kitob aniqlanmadi');
+      }
+      await this.saveTutorQuestion(
+        telegramId,
+        groupId,
+        bookId,
+        session.activeTutorQuestion
+      );
       const evaluation = await GeminiService.evaluateBookAnswer(
         session.activeTutorBookContent,
         session.activeTutorQuestion,
@@ -1472,9 +1523,11 @@ private async renderAllGroupsStatsCard(
       const nextQuestion = await GeminiService.generateBookQuestion(
         session.activeTutorBookContent,
         lang,
-        session.activeTutorQuestion
+        session.activeTutorQuestion,
+        await this.getRecentBookQuestions(telegramId, groupId)
       );
       session.activeTutorQuestion = nextQuestion;
+      await this.saveTutorQuestion(telegramId, groupId, bookId, nextQuestion);
       await ctx.reply(`${evaluation.feedback}\n\n📖 Keyingi savol:\n\n${nextQuestion}`, {
         reply_markup: exitKb,
       });
