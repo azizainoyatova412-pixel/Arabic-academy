@@ -517,7 +517,7 @@ apiRouter.get('/test-settings', async (req: Request, res: Response) => {
       test_book_name: 'Arab tili asoslari',
       test_topics_selection: 'all',
       test_question_types: '["auto"]',
-      test_questions_count: 5,
+      test_questions_count: 10,
       test_daily_limit: 1,
     };
     res.json({
@@ -529,7 +529,7 @@ apiRouter.get('/test-settings', async (req: Request, res: Response) => {
         book_text: settings.test_book_text || '',
         selected_topics: settings.test_topics_selection || 'all',
         question_types: settings.test_question_types || '["auto"]',
-        question_count: settings.test_questions_count || 5,
+        question_count: settings.test_questions_count || 10,
         test_daily_limit: settings.test_daily_limit !== undefined ? settings.test_daily_limit : 1,
       },
     });
@@ -546,7 +546,7 @@ apiRouter.post('/test-settings', async (req: Request, res: Response) => {
     const qCountRaw = req.body.test_questions_count || req.body.question_count;
     const limitRaw = req.body.test_daily_limit !== undefined ? req.body.test_daily_limit : req.body.daily_limit;
 
-    const count = Math.max(1, parseInt(qCountRaw, 10) || 5);
+    const count = Math.max(1, parseInt(qCountRaw, 10) || 10);
     const limit = parseInt(limitRaw, 10);
 
     const existing = await db.query('SELECT id FROM test_settings LIMIT 1');
@@ -937,4 +937,3 @@ apiRouter.post('/groups/:id/detach-book', async (req: Request, res: Response) =>
     res.status(500).json({ success: false, message: "Kitobni uzishda xatolik" });
   }
 });
-

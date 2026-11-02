@@ -26,7 +26,12 @@ export default function AdminLogin() {
         sessionStorage.setItem('admin_auth', password);
         navigate('/admin/dashboard');
       } else {
-        setError("Kiritilgan parol noto'g'ri. Iltimos, qaytadan urinib ko'ring.");
+        const data = await res.json().catch(() => ({}));
+        setError(
+          res.status === 401
+            ? "Kiritilgan parol noto'g'ri. Iltimos, qaytadan urinib ko'ring."
+            : data.error || 'Server admin kirishini tekshira olmadi. Keyinroq qayta urinib ko‘ring.'
+        );
       }
     } catch {
       setError('Serverga ulanib bo\'lmadi. Backend ishlayotganini tekshiring.');

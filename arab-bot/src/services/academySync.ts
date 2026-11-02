@@ -4,6 +4,7 @@ import { PdfBookService } from './pdfBook.js';
 
 export interface AcademyStudentStats {
   telegramId: number;
+  monthKey: string;
   updatedAt: string;
   groups: Array<{
     groupId: number;
@@ -13,6 +14,7 @@ export interface AcademyStudentStats {
     monthPoints: number;
     totalPoints: number;
     gradedLessons: number;
+    hasCurrentMonthGrades: boolean;
     averageGrade: number | null;
     progressDifference: number | null;
     progressStatus: 'improved' | 'declined' | 'unchanged' | 'no-data';

@@ -10,7 +10,7 @@ const adminController = require('./controllers/adminController');
 const contentController = require('./controllers/contentController');
 const bookController = require('./controllers/bookController');
 
-require('dotenv').config();
+require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
 const app = express();
 app.use(cors());
@@ -83,11 +83,19 @@ app.get('/api/public-config', (_req, res) => {
 // ADMIN API endpointlari (x-admin-key header bilan himoyalangan)
 // ============================================================
 // Runtime'da o'zgartiriladigan parol (server qayta ishga tushganda .env ga qaytadi)
-let runtimePassword = process.env.ADMIN_PASSWORD || 'admint';
+let runtimePassword = (process.env.ADMIN_PASSWORD || '').trim();
 
 const adminGuard = (req, res, next) => {
   const providedKey = req.headers['x-admin-key'];
-  if (providedKey && providedKey === runtimePassword) return next();
+  if (!runtimePassword) {
+    return res.status(503).json({ error: 'ADMIN_PASSWORD sozlanmagan' });
+  }
+  const providedBuffer = Buffer.from(String(providedKey || ''), 'utf8');
+  const expectedBuffer = Buffer.from(runtimePassword, 'utf8');
+  if (
+    providedBuffer.length === expectedBuffer.length &&
+    crypto.timingSafeEqual(providedBuffer, expectedBuffer)
+  ) return next();
   res.status(401).json({ error: 'Ruxsatsiz kirish – admin kaliti noto‘g‘ri' });
 };
 
@@ -112,9 +120,14 @@ const botSyncGuard = (req, res, next) => {
 
 // Parolni o'zgartirish endpointi
 app.put('/api/admin/change-password', adminGuard, (req, res) => {
-  const { newPassword } = req.body;
-  if (!newPassword || newPassword.trim().length < 6) {
-    return res.status(400).json({ error: 'Yangi parol kamida 6 ta belgidan iborat bo\'lishi kerak' });
+  const { newPassword } = req.body || {};
+  if (
+    typeof newPassword !== 'string' ||
+    newPassword.trim().length < 6 ||
+    newPassword.trim().length > 128 ||
+    /\s/.test(newPassword)
+  ) {
+    return res.status(400).json({ error: 'Yangi parol 6–128 belgidan iborat bo‘lishi va bo‘sh joy saqlamasligi kerak' });
   }
   runtimePassword = newPassword.trim();
 
@@ -124,7 +137,10 @@ app.put('/api/admin/change-password', adminGuard, (req, res) => {
     if (fs.existsSync(envPath)) {
       let envContent = fs.readFileSync(envPath, 'utf8');
       if (envContent.includes('ADMIN_PASSWORD=')) {
-        envContent = envContent.replace(/ADMIN_PASSWORD=.*(\r?\n|$)/, `ADMIN_PASSWORD=${runtimePassword}$1`);
+        envContent = envContent.replace(
+          /^ADMIN_PASSWORD=.*$/m,
+          () => `ADMIN_PASSWORD=${runtimePassword}`
+        );
       } else {
         envContent += `\nADMIN_PASSWORD=${runtimePassword}\n`;
       }
@@ -141,6 +157,7 @@ app.put('/api/admin/change-password', adminGuard, (req, res) => {
 // Guruhlar
 app.get('/api/admin/groups', adminGuard, adminController.getGroups);
 app.post('/api/admin/groups', adminGuard, adminController.createGroup);
+app.put('/api/admin/groups/:groupId', adminGuard, adminController.updateGroup);
 app.delete('/api/admin/groups/:groupId', adminGuard, adminController.deleteGroup);
 app.get('/api/admin/groups/:groupId/students', adminGuard, adminController.getStudents);
 app.post('/api/admin/groups/:groupId/students', adminGuard, adminController.addStudent);

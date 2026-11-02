@@ -591,7 +591,7 @@ Javobni FAQAT toza JSON ko'rinishida qaytaring:
     difficulty?: 'easy' | 'medium' | 'hard';
   }): Promise<QuizQuestion[]> {
     const apiKeys = this.getApiKeys();
-    const count = options.count || 5;
+    const count = options.count || 10;
     const lang = options.lang || 'uz';
 
     if (apiKeys.length === 0) {
@@ -620,7 +620,7 @@ Javobni FAQAT toza JSON ko'rinishida qaytaring:
         : "O'quvchi boshlang'ich (A1-A2): kitobdagi sodda matnlarni tushunish, kundalik iboralar, asosiy tuzilmalar va kontekstli lug'atni tekshiring.";
 
     const prompt = `Siz zamonaviy arab tili dasturining professional imtihon tuzuvchisisiz.
-Quyidagi guruhga biriktirilgan kitob matnidan va o'quvchining darajasidan kelib chiqib ${count} tagacha ko'p variantli test savoli tuzing.
+Quyidagi guruhga biriktirilgan kitob matnidan va o'quvchining darajasidan kelib chiqib aynan ${count} ta ko'p variantli test savoli tuzing.
 
 ${topicsStr}
 Savol turlari: ${typesStr}
@@ -673,7 +673,7 @@ Javobni FAQAT toza JSON massiv formatida qaytaring:
                 list.push(clean);
               }
             }
-            if (list.length >= 2) {
+            if (list.length >= count) {
               return list.slice(0, count);
             }
           }

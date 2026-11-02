@@ -64,17 +64,50 @@ exports.getGroups = async (req, res) => {
 };
 
 exports.createGroup = async (req, res) => {
-  const { name } = req.body;
-  if (!name) return res.status(400).json({ error: 'name kerak' });
+  const name = typeof req.body?.name === 'string' ? req.body.name.trim() : '';
+  if (!name) return res.status(400).json({ error: 'Guruh nomini kiriting' });
+  if (name.length > 150) return res.status(400).json({ error: 'Guruh nomi 150 belgidan oshmasligi kerak' });
   try {
     const accessCode = crypto.randomBytes(4).toString('hex').toUpperCase();
     const r = await db.query(
       'INSERT INTO groups (name, access_code) VALUES ($1, $2) RETURNING *',
-      [name.trim(), accessCode]
+      [name, accessCode]
     );
     res.json({ group: r.rows[0] });
   } catch (e) {
     res.status(500).json({ error: e.message });
+  }
+};
+
+exports.updateGroup = async (req, res) => {
+  const groupId = Number(req.params.groupId);
+  const name = typeof req.body?.name === 'string' ? req.body.name.trim() : '';
+  if (!Number.isSafeInteger(groupId) || groupId <= 0) {
+    return res.status(400).json({ error: 'Guruh ID noto‘g‘ri' });
+  }
+  if (!name) return res.status(400).json({ error: 'Guruh nomini kiriting' });
+  if (name.length > 150) return res.status(400).json({ error: 'Guruh nomi 150 belgidan oshmasligi kerak' });
+
+  try {
+    const updatedGroup = await db.transaction(async (client) => {
+      const result = await client.query(
+        'UPDATE public.groups SET name = $1 WHERE id = $2 RETURNING id, name, access_code',
+        [name, groupId]
+      );
+      if (result.rowCount === 0) return null;
+
+      await client.query(
+        'UPDATE public.users SET academy_group_name = $1 WHERE academy_group_id = $2',
+        [name, groupId]
+      );
+      return result.rows[0];
+    });
+
+    if (!updatedGroup) return res.status(404).json({ error: 'Guruh topilmadi' });
+    return res.json({ group: updatedGroup });
+  } catch (error) {
+    console.error('updateGroup xatolik:', error.message);
+    return res.status(500).json({ error: 'Guruh nomini yangilashda server xatoligi yuz berdi' });
   }
 };
 
@@ -582,6 +615,7 @@ exports.getBotStudentStats = async (req, res) => {
         monthPoints: Number(ownRow.current_month_points) || 0,
         totalPoints: Number(ownRow.total_points) || 0,
         gradedLessons: ownProgress?.gradedLessons || 0,
+        hasCurrentMonthGrades: (ownProgress?.gradedLessons || 0) > 0,
         averageGrade: ownProgress?.currentAverage ?? (ownGrades.length
           ? Number((ownGrades.reduce((sum, grade) => sum + grade, 0) / ownGrades.length).toFixed(2))
           : null),
@@ -598,7 +632,7 @@ exports.getBotStudentStats = async (req, res) => {
       });
     }
 
-    res.json({ telegramId, groups, updatedAt: new Date().toISOString() });
+    res.json({ telegramId, monthKey: month, groups, updatedAt: new Date().toISOString() });
   } catch (e) {
     console.error('Bot o‘quvchi statistikasini olishda xatolik:', e.message);
     res.status(500).json({ error: 'Sayt statistikasini olib bo‘lmadi' });

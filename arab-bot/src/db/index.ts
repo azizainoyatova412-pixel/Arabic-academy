@@ -453,7 +453,7 @@ class DatabaseManager {
         test_book_text TEXT,
         test_topics_selection TEXT DEFAULT 'all',
         test_question_types TEXT DEFAULT '["auto"]',
-        test_questions_count INTEGER DEFAULT 5,
+        test_questions_count INTEGER DEFAULT 10,
         test_daily_limit INTEGER DEFAULT 1,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );`,
@@ -496,10 +496,10 @@ class DatabaseManager {
       'ALTER TABLE test_settings ADD COLUMN test_book_text TEXT',
       'ALTER TABLE test_settings ADD COLUMN test_topics_selection TEXT DEFAULT \'all\'',
       'ALTER TABLE test_settings ADD COLUMN test_question_types TEXT DEFAULT \'["auto"]\'',
-      'ALTER TABLE test_settings ADD COLUMN test_questions_count INTEGER DEFAULT 5',
+      'ALTER TABLE test_settings ADD COLUMN test_questions_count INTEGER DEFAULT 10',
       'ALTER TABLE test_settings ADD COLUMN test_daily_limit INTEGER DEFAULT 1',
       'ALTER TABLE daily_test_attempts ADD COLUMN score INTEGER DEFAULT 0',
-      'ALTER TABLE daily_test_attempts ADD COLUMN total INTEGER DEFAULT 5',
+      'ALTER TABLE daily_test_attempts ADD COLUMN total INTEGER DEFAULT 10',
       'ALTER TABLE student_failed_alerts ADD COLUMN student_id INTEGER',
       'ALTER TABLE student_failed_alerts ADD COLUMN student_name VARCHAR(150)',
       'ALTER TABLE student_failed_alerts ADD COLUMN student_answer TEXT',
@@ -536,7 +536,7 @@ class DatabaseManager {
       if (tsCheck.rows.length === 0) {
         await this.query(
           `INSERT INTO test_settings (test_book_name, test_topics_selection, test_question_types, test_questions_count, test_daily_limit)
-           VALUES ('Arab tili asoslari', 'all', '["auto"]', 5, 1)`
+           VALUES ('Arab tili asoslari', 'all', '["auto"]', 10, 1)`
         );
       }
     } catch {}

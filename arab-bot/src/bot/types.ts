@@ -29,6 +29,10 @@ export interface UserSessionState {
   activeTutorGroupId?: number;
   activeTutorBookContent?: string;
   activeTutorQuestion?: string;
+  activeTutorQuestionCount?: number;
+  isStartingTutor?: boolean;
+  isGeneratingTutorQuestion?: boolean;
+  isProcessingTutorAnswer?: boolean;
   testQuestions?: QuizQuestion[];
   testCurrentIndex?: number;
   testScore?: number;

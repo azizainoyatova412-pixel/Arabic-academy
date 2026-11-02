@@ -350,6 +350,8 @@ function GradesSection({ onDataChange }) {
   const [newMonthInput, setNewMonthInput] = useState('');
   const [showAddMonth, setShowAddMonth] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
+  const [editingGroupId, setEditingGroupId] = useState(null);
+  const [editingGroupName, setEditingGroupName] = useState('');
   const [newStudentName, setNewStudentName] = useState('');
   const [studentStats, setStudentStats] = useState({
     totalStudents: 0,
@@ -508,6 +510,41 @@ function GradesSection({ onDataChange }) {
       showToast(err.message || 'Xatolik yuz berdi', 'error');
     }
     setLoading(false);
+  };
+
+  const updateGroupName = async (groupId, e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const name = editingGroupName.trim();
+    if (!name) {
+      showToast('Guruh nomini kiriting!', 'error');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await fetch(`${API}/api/admin/groups/${groupId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-key': sessionStorage.getItem('admin_auth') || '',
+        },
+        body: JSON.stringify({ name }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Guruh nomini yangilashda xatolik');
+
+      setGroups((previous) => previous.map((group) => (
+        group.id === groupId ? { ...group, ...data.group } : group
+      )));
+      setEditingGroupId(null);
+      setEditingGroupName('');
+      showToast('Guruh nomi yangilandi!');
+    } catch (err) {
+      showToast(err.message || 'Guruh nomini yangilashda xatolik', 'error');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const deleteGroup = async (groupId, groupName, e) => {
@@ -742,10 +779,55 @@ function GradesSection({ onDataChange }) {
                     style={{ cursor: 'pointer', position: 'relative' }}
                   >
                     <div className="group-item-info">
-                      <span className="group-name">{g.name}</span>
+                      {editingGroupId === g.id ? (
+                        <form
+                          onSubmit={(e) => updateGroupName(g.id, e)}
+                          onClick={(e) => e.stopPropagation()}
+                          style={{ display: 'flex', gap: '6px', alignItems: 'center', marginBottom: '6px' }}
+                        >
+                          <input
+                            type="text"
+                            value={editingGroupName}
+                            onChange={(e) => setEditingGroupName(e.target.value)}
+                            className="admin-input"
+                            maxLength={150}
+                            aria-label="Yangi guruh nomi"
+                            autoFocus
+                          />
+                          <button type="submit" className="admin-btn small primary" disabled={loading}>Saqlash</button>
+                          <button
+                            type="button"
+                            className="admin-btn small"
+                            onClick={() => {
+                              setEditingGroupId(null);
+                              setEditingGroupName('');
+                            }}
+                          >
+                            Bekor
+                          </button>
+                        </form>
+                      ) : (
+                        <span className="group-name">{g.name}</span>
+                      )}
                       <span className="group-code">ID: #{g.id} · Bot kodi: <strong>{g.access_code || 'Kod yo‘q'}</strong></span>
                     </div>
                     <div className="group-item-actions" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      {editingGroupId !== g.id && (
+                        <button
+                          type="button"
+                          className="group-delete-btn"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setEditingGroupId(g.id);
+                            setEditingGroupName(g.name);
+                          }}
+                          title="Guruh nomini o‘zgartirish"
+                          aria-label={`Guruh nomini o‘zgartirish: ${g.name}`}
+                        >
+                          ✏️
+                        </button>
+                      )}
                       <button
                         type="button"
                         className="group-delete-btn"
@@ -1550,6 +1632,7 @@ function SettingsSection() {
                 placeholder="Yangi parol (kamida 6 ta belgi)"
                 className="admin-input"
                 minLength={6}
+                maxLength={128}
                 required
               />
               <button type="button" className="toggle-password-btn" onClick={() => setShowNew(!showNew)}>

@@ -1,4 +1,4 @@
-import { createHmac } from 'crypto';
+import { createHmac, timingSafeEqual } from 'crypto';
 import type { NextFunction, Request, Response } from 'express';
 import { Bot, Context, GrammyError, HttpError, webhookCallback } from 'grammy';
 import { db, getTashkentDate } from '../db/index.js';
@@ -18,6 +18,15 @@ import {
 
 type TelegramWebhookHandler = (req: Request, res: Response, next: NextFunction) => Promise<void>;
 
+function escapeHtml(value: unknown): string {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 export class BotManager {
   private static instance: BotManager;
   private bot: Bot | null = null;
@@ -27,6 +36,7 @@ export class BotManager {
   private currentToken: string = '';
   private sessions = new Map<number, UserSessionState>();
   private lastInvalidAttemptAt = new Map<number, number>();
+  private adminPasswordFailures = new Map<number, { attempts: number; lockedUntil: number }>();
 
   private constructor() { }
 
@@ -466,6 +476,11 @@ export class BotManager {
       const lang = await I18nService.getUserLanguage(telegramId);
       await ctx.answerCallbackQuery().catch(() => { });
 
+      const session = this.getSession(telegramId);
+      if (session.isGeneratingTutorQuestion || session.activeTutorQuestion) {
+        return;
+      }
+      session.isGeneratingTutorQuestion = true;
       await ctx.replyWithChatAction('typing').catch(() => { });
 
       try {
@@ -485,7 +500,6 @@ export class BotManager {
           await ctx.reply('Faqat guruhingizga hozir biriktirilgan kitobdan foydalanishingiz mumkin.');
           return;
         }
-        const session = this.getSession(telegramId);
         session.state = 'chatting_with_ai_tutor';
         session.activeTutorBookId = Number(ctx.match[1]);
         session.activeTutorGroupId = groupId;
@@ -500,6 +514,7 @@ export class BotManager {
           excludedQuestions
         );
         session.activeTutorQuestion = question;
+        session.activeTutorQuestionCount = 1;
         await this.saveTutorQuestion(telegramId, groupId, book.id, question);
         await ctx.reply(`📖 Kitob asosidagi savol:\n\n${question}\n\nJavobingizni yozing.`, {
           reply_markup: BotKeyboards.getAITutorExitKeyboard(lang),
@@ -514,6 +529,8 @@ export class BotManager {
               ? 'Could not prepare a question from the book. Please try again later.'
               : 'Kitobdan savol tayyorlab bo‘lmadi. Iltimos, keyinroq qayta urinib ko‘ring.'
         );
+      } finally {
+        session.isGeneratingTutorQuestion = false;
       }
     });
 
@@ -736,21 +753,64 @@ export class BotManager {
 
       // Agar admin parolini kutayotgan bo'lsa
       if (session.state === 'waiting_admin_password') {
+        if (ctx.chat.type !== 'private') {
+          session.state = 'idle';
+          await ctx.reply('Admin parolini faqat bot bilan shaxsiy chatda kiriting.');
+          return;
+        }
+        if (text.toLowerCase() === '/cancel') {
+          session.state = 'idle';
+          await ctx.reply('Admin panelga kirish bekor qilindi.');
+          return;
+        }
+
         const enteredPass = text.trim();
-        const validPasswords = ['makkahh', config.adminPassword, '123'].filter(Boolean);
-        if (validPasswords.includes(enteredPass)) {
+        const now = Date.now();
+        const failure = this.adminPasswordFailures.get(telegramId);
+        if (failure && failure.lockedUntil > now) {
+          const minutes = Math.ceil((failure.lockedUntil - now) / 60000);
+          await ctx.reply(`Urinishlar vaqtincha bloklandi. ${minutes} daqiqadan so‘ng qayta urinib ko‘ring.`);
+          return;
+        }
+        const expectedPass = config.adminPassword;
+        const enteredBuffer = Buffer.from(enteredPass, 'utf8');
+        const expectedBuffer = Buffer.from(expectedPass, 'utf8');
+        const isValidPassword = expectedBuffer.length > 0
+          && enteredBuffer.length === expectedBuffer.length
+          && timingSafeEqual(enteredBuffer, expectedBuffer);
+
+        if (isValidPassword) {
+          this.adminPasswordFailures.delete(telegramId);
           session.isAdmin = true;
           session.state = 'idle';
           const adminUrl = this.getAcademyAdminUrl();
           await ctx.reply(
             `✅ <b>Muvaffaqiyatli tasdiqlandingiz!</b>\n━━━━━━━━━━━━━━━━━━━━\n` +
             `👑 Sizga administrator huquqi berildi.\n\n` +
-            `🌐 Sayt admin paneli havolasi:\n👉 <b>${adminUrl}</b>\n\n` +
-            `Parol: <code>${enteredPass}</code>`,
+            `🌐 Sayt admin paneli havolasi:\n👉 ${escapeHtml(adminUrl)}`,
             { parse_mode: 'HTML' }
           );
         } else {
-          await ctx.reply("❌ Noto'g'ri parol. Qaytadan urinib ko'ring yoki /cancel deb yozing.");
+          const previousAttempts = failure?.lockedUntil && failure.lockedUntil <= now
+            ? 0
+            : failure?.attempts || 0;
+          const attempts = previousAttempts + 1;
+          this.adminPasswordFailures.set(telegramId, {
+            attempts,
+            lockedUntil: attempts >= 5 ? now + 15 * 60 * 1000 : 0,
+          });
+          if (this.adminPasswordFailures.size > 10000) {
+            for (const [userId, state] of this.adminPasswordFailures) {
+              if (!state.lockedUntil || state.lockedUntil <= now) {
+                this.adminPasswordFailures.delete(userId);
+              }
+            }
+          }
+          await ctx.reply(
+            attempts >= 5
+              ? "❌ 5 marta noto'g'ri urinish. Kirish 15 daqiqaga bloklandi."
+              : "❌ Noto'g'ri parol. Qaytadan urinib ko'ring yoki /cancel deb yozing."
+          );
         }
         return;
       }
@@ -873,6 +933,14 @@ export class BotManager {
   private async handleAdminCommand(ctx: Context, telegramId: number): Promise<void> {
     const session = this.getSession(telegramId);
     if (!this.isUserAdmin(telegramId, session)) {
+      if (ctx.chat?.type !== 'private') {
+        await ctx.reply('Admin panelga kirish uchun bot bilan shaxsiy chatdan foydalaning.');
+        return;
+      }
+      if (!config.adminPassword) {
+        await ctx.reply('Admin paroli sozlanmagan. ADMIN_PASSWORD ni bot sozlamalarida kiriting.');
+        return;
+      }
       session.state = 'waiting_admin_password';
       await ctx.reply(
         "🔐 <b>Administrator Paneli</b>\n━━━━━━━━━━━━━━━━━━━━\n" +
@@ -1011,12 +1079,12 @@ export class BotManager {
     const studentName = access.student?.full_name || firstName;
     const codeInfo = access.student?.student_code ? `\n🔢 Talaba raqamingiz: <b>#${access.student.student_code}</b>` : '';
     const bookMessage = access.book
-      ? `\n📖 Guruh kitobi: <b>${access.book.title}</b>`
+      ? `\n📖 Guruh kitobi: <b>${escapeHtml(access.book.title)}</b>`
       : '\n⚠️ Guruhga hali kitob biriktirilmagan.';
 
     await ctx.reply(
-      `✅ <b>${access.group.name}</b> guruhiga muvaffaqiyatli bog'landingiz!\n` +
-      `👤 O'quvchi: <b>${studentName}</b>${codeInfo}${bookMessage}\n\n` +
+      `✅ <b>${escapeHtml(access.group.name)}</b> guruhiga muvaffaqiyatli bog'landingiz!\n` +
+      `👤 O'quvchi: <b>${escapeHtml(studentName)}</b>${codeInfo}${bookMessage}\n\n` +
       `📊 Quyida talabalar statistikasi va umumiy reyting:`,
       { parse_mode: 'HTML', reply_markup: await BotKeyboards.getMainMenu(lang) }
     );
@@ -1069,12 +1137,12 @@ export class BotManager {
     lang: string
   ): Promise<void> {
     try {
-      const stats = await getAcademyStudentStats(telegramId).catch(() => null);
-      const targetGroup = stats?.groups.find((g) => g.groupId === groupId) || stats?.groups[0];
+      const stats = await getAcademyStudentStats(telegramId);
+      const targetGroup = stats.groups.find((g) => g.groupId === groupId);
 
       let msg = `👤 <b>SIZNING O'QUVCHI KARTANGIZ</b>\n`;
       msg += `━━━━━━━━━━━━━━━━━━━━\n`;
-      msg += `🏫 Guruh: <b>${groupName}</b>\n`;
+      msg += `🏫 Guruh: <b>${escapeHtml(groupName)}</b>\n`;
       if (targetGroup) {
         msg += `🏅 Guruhdagi o'rningiz: <b>${targetGroup.rank}-o'rin</b> (jami ${targetGroup.groupSize} ta o'quvchi)\n`;
         msg += `⭐ Joriy oy to'plagan ballingiz: <b>${targetGroup.monthPoints} ball</b>\n`;
@@ -1082,13 +1150,14 @@ export class BotManager {
         msg += `📊 O'rtacha baho: <b>${targetGroup.averageGrade ?? 'Hali baholanmagan'}</b>\n`;
         msg += `📝 Baholangan darslar soni: <b>${targetGroup.gradedLessons} ta</b>\n`;
       } else {
-        msg += `ℹ️ <i>Sizning baholaringiz o'qituvchi tomonidan tez orada kiritiladi.</i>\n`;
+        msg += `ℹ️ <i>${escapeHtml(groupName)} guruhi bo‘yicha statistika topilmadi.</i>\n`;
       }
       msg += `\n🎯 <i>Darslarni faol o'zlashtiring va botdagi kunlik testlarni topshirib borishni unutmang!</i>`;
 
       await ctx.reply(msg, { parse_mode: 'HTML' });
     } catch (e: any) {
       console.warn('[PersonalCard] Shaxsiy kartani ko\'rsatishda xatolik:', e.message);
+      await ctx.reply('Shaxsiy statistika hozircha yuklanmadi. Keyinroq qayta urinib ko‘ring.');
     }
   }
 
@@ -1112,6 +1181,9 @@ private async renderAllGroupsStatsCard(
 
     let report = `📊 <b>SAYTDAGI O'QUV STATISTIKASI</b>\n`;
     report += `━━━━━━━━━━━━━━━━━━━━\n`;
+    if (academyStats?.monthKey) {
+      report += `📅 Hisoblanayotgan oy: <b>${escapeHtml(academyStats.monthKey)}</b>\n`;
+    }
 
     if (academyStatsError) {
       report += `⚠️ <i>Sayt statistikasi hozircha yuklanmadi. Keyinroq qayta urinib ko‘ring.</i>\n`;
@@ -1128,30 +1200,37 @@ private async renderAllGroupsStatsCard(
             : group.progressStatus === 'unchanged'
               ? '➡️ O‘zgarish yo‘q'
               : '⏳ Hali yetarli baho yo‘q';
-        report += `🏫 <b>${group.groupName}</b>\n`;
+        report += `🏫 <b>${escapeHtml(group.groupName)}</b>\n`;
         report += `🏆 O‘rningiz: <b>${group.rank}/${group.groupSize}</b>\n`;
         report += `⭐ Joriy oy ballari: <b>${group.monthPoints}</b> · jami ball: <b>${group.totalPoints}</b>\n`;
         report += `📝 Baholangan darslar: <b>${group.gradedLessons}</b> · o‘rtacha: <b>${group.averageGrade ?? '—'}</b>\n`;
-        report += `${progressLabel}\n`;
+        report += `${progressLabel} <i>(joriy oy darslarining birinchi va ikkinchi yarmidagi baholar taqqoslandi)</i>\n`;
+        if (!group.hasCurrentMonthGrades) {
+          report += `⚠️ <i>Joriy oy uchun hali baho qo‘yilmagan. O‘tgan oy baholari joriy oy hisobiga kirmaydi.</i>\n`;
+        }
       }
     }
 
     if (isExpanded) {
       for (const group of academyStats?.groups || []) {
-        report += `\n🏅 <b>${group.groupName} reytingi</b>\n`;
+        report += `\n🏅 <b>${escapeHtml(group.groupName)} reytingi (top-10)</b>\n`;
         if (!group.leaderboard.length) {
           report += `<i>Saytda reyting ma'lumoti yo'q.</i>\n`;
           continue;
         }
         group.leaderboard.forEach((student) => {
           const medal = student.rank === 1 ? '🥇' : student.rank === 2 ? '🥈' : student.rank === 3 ? '🥉' : `<b>#${student.rank}</b>`;
-          const name = student.fullName || 'O‘quvchi';
+          const name = escapeHtml(student.fullName || 'O‘quvchi');
           const isMe = Number(student.telegramId) === Number(telegramId);
           report += `${medal} <b>${name}</b> — ⭐️ <b>${student.monthPoints} ball</b>${isMe ? ' 👈 (Siz)' : ''}\n`;
         });
       }
     } else {
       report += `\n💡 <i>Sayt guruhlaridagi reytingni ko'rish uchun pastdagi tugmani bosing:</i>`;
+    }
+
+    if (academyStats?.groups.length) {
+      report += `\n\nℹ️ <i>Baholar darsda faolligingiz uyga vazifalarni qarab qo‘yiladi. Bu haqida shikoyat qilishdan avval talablarga javob bering</i>`;
     }
 
     const kb = BotKeyboards.getStatsToggleKeyboard(isExpanded, lang);
@@ -1238,7 +1317,7 @@ private async renderAllGroupsStatsCard(
       const questions = await GeminiService.generateHardTestQuestions({
         bookText: book.text,
         topicsRange: 'all',
-        count: 5,
+        count: 10,
         excludedQuestions,
         lang,
         difficulty,
@@ -1299,7 +1378,7 @@ private async renderAllGroupsStatsCard(
    */
   private renderQuizSummaryText(session: UserSessionState, isOpen: boolean, lang: string): string {
     const score = session.lastQuizScore || 0;
-    const total = session.lastQuizTotal || 5;
+    const total = session.lastQuizTotal || 10;
     const wrong = total - score;
     const percentage = session.lastQuizPercentage || 0;
     const levelTitle = session.lastQuizLevelTitle || "A1 Boshlang'ich Daraja";
@@ -1351,7 +1430,7 @@ private async renderAllGroupsStatsCard(
     lang: string
   ): Promise<void> {
     const score = session.testScore || 0;
-    const total = session.testQuestions?.length || 5;
+    const total = session.testQuestions?.length || 10;
     const wrong = total - score;
     const percentage = Math.round((score / total) * 100);
 
@@ -1424,6 +1503,14 @@ private async renderAllGroupsStatsCard(
   /** AI Ustoz uchun saytga yuklangan kitobni tanlash */
   private async handleAITutorStart(ctx: Context, telegramId: number, lang: string): Promise<void> {
     const session = this.getSession(telegramId);
+    if (
+      session.isStartingTutor ||
+      session.state === 'selecting_ai_tutor_book' ||
+      session.state === 'chatting_with_ai_tutor'
+    ) {
+      return;
+    }
+    session.isStartingTutor = true;
     let book;
     try {
       const membership = await db.query(
@@ -1432,6 +1519,7 @@ private async renderAllGroupsStatsCard(
       );
       const groupId = Number(membership.rows[0]?.academy_group_id);
       if (!Number.isSafeInteger(groupId) || groupId <= 0) {
+        session.isStartingTutor = false;
         await ctx.reply(
           lang === 'ru'
             ? 'Для вашей группы администратор ещё не назначил книгу.'
@@ -1454,13 +1542,18 @@ private async renderAllGroupsStatsCard(
       );
       return;
     }
-    if (!book) return;
+    if (!book) {
+      session.isStartingTutor = false;
+      return;
+    }
 
     session.state = 'selecting_ai_tutor_book';
     session.activeTutorBookId = book.id;
     session.activeTutorBookTitle = book.title;
     session.activeTutorBookContent = book.text.slice(0, 16000);
     session.activeTutorQuestion = undefined;
+    session.activeTutorQuestionCount = 0;
+    session.isStartingTutor = false;
     const startText = lang === 'ru'
       ? `Урок по книге «${book.title}» начнётся сейчас.`
       : lang === 'en'
@@ -1492,6 +1585,8 @@ private async renderAllGroupsStatsCard(
       );
       return;
     }
+    if (session.isProcessingTutorAnswer) return;
+    session.isProcessingTutorAnswer = true;
 
     await ctx.replyWithChatAction('typing').catch(() => { });
     try {
@@ -1500,12 +1595,6 @@ private async renderAllGroupsStatsCard(
       if (!Number.isSafeInteger(groupId) || groupId <= 0 || !Number.isSafeInteger(bookId) || bookId <= 0) {
         throw new Error('AI ustoz sessiyasi uchun guruh yoki kitob aniqlanmadi');
       }
-      await this.saveTutorQuestion(
-        telegramId,
-        groupId,
-        bookId,
-        session.activeTutorQuestion
-      );
       const evaluation = await GeminiService.evaluateBookAnswer(
         session.activeTutorBookContent,
         session.activeTutorQuestion,
@@ -1520,6 +1609,19 @@ private async renderAllGroupsStatsCard(
         return;
       }
 
+      if ((session.activeTutorQuestionCount || 1) >= 5) {
+        this.clearSession(telegramId);
+        await ctx.reply(
+          lang === 'ru'
+            ? '🎉 Вы ответили на 5 вопросов! Выберите ИИ Учителя, чтобы начать новое занятие.'
+            : lang === 'en'
+              ? '🎉 You completed 5 questions! Choose AI Tutor to start a new lesson.'
+              : '🎉 5 ta savol yakunlandi! Yangi mashg‘ulot boshlash uchun AI Ustozni tanlang.',
+          { reply_markup: await BotKeyboards.getMainMenu(lang) }
+        );
+        return;
+      }
+
       const nextQuestion = await GeminiService.generateBookQuestion(
         session.activeTutorBookContent,
         lang,
@@ -1527,6 +1629,7 @@ private async renderAllGroupsStatsCard(
         await this.getRecentBookQuestions(telegramId, groupId)
       );
       session.activeTutorQuestion = nextQuestion;
+      session.activeTutorQuestionCount = (session.activeTutorQuestionCount || 1) + 1;
       await this.saveTutorQuestion(telegramId, groupId, bookId, nextQuestion);
       await ctx.reply(`${evaluation.feedback}\n\n📖 Keyingi savol:\n\n${nextQuestion}`, {
         reply_markup: exitKb,
@@ -1541,6 +1644,8 @@ private async renderAllGroupsStatsCard(
             : 'Javobni kitob asosida tekshirib bo‘lmadi. Iltimos, keyinroq urinib ko‘ring.',
         { reply_markup: exitKb }
       );
+    } finally {
+      session.isProcessingTutorAnswer = false;
     }
   }
 

@@ -79,10 +79,10 @@ export class BotKeyboards {
     } else {
       const text =
         lang === 'ru'
-          ? '⬇️ Посмотреть полный рейтинг'
+          ? '⬇️ Посмотреть топ-10 рейтинга'
           : lang === 'en'
-          ? '⬇️ View Full Ranking'
-          : '⬇️ To\'liq reyting jadvalini ko\'rish';
+          ? '⬇️ View Top 10'
+          : '⬇️ Reytingning top-10 qismini ko\'rish';
       kb.text(text, 'toggle_stats:open');
     }
     return kb;

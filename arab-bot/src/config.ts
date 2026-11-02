@@ -43,7 +43,7 @@ export const config: AppConfig = {
   botToken: (process.env.BOT_TOKEN || '').trim(),
   geminiApiKey: (process.env.GEMINI_API_KEY || '').trim(),
   geminiApiKey2: (process.env.GEMINI_API_KEY_2 || '').trim(),
-  adminPassword: (process.env.ADMIN_PASSWORD || '123').trim(),
+  adminPassword: (process.env.ADMIN_PASSWORD || '').trim(),
   adminId: parseAdminId(),
   adminTelegramContact: (process.env.ADMIN_TELEGRAM_CONTACT || '').trim(),
   // .env‑da ko‘rsatilgan URL‑lar, oxirgi “/” olib tashlanadi
@@ -71,7 +71,7 @@ export function reloadConfig(): AppConfig {
   config.botToken = (process.env.BOT_TOKEN || '').trim();
   config.geminiApiKey = (process.env.GEMINI_API_KEY || '').trim();
   config.geminiApiKey2 = (process.env.GEMINI_API_KEY_2 || '').trim();
-  config.adminPassword = (process.env.ADMIN_PASSWORD || '123').trim();
+  config.adminPassword = (process.env.ADMIN_PASSWORD || '').trim();
   config.adminId = parseAdminId();
   config.adminTelegramContact = (process.env.ADMIN_TELEGRAM_CONTACT || '').trim();
   config.academyApiUrl = (process.env.ACADEMY_API_URL || '').trim().replace(/\/$/, '');

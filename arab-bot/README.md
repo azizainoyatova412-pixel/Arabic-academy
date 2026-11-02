@@ -41,6 +41,7 @@ npm run dev
 - 🌐 **Backend API**: `http://localhost:5000`
 - Admin boshqaruvi asosiy saytning yagona admin panelida amalga oshiriladi.
 - `.env` va maxfiy sozlamalar GitHub'ga qo'shilmaydi. Render'da ularni Dashboard → Environment bo'limiga kiriting; haqiqiy token va parollarni hech qachon repoga yubormang.
+- Bot va sayt admin panelida bir xil `ADMIN_PASSWORD` o'zgaruvchisini sozlang. Standart parol yo'q; qiymat faqat `.env` yoki deployment environment'da saqlanadi.
 - Bot tokenisiz API ishga tushishi mumkin, ammo Telegram bot ishlamaydi. `.env` ichidagi `BOT_TOKEN`ga @BotFather bergan tokenni kiriting.
 - `DATABASE_URL` bo'sh qolsa lokal SQLite avtomatik ishlatiladi.
 
@@ -53,17 +54,14 @@ npm run dev
 2. **`/review`** → o'quvchi sharhini sayt adminiga tasdiqlash uchun yuboradi.
 3. **📊 Sayt statistikasi**:
    - O'quvchining baholari va guruhdagi reytingi sayt admin panelidagi ma'lumotlardan olinadi.
-4. **🧑‍🏫 Ustozlar uchun cheklangan kirish (`/ustoz`)**:
-   - Ustoz botda `/ustoz` buyrug'i va parolni (standart: `123`, `.env`dagi `TEACHER_ACCESS_CODE`) kiritadi.
-   - Ustozga **faqat baho qo'yish** imkoniyati beriladi: guruhni tanlaydi -> o'quvchini tanlaydi -> 1 dan 5 gacha baho qo'yadi.
-5. **📞 Aloqa va Yordam**:
+4. **📞 Aloqa va Yordam**:
    - Admin Telegram havolasi (`ADMIN_TELEGRAM_CONTACT`) ko'rsatiladi.
-6. **👥 Guruhlar**:
+5. **👥 Guruhlar**:
    - Guruh tanlanganda kirish kodi so'raladi va to'g'ri bo'lsa qabul qilinadi.
-7. **📘 Kitob asosida test**:
+6. **📘 Kitob asosida test**:
    - Savollar saytda o'quvchi guruhiga biriktirilgan kitobdan tuziladi; test murakkabligi shu guruhdagi oxirgi test natijasiga moslashadi.
    - Guruhga kitob biriktirilmagan bo'lsa test boshlanmaydi. Alifbo va harflarni yodlashga oid umumiy savollar berilmaydi.
-8. **🤖 AI Ustoz**:
+7. **🤖 AI Ustoz**:
    - O'quvchi sayt admin paneliga yuklangan kitobni tanlaydi; savollar faqat tanlangan kitob PDF matnidan tuziladi va javoblar shu matn bo'yicha tekshiriladi.
 
 ---
