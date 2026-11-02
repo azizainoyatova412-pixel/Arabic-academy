@@ -5,6 +5,7 @@
   "main": "dist/server.js",
   "scripts": {
     "build": "tsc",
+    "test": "npm run build && node --test",
     "dev": "tsc && node dist/server.js",
     "start": "tsc && node dist/server.js"
   },
@@ -25,7 +26,6 @@
     "@types/node": "^22.13.9",
     "@types/pdf-parse": "^1.1.5",
     "@types/pg": "^8.11.11",
-    "tsx": "^4.19.3",
     "typescript": "^5.8.2"
   },
   "keywords": [

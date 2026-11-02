@@ -1,4 +1,4 @@
-import { createHmac, timingSafeEqual } from 'crypto';
+import { createHmac, randomBytes, timingSafeEqual } from 'crypto';
 import type { NextFunction, Request, Response } from 'express';
 import { Bot, Context, GrammyError, HttpError, webhookCallback } from 'grammy';
 import { db, getTashkentDate } from '../db/index.js';
@@ -6,7 +6,11 @@ import { config } from '../config.js';
 import { I18nService } from './i18n.js';
 import { BotKeyboards } from './keyboards.js';
 import { UserSessionState } from './types.js';
-import { GeminiService, QuizQuestion } from '../services/gemini.js';
+import {
+  BookWritingEvaluation,
+  GeminiService,
+  normalizeCefrLevel,
+} from '../services/gemini.js';
 import {
   AcademyGroupAccess,
   getAcademyGroupBook,
@@ -75,23 +79,20 @@ export class BotManager {
   }
 
   private async getRecentBookQuestions(telegramId: number, groupId: number): Promise<string[]> {
-    const [quizResult, tutorResult] = await Promise.all([
-      db.query(
-        `SELECT question FROM user_quiz_history
+    const result = await db.query(
+      `SELECT question FROM (
+         SELECT question, created_at FROM user_quiz_history
          WHERE telegram_id = $1 AND academy_group_id = $2
-        ORDER BY created_at DESC LIMIT 15`,
-        [telegramId, groupId]
-      ),
-      db.query(
-        `SELECT question FROM ai_tutor_question_history
+         UNION ALL
+         SELECT question, created_at FROM ai_tutor_question_history
          WHERE telegram_id = $1 AND academy_group_id = $2
-        ORDER BY created_at DESC LIMIT 15`,
-        [telegramId, groupId]
-      ),
-    ]);
+       ) recent_questions
+       ORDER BY created_at DESC LIMIT 30`,
+      [telegramId, groupId]
+    );
 
     return [...new Set(
-      [...quizResult.rows, ...tutorResult.rows]
+      result.rows
         .map((row: any) => String(row.question || '').trim().slice(0, 300))
         .filter(Boolean)
     )].slice(0, 30);
@@ -103,12 +104,85 @@ export class BotManager {
     bookId: number,
     question: string
   ): Promise<void> {
-    await db.query(
-      `INSERT INTO ai_tutor_question_history
-       (telegram_id, academy_group_id, book_id, question)
-       VALUES ($1, $2, $3, $4)`,
-      [telegramId, groupId, bookId, question]
-    );
+    try {
+      await db.query(
+        `INSERT INTO ai_tutor_question_history
+         (telegram_id, academy_group_id, book_id, question)
+         VALUES ($1, $2, $3, $4)`,
+        [telegramId, groupId, bookId, question]
+      );
+    } catch (error) {
+      console.warn('[AI Tutor] Savol takrorlanish tarixga saqlanmadi:', error);
+    }
+  }
+
+  private formatWritingTask(task: string, level: string, number: number, lang: string, isNext = false): string {
+    const heading = lang === 'ru'
+      ? `${isNext ? 'Следующее' : 'Письменное'} задание на арабском · CEFR ${level} · ${number}/5`
+      : lang === 'en'
+        ? `${isNext ? 'Next' : 'Arabic writing'} practice · CEFR ${level} · ${number}/5`
+        : `${isNext ? 'Keyingi arabcha yozma mashq' : 'Arabcha yozma mashq'} · CEFR ${level} · ${number}/5`;
+    const instruction = lang === 'ru'
+      ? 'Ответьте арабским письмом; не используйте транслитерацию.'
+      : lang === 'en'
+        ? 'Write your answer in Arabic script; do not use transliteration.'
+        : 'Javobingizni arab yozuvida yuboring; transliteratsiya yozmang.';
+    return `✍️ ${heading}\n\n${task}\n\n${instruction}`;
+  }
+
+  private formatWritingEvaluation(
+    evaluation: BookWritingEvaluation,
+    level: string,
+    lang: string
+  ): string {
+    const labels = lang === 'ru'
+      ? {
+          level: `🧭 Уровень CEFR ${level}`,
+          strength: '✨ Сильная сторона',
+          errors: '🔎 Исправления',
+          noErrors: '✅ Существенных ошибок не найдено.',
+          corrected: '📝 Исправленный текст',
+          remaining: (count: number) => `Ещё ${count} ошибок исправлены в тексте.`,
+        }
+      : lang === 'en'
+        ? {
+            level: `🧭 CEFR ${level}`,
+            strength: '✨ Strength',
+            errors: '🔎 Corrections',
+            noErrors: '✅ No significant spelling or grammar errors found.',
+            corrected: '📝 Corrected text',
+            remaining: (count: number) => `${count} additional errors are corrected in the text.`,
+          }
+        : {
+            level: `🧭 CEFR ${level}`,
+            strength: '✨ Kuchli jihat',
+            errors: '🔎 Tuzatishlar',
+            noErrors: '✅ Muhim imlo yoki grammatika xatosi topilmadi.',
+            corrected: '📝 Tahrirlangan matn',
+            remaining: (count: number) => `Qolgan ${count} ta xato tahrirlangan matnda tuzatildi.`,
+          };
+    const lines = [
+      labels.level,
+      evaluation.feedback.slice(0, 400),
+      `${labels.strength}: ${evaluation.strength.slice(0, 140)}`,
+    ];
+    if (evaluation.errors.length > 0) {
+      lines.push(`${labels.errors} (${Math.min(evaluation.errors.length, 4)}):`);
+      for (const error of evaluation.errors.slice(0, 4)) {
+        lines.push(
+          `• ${error.original.slice(0, 100)} → ${error.correction.slice(0, 100)} — ${error.explanation.slice(0, 140)}`
+        );
+      }
+      if (evaluation.errors.length > 4) {
+        lines.push(labels.remaining(evaluation.errors.length - 4));
+      }
+    } else {
+      lines.push(labels.noErrors);
+    }
+    if (evaluation.correctedText) {
+      lines.push(`${labels.corrected}:\n${evaluation.correctedText.slice(0, 1400)}`);
+    }
+    return lines.join('\n\n');
   }
 
   /**
@@ -306,12 +380,18 @@ export class BotManager {
       if (ctx && ctx.chat) {
         const telegramId = ctx.from?.id;
         const session = telegramId ? this.getSession(telegramId) : undefined;
-        if (session && session.state === 'taking_test') {
+        if (telegramId && session?.state === 'taking_test') {
           try {
-            const lang = telegramId ? await I18nService.getUserLanguage(telegramId) : 'uz';
-            await this.finishQuiz(ctx, telegramId!, session, lang);
-          } catch (finishErr) {
-            console.error('Error in finishQuiz inside bot.catch:', finishErr);
+            const lang = await I18nService.getUserLanguage(telegramId);
+            await ctx.reply(
+              lang === 'ru'
+                ? 'Тест сохранён. Отправьте /resume, чтобы продолжить, или /cancel, чтобы отменить.'
+                : lang === 'en'
+                  ? 'Your test is saved. Send /resume to continue or /cancel to stop.'
+                  : 'Testingiz saqlandi. Davom ettirish uchun /resume, bekor qilish uchun /cancel yuboring.'
+            );
+          } catch (notifyError) {
+            console.error('Testdagi xatolik haqida foydalanuvchiga xabar berilmadi:', notifyError);
           }
           return;
         }
@@ -474,9 +554,19 @@ export class BotManager {
     bot.callbackQuery(/^tutor_book:(\d+)$/, async (ctx) => {
       const telegramId = ctx.from.id;
       const lang = await I18nService.getUserLanguage(telegramId);
-      await ctx.answerCallbackQuery().catch(() => { });
 
       const session = this.getSession(telegramId);
+      if (
+        session.state !== 'selecting_ai_tutor_book' ||
+        session.activeTutorBookId !== Number(ctx.match[1])
+      ) {
+        await ctx.answerCallbackQuery({
+          text: 'Kitob tanlash eskirgan. AI Ustoz bo‘limini qayta oching.',
+          show_alert: true,
+        }).catch(() => { });
+        return;
+      }
+      await ctx.answerCallbackQuery().catch(() => { });
       if (session.isGeneratingTutorQuestion || session.activeTutorQuestion) {
         return;
       }
@@ -504,21 +594,36 @@ export class BotManager {
         session.activeTutorBookId = Number(ctx.match[1]);
         session.activeTutorGroupId = groupId;
         session.activeTutorBookTitle = book.title;
+        const levelResult = await db.query(
+          `SELECT level FROM user_tests
+           WHERE telegram_id = $1 AND academy_group_id = $2
+           ORDER BY created_at DESC LIMIT 1`,
+          [telegramId, groupId]
+        );
+        session.activeTutorLevel = normalizeCefrLevel(levelResult.rows[0]?.level);
         const bookContent = book.text.slice(0, 16000);
         session.activeTutorBookContent = bookContent;
-        const excludedQuestions = await this.getRecentBookQuestions(telegramId, groupId);
-        const question = await GeminiService.generateBookQuestion(
+        const excludedTasks = await this.getRecentBookQuestions(telegramId, groupId);
+        const task = await GeminiService.generateBookWritingTask(
           bookContent,
           lang,
+          session.activeTutorLevel,
+          1,
           undefined,
-          excludedQuestions
+          excludedTasks
         );
-        session.activeTutorQuestion = question;
+        session.activeTutorQuestion = task;
         session.activeTutorQuestionCount = 1;
-        await this.saveTutorQuestion(telegramId, groupId, book.id, question);
-        await ctx.reply(`📖 Kitob asosidagi savol:\n\n${question}\n\nJavobingizni yozing.`, {
-          reply_markup: BotKeyboards.getAITutorExitKeyboard(lang),
-        });
+        session.activeTutorFeedback = undefined;
+        session.activeTutorQuestionDelivered = false;
+        await this.saveTutorQuestion(telegramId, groupId, book.id, task);
+        await ctx.reply(
+          this.formatWritingTask(task, session.activeTutorLevel, 1, lang),
+          {
+            reply_markup: BotKeyboards.getAITutorExitKeyboard(lang),
+          }
+        );
+        session.activeTutorQuestionDelivered = true;
       } catch (error: any) {
         this.clearSession(telegramId);
         console.error('[AI Tutor] Sayt kitobidan savol yaratib bo‘lmadi:', error.message);
@@ -557,102 +662,114 @@ export class BotManager {
     });
 
     // 9. Test javoblari callback
-    bot.callbackQuery(/^quiz_answer:(\d+)$/, async (ctx) => {
+    bot.callbackQuery(/^quiz_answer:([a-f0-9]{8}):(\d+)$/, async (ctx) => {
       const telegramId = ctx.from.id;
-      const selectedIndex = parseInt(ctx.match[1], 10);
+      const questionToken = ctx.match[1];
+      const selectedIndex = Number(ctx.match[2]);
       const session = this.getSession(telegramId);
-      const lang = await I18nService.getUserLanguage(telegramId);
 
-      if (session.state !== 'taking_test' || !session.testQuestions) {
-        await ctx.answerCallbackQuery().catch(() => { });
+      if (
+        session.state !== 'taking_test' ||
+        !session.testQuestions ||
+        session.testQuestionToken !== questionToken
+      ) {
+        await ctx.answerCallbackQuery({
+          text: 'Bu savol eskirgan. Joriy test savoliga javob bering.',
+          show_alert: true,
+        }).catch(() => { });
+        return;
+      }
+      if (session.isProcessingQuizAnswer || session.isFinishingQuiz) {
+        await ctx.answerCallbackQuery({ text: 'Javobingiz tekshirilmoqda.' }).catch(() => { });
         return;
       }
 
-      const currentIdx = session.testCurrentIndex || 0;
+      const currentIdx = session.testCurrentIndex ?? 0;
       const question = session.testQuestions[currentIdx];
-
-      const isCorrect = selectedIndex === question.correctIndex;
-      if (isCorrect) {
-        session.testScore = (session.testScore || 0) + 1;
-        await ctx.answerCallbackQuery({ text: '✅ To\'g\'ri!' }).catch(() => { });
-      } else {
-        await ctx.answerCallbackQuery({ text: '❌ Noto\'g\'ri' }).catch(() => { });
+      if (
+        !question ||
+        !Number.isInteger(selectedIndex) ||
+        selectedIndex < 0 ||
+        selectedIndex >= question.options.length
+      ) {
+        await ctx.answerCallbackQuery({
+          text: 'Javob varianti noto‘g‘ri. Iltimos, qaytadan urinib ko‘ring.',
+          show_alert: true,
+        }).catch(() => { });
+        return;
       }
 
-      const topicName = question.topic || 'Arab tili';
-      const userAnswerText = question.options[selectedIndex] || '';
-      const correctAnswerText = question.options[question.correctIndex] || '';
-
-      // Sessiyadagi joriy test javoblari ro'yxatiga qo'shish
-      session.testAttempts = session.testAttempts || [];
-      session.testAttempts.push({
-        question: question.question,
-        topic: topicName,
-        options: question.options,
-        selectedIndex,
-        correctIndex: question.correctIndex,
-        isCorrect,
-        userAnswerText,
-        correctAnswerText,
-        explanation: question.explanation || '',
-      });
-
-      // Savol tarixi va natijalar guruh kesimida yuritiladi.
+      session.isProcessingQuizAnswer = true;
       try {
-        await db.query(
-          `INSERT INTO user_quiz_history 
-           (telegram_id, academy_group_id, question, topic, is_correct, user_answer, correct_answer, explanation)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-          [
-            telegramId,
-            session.testAcademyGroupId,
-            question.question,
-            topicName,
-            isCorrect,
-            userAnswerText,
-            correctAnswerText,
-            question.explanation || '',
-          ]
-        );
-      } catch (dbErr) {
-        console.warn('user_quiz_history insert error:', dbErr);
-      }
+        const lang = await I18nService.getUserLanguage(telegramId);
+        const isCorrect = selectedIndex === question.correctIndex;
+        await ctx.answerCallbackQuery({
+          text: isCorrect ? '✅ To‘g‘ri!' : '❌ Noto‘g‘ri',
+        }).catch(() => { });
+        if (isCorrect) session.testScore = (session.testScore || 0) + 1;
 
-      // Zaif mavzular statistikasi
-      try {
-        const groupId = session.testAcademyGroupId;
-        if (!groupId) throw new Error('Test sessiyasida guruh aniqlanmagan');
-        const topicCheck = await db.query(
-          'SELECT id FROM academy_group_topic_stats WHERE telegram_id = $1 AND academy_group_id = $2 AND topic = $3',
-          [telegramId, groupId, topicName]
-        );
-        if (topicCheck.rows.length > 0) {
-          if (isCorrect) {
-            await db.query(
-              'UPDATE academy_group_topic_stats SET correct_count = correct_count + 1, updated_at = CURRENT_TIMESTAMP WHERE id = $1',
-              [topicCheck.rows[0].id]
-            );
-          } else {
-            await db.query(
-              'UPDATE academy_group_topic_stats SET wrong_count = wrong_count + 1, updated_at = CURRENT_TIMESTAMP WHERE id = $1',
-              [topicCheck.rows[0].id]
-            );
-          }
-        } else {
+        const topicName = question.topic || 'Arab tili';
+        const userAnswerText = question.options[selectedIndex];
+        const correctAnswerText = question.options[question.correctIndex];
+
+        session.testAttempts = session.testAttempts || [];
+        session.testAttempts.push({
+          question: question.question,
+          topic: topicName,
+          options: question.options,
+          selectedIndex,
+          correctIndex: question.correctIndex,
+          isCorrect,
+          userAnswerText,
+          correctAnswerText,
+          explanation: question.explanation || '',
+        });
+
+        try {
           await db.query(
-            'INSERT INTO academy_group_topic_stats (telegram_id, academy_group_id, topic, correct_count, wrong_count) VALUES ($1, $2, $3, $4, $5)',
+            `INSERT INTO user_quiz_history
+             (telegram_id, academy_group_id, question, topic, is_correct, user_answer, correct_answer, explanation)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+            [
+              telegramId,
+              session.testAcademyGroupId,
+              question.question,
+              topicName,
+              isCorrect,
+              userAnswerText,
+              correctAnswerText,
+              question.explanation || '',
+            ]
+          );
+        } catch (dbErr) {
+          console.warn('user_quiz_history insert error:', dbErr);
+        }
+
+        try {
+          const groupId = session.testAcademyGroupId;
+          if (!groupId) throw new Error('Test sessiyasida guruh aniqlanmagan');
+          await db.query(
+            `INSERT INTO academy_group_topic_stats
+             (telegram_id, academy_group_id, topic, correct_count, wrong_count)
+             VALUES ($1, $2, $3, $4, $5)
+             ON CONFLICT (telegram_id, academy_group_id, topic) DO UPDATE SET
+               correct_count = academy_group_topic_stats.correct_count + EXCLUDED.correct_count,
+               wrong_count = academy_group_topic_stats.wrong_count + EXCLUDED.wrong_count,
+               updated_at = CURRENT_TIMESTAMP`,
             [telegramId, groupId, topicName, isCorrect ? 1 : 0, isCorrect ? 0 : 1]
           );
+        } catch (e) {
+          console.warn('academy_group_topic_stats update error:', e);
         }
-      } catch (e) {
-        console.warn('user_topic_stats error:', e);
-      }
 
-      session.testCurrentIndex = currentIdx + 1;
-      if (session.testCurrentIndex < session.testQuestions.length) {
-        await this.sendNextQuizQuestion(ctx, telegramId, session, lang);
-      } else {
-        await this.finishQuiz(ctx, telegramId, session, lang);
+        session.testCurrentIndex = currentIdx + 1;
+        if (session.testCurrentIndex < session.testQuestions.length) {
+          await this.sendNextQuizQuestion(ctx, session);
+        } else {
+          await this.finishQuiz(ctx, telegramId, session, lang);
+        }
+      } finally {
+        session.isProcessingQuizAnswer = false;
       }
     });
 
@@ -665,7 +782,7 @@ export class BotManager {
 
       await ctx.answerCallbackQuery().catch(() => { });
       const isOpen = action === 'open';
-      const text = this.renderQuizSummaryText(session, isOpen, lang);
+      const text = this.renderQuizSummaryText(session, isOpen);
       const kb = BotKeyboards.getQuizReviewKeyboard(isOpen, lang);
 
       try {
@@ -682,6 +799,34 @@ export class BotManager {
       const text = ctx.message.text.trim();
       const session = this.getSession(telegramId);
       const lang = await I18nService.getUserLanguage(telegramId);
+
+      if (text.toLowerCase() === '/cancel' && session.state === 'taking_test') {
+        this.clearSession(telegramId);
+        await ctx.reply('Test bekor qilindi. Yangi testni asosiy menyudan boshlashingiz mumkin.', {
+          reply_markup: await BotKeyboards.getMainMenu(lang),
+        });
+        return;
+      }
+      if (text.toLowerCase() === '/resume' && session.state === 'taking_test') {
+        if (session.isProcessingQuizAnswer || session.isFinishingQuiz) {
+          await ctx.reply('Javobingiz tekshirilmoqda. Biroz kutib qayta urinib ko‘ring.');
+          return;
+        }
+        await this.sendNextQuizQuestion(ctx, session);
+        return;
+      }
+      if (
+        text.toLowerCase() === '/cancel' &&
+        (session.state === 'selecting_ai_tutor_book' ||
+          session.state === 'chatting_with_ai_tutor' ||
+          session.state === 'chatting_with_gemini')
+      ) {
+        this.clearSession(telegramId);
+        await ctx.reply('AI Ustoz mashg‘uloti bekor qilindi.', {
+          reply_markup: await BotKeyboards.getMainMenu(lang),
+        });
+        return;
+      }
 
       if (session.state === 'waiting_review_text') {
         if (ctx.chat.type !== 'private') {
@@ -733,7 +878,7 @@ export class BotManager {
           await this.replyInvalidAccessAttempt(ctx, telegramId);
           return;
         }
-        await this.handleAcademyGroupCodeVerification(ctx, telegramId, text, lang);
+        await this.handleAcademyGroupCodeVerification(ctx, telegramId, text);
         return;
       }
 
@@ -992,8 +1137,7 @@ export class BotManager {
   private async handleAcademyGroupCodeVerification(
     ctx: Context,
     telegramId: number,
-    enteredCode: string,
-    lang: string
+    enteredCode: string
   ): Promise<void> {
     try {
       const firstName = [ctx.from?.first_name, ctx.from?.last_name].filter(Boolean).join(' ') || 'Telegram o‘quvchi';
@@ -1093,7 +1237,7 @@ export class BotManager {
 
     // 2 soniyadan so'ng tanlangan o'quvchi kartasi
     await new Promise((resolve) => setTimeout(resolve, 2000));
-    await this.renderPersonalStudentCard(ctx, telegramId, access.group.id, access.group.name, lang);
+    await this.renderPersonalStudentCard(ctx, telegramId, access.group.id, access.group.name);
   }
 
   private async handleGroupsList(ctx: Context, telegramId: number, lang: string): Promise<void> {
@@ -1133,8 +1277,7 @@ export class BotManager {
     ctx: Context,
     telegramId: number,
     groupId: number,
-    groupName: string,
-    lang: string
+    groupName: string
   ): Promise<void> {
     try {
       const stats = await getAcademyStudentStats(telegramId);
@@ -1264,41 +1407,35 @@ private async renderAllGroupsStatsCard(
     });
   }
 
-  /** Course enrollment questions are handled by the administrator. */
-  private async handleEnrollmentInfo(ctx: Context, lang: string): Promise<void> {
-    const adminUrl = this.getAdminTelegramUrl("Assalomu alaykum, arab tili kursiga yozilmoqchiman");
-    const kb = BotKeyboards.getContactAdminKeyboard(adminUrl, lang, '💬 Kurs haqida bog‘lanish');
-
-    const msg =
-      `📚 <b>Kursga yozilish</b>\n` +
-      `━━━━━━━━━━━━━━━━━━━━\n\n` +
-      `Kursga yozilish va darslar haqida ma'lumot olish uchun administrator bilan bog'laning.\n\n` +
-      `👇 Administratorning Telegram sahifasi:`;
-
-    await ctx.reply(msg, {
-      parse_mode: 'HTML',
-      reply_markup: kb,
-    });
-  }
-
   /**
    * Test boshlash (Band 1 & 5: Kitob va mavzular asosida qattiq test, umumiy xato xabarisiz)
    */
   private async startQuiz(ctx: Context, telegramId: number, lang: string, isDaily: boolean = true): Promise<void> {
-    const waitMsg = await ctx.reply("⏳ Guruhingiz kitobi asosida test tayyorlanmoqda...", { parse_mode: 'HTML' });
-
+    const session = this.getSession(telegramId);
+    if (session.state === 'selecting_ai_tutor_book' || session.state === 'chatting_with_ai_tutor') {
+      await ctx.reply('Avval AI Ustoz suhbatidan chiqing, keyin testni boshlashingiz mumkin.');
+      return;
+    }
+    if (session.isStartingTest) {
+      await ctx.reply('⏳ Test tayyorlanmoqda. Iltimos, biroz kuting.');
+      return;
+    }
+    if (session.state === 'taking_test') {
+      await ctx.reply('Sizda tugallanmagan test bor. Avval joriy testni yakunlang.');
+      return;
+    }
+    session.isStartingTest = true;
+    let waitMessageId: number | undefined;
     try {
+      const waitMsg = await ctx.reply("⏳ Guruhingiz kitobi asosida test tayyorlanmoqda...", { parse_mode: 'HTML' });
+      waitMessageId = waitMsg.message_id;
       const userResult = await db.query(
         'SELECT academy_group_id FROM users WHERE telegram_id = $1',
         [telegramId]
       );
       const groupId = Number(userResult.rows[0]?.academy_group_id);
       if (!Number.isSafeInteger(groupId) || groupId <= 0) {
-        await ctx.api.editMessageText(
-          ctx.chat!.id,
-          waitMsg.message_id,
-          'Test uchun saytda guruhingizga kitob biriktirilmagan. Iltimos, admin bilan bog‘laning.'
-        );
+        await ctx.api.editMessageText(ctx.chat!.id, waitMsg.message_id, 'Test uchun saytda guruhingizga kitob biriktirilmagan. Iltimos, admin bilan bog‘laning.');
         return;
       }
 
@@ -1323,7 +1460,6 @@ private async renderAllGroupsStatsCard(
         difficulty,
       });
 
-      const session = this.getSession(telegramId);
       session.state = 'taking_test';
       session.testQuestions = questions;
       session.testAttempts = [];
@@ -1332,33 +1468,49 @@ private async renderAllGroupsStatsCard(
       session.isDailyTest = isDaily;
       session.testAcademyGroupId = groupId;
 
-      await this.sendNextQuizQuestion(ctx, telegramId, session, lang, waitMsg.message_id);
+      await this.sendNextQuizQuestion(ctx, session, waitMsg.message_id);
     } catch (error: any) {
-      console.error('Kitob asosidagi testni tayyorlab bo‘lmadi:', error.message);
-      await ctx.api.editMessageText(
-        ctx.chat!.id,
-        waitMsg.message_id,
-        'Kitob asosidagi testni tayyorlab bo‘lmadi. Guruhingizga kitob biriktirilgani va Gemini sozlamalari to‘g‘riligini admin bilan tekshiring.'
-      );
+      const message = error instanceof Error ? error.message : String(error);
+      console.error('Kitob asosidagi testni tayyorlab bo‘lmadi:', message);
+      if (waitMessageId && ctx.chat) {
+        try {
+          await ctx.api.editMessageText(
+            ctx.chat.id,
+            waitMessageId,
+            'Kitob asosidagi testni tayyorlab bo‘lmadi. Kitob matni va Gemini API sozlamalarini tekshiring, so‘ng qayta urinib ko‘ring.'
+          );
+        } catch (editError) {
+          console.warn('Test xato xabarini ko‘rsatib bo‘lmadi:', editError);
+        }
+      } else {
+        await ctx.reply('Kitob asosidagi testni tayyorlab bo‘lmadi. Keyinroq qayta urinib ko‘ring.');
+      }
+    } finally {
+      session.isStartingTest = false;
     }
   }
 
   private async sendNextQuizQuestion(
     ctx: Context,
-    telegramId: number,
     session: UserSessionState,
-    lang: string,
     editMessageId?: number
   ): Promise<void> {
-    if (!session.testQuestions) return;
+    if (!session.testQuestions) {
+      throw new Error('Test savollari sessiyada topilmadi');
+    }
 
-    const idx = session.testCurrentIndex || 0;
+    const idx = session.testCurrentIndex ?? 0;
     const total = session.testQuestions.length;
     const q = session.testQuestions[idx];
+    if (!q) {
+      throw new Error(`Testning ${idx + 1}-savoli topilmadi`);
+    }
 
-    const topicText = q.topic ? ` (Mavzu: <i>${q.topic}</i>)` : '';
-    const title = `📝 <b>${idx + 1}-savol (jami ${total} ta):</b>${topicText}\n━━━━━━━━━━━━━━━━━━━━\n\n${q.question}`;
-    const keyboard = BotKeyboards.createQuizKeyboard(q.options);
+    const token = randomBytes(4).toString('hex');
+    session.testQuestionToken = token;
+    const topicText = q.topic ? ` (Mavzu: <i>${escapeHtml(q.topic)}</i>)` : '';
+    const title = `📝 <b>${idx + 1}-savol (jami ${total} ta):</b>${topicText}\n━━━━━━━━━━━━━━━━━━━━\n\n${escapeHtml(q.question)}`;
+    const keyboard = BotKeyboards.createQuizKeyboard(q.options, token);
 
     if (editMessageId && ctx.chat) {
       try {
@@ -1367,7 +1519,9 @@ private async renderAllGroupsStatsCard(
           reply_markup: keyboard,
         });
         return;
-      } catch (err) { }
+      } catch (err) {
+        console.warn('Test savoli kutish xabariga joylanmadi, yangi xabar yuboriladi:', err);
+      }
     }
 
     await ctx.reply(title, { parse_mode: 'HTML', reply_markup: keyboard });
@@ -1376,13 +1530,13 @@ private async renderAllGroupsStatsCard(
   /**
    * Test xulosasi matnini shakllantirish (xatolar ochilgan yoki yopilgan holatda)
    */
-  private renderQuizSummaryText(session: UserSessionState, isOpen: boolean, lang: string): string {
+  private renderQuizSummaryText(session: UserSessionState, isOpen: boolean): string {
     const score = session.lastQuizScore || 0;
     const total = session.lastQuizTotal || 10;
     const wrong = total - score;
     const percentage = session.lastQuizPercentage || 0;
-    const levelTitle = session.lastQuizLevelTitle || "A1 Boshlang'ich Daraja";
-    const comment = session.lastQuizComment || "";
+    const levelTitle = escapeHtml(session.lastQuizLevelTitle || "A1 Boshlang'ich Daraja");
+    const comment = escapeHtml(session.lastQuizComment || "");
 
     let text =
       `🎉 <b>Test Yakunlandi!</b>\n` +
@@ -1406,15 +1560,23 @@ private async renderAllGroupsStatsCard(
       text += `\n🔍 <b>Xato qilingan savollar va to'g'ri javoblari:</b>\n\n`;
       const wrongList = (session.lastQuizAttempts || []).filter((a) => !a.isCorrect);
 
-      wrongList.forEach((att, idx) => {
-        text += `<b>${idx + 1}-savol:</b> ${att.question}\n`;
-        text += `   ❌ <b>Sizning javobingiz:</b> <s>${att.userAnswerText}</s>\n`;
-        text += `   ✅ <b>To'g'ri javob:</b> <b>${att.correctAnswerText}</b>\n`;
-        if (att.explanation) {
-          text += `   💡 <i>Izoh:</i> ${att.explanation}\n`;
+      let detailsTruncated = false;
+      for (const [idx, att] of wrongList.entries()) {
+        const detail =
+          `<b>${idx + 1}-savol:</b> ${escapeHtml(att.question)}\n` +
+          `   ❌ <b>Sizning javobingiz:</b> <s>${escapeHtml(att.userAnswerText)}</s>\n` +
+          `   ✅ <b>To'g'ri javob:</b> <b>${escapeHtml(att.correctAnswerText)}</b>\n` +
+          (att.explanation ? `   💡 <i>Izoh:</i> ${escapeHtml(att.explanation)}\n` : '') +
+          '\n';
+        if (text.length + detail.length > 3800) {
+          detailsTruncated = true;
+          break;
         }
-        text += `\n`;
-      });
+        text += detail;
+      }
+      if (detailsTruncated) {
+        text += `<i>Qolgan xatolar Telegram xabar hajmi chegarasi sabab ko‘rsatilmagan.</i>\n`;
+      }
       text += `━━━━━━━━━━━━━━━━━━━━`;
     } else {
       text += `\n💡 <i>Xato qilingan savollar va to'g'ri javoblarini ko'rish uchun pastdagi tugmani bosing:</i>`;
@@ -1429,8 +1591,23 @@ private async renderAllGroupsStatsCard(
     session: UserSessionState,
     lang: string
   ): Promise<void> {
+    if (session.isFinishingQuiz) return;
+    if (
+      session.state !== 'taking_test' ||
+      !session.testQuestions?.length ||
+      (session.testAttempts?.length || 0) !== session.testQuestions.length
+    ) {
+      console.warn('Tugallanmagan testni yakunlash so‘rovi rad etildi:', {
+        telegramId,
+        answered: session.testAttempts?.length || 0,
+        total: session.testQuestions?.length || 0,
+      });
+      return;
+    }
+
+    session.isFinishingQuiz = true;
     const score = session.testScore || 0;
-    const total = session.testQuestions?.length || 10;
+    const total = session.testQuestions.length;
     const wrong = total - score;
     const percentage = Math.round((score / total) * 100);
 
@@ -1490,19 +1667,29 @@ private async renderAllGroupsStatsCard(
     session.testAttempts = undefined;
     session.testCurrentIndex = 0;
     session.testScore = 0;
+    session.testQuestionToken = undefined;
+    session.isFinishingQuiz = false;
 
-    const summaryText = this.renderQuizSummaryText(session, false, lang);
+    const summaryText = this.renderQuizSummaryText(session, false);
     const kb = wrong > 0 ? BotKeyboards.getQuizReviewKeyboard(false, lang) : undefined;
 
-    await ctx.reply(summaryText, {
-      parse_mode: 'HTML',
-      reply_markup: kb,
-    });
+    try {
+      await ctx.reply(summaryText, {
+        parse_mode: 'HTML',
+        reply_markup: kb,
+      });
+    } catch (error) {
+      console.error('Test natijasini foydalanuvchiga yuborib bo‘lmadi:', error);
+    }
   }
 
   /** AI Ustoz uchun saytga yuklangan kitobni tanlash */
   private async handleAITutorStart(ctx: Context, telegramId: number, lang: string): Promise<void> {
     const session = this.getSession(telegramId);
+    if (session.state === 'taking_test' || session.isStartingTest) {
+      await ctx.reply('Avval testni yakunlang yoki /cancel bilan bekor qiling, keyin AI Ustozni boshlang.');
+      return;
+    }
     if (
       session.isStartingTutor ||
       session.state === 'selecting_ai_tutor_book' ||
@@ -1555,10 +1742,10 @@ private async renderAllGroupsStatsCard(
     session.activeTutorQuestionCount = 0;
     session.isStartingTutor = false;
     const startText = lang === 'ru'
-      ? `Урок по книге «${book.title}» начнётся сейчас.`
+      ? `Начинаем письменную практику по книге «${escapeHtml(book.title)}».`
       : lang === 'en'
-        ? `Your lesson from "${book.title}" is ready.`
-        : `<b>${book.title}</b> kitobi asosida dars boshlanmoqda.`;
+        ? `Your Arabic writing practice from "${escapeHtml(book.title)}" is ready.`
+        : `<b>${escapeHtml(book.title)}</b> kitobi asosida arabcha yozuv mashqi boshlanmoqda.`;
     await ctx.reply(startText, {
       parse_mode: 'HTML',
       reply_markup: BotKeyboards.getTutorBooksKeyboard(
@@ -1585,65 +1772,138 @@ private async renderAllGroupsStatsCard(
       );
       return;
     }
+    if (text.length > 2000) {
+      await ctx.reply('Javob 2000 belgidan oshmasin. Qisqaroq qilib yuboring.', {
+        reply_markup: exitKb,
+      });
+      return;
+    }
     if (session.isProcessingTutorAnswer) return;
     session.isProcessingTutorAnswer = true;
 
     await ctx.replyWithChatAction('typing').catch(() => { });
     try {
+      if (!session.activeTutorQuestionDelivered) {
+        await ctx.reply(
+          this.formatWritingTask(
+            session.activeTutorQuestion,
+            session.activeTutorLevel || 'A1',
+            session.activeTutorQuestionCount || 1,
+            lang
+          ),
+          {
+            reply_markup: exitKb,
+          }
+        );
+        session.activeTutorQuestionDelivered = true;
+        return;
+      }
+
       const groupId = Number(session.activeTutorGroupId);
       const bookId = Number(session.activeTutorBookId);
       if (!Number.isSafeInteger(groupId) || groupId <= 0 || !Number.isSafeInteger(bookId) || bookId <= 0) {
         throw new Error('AI ustoz sessiyasi uchun guruh yoki kitob aniqlanmadi');
       }
-      const evaluation = await GeminiService.evaluateBookAnswer(
-        session.activeTutorBookContent,
-        session.activeTutorQuestion,
-        text,
-        lang
-      );
-
-      if (!evaluation.isCorrect) {
-        await ctx.reply(`${evaluation.feedback}\n\nJavobingizni yana bir bor o‘ylab yozing:`, {
-          reply_markup: exitKb,
-        });
-        return;
+      let feedback = session.activeTutorFeedback || '';
+      if (!session.activeTutorAnswerAccepted) {
+        const evaluation = await GeminiService.evaluateBookWriting(
+          session.activeTutorBookContent,
+          session.activeTutorQuestion,
+          text,
+          session.activeTutorLevel,
+          lang
+        );
+        if (this.getSession(telegramId) !== session) return;
+        const evaluationText = this.formatWritingEvaluation(evaluation, session.activeTutorLevel || 'A1', lang);
+        if (!evaluation.isCorrect) {
+          const retryInstruction = lang === 'ru'
+            ? 'Попробуйте ещё раз ответить на это задание арабским письмом:'
+            : lang === 'en'
+              ? 'Try this task again in Arabic script:'
+              : 'Shu topshiriqqa yana bir marta arab yozuvida javob yozing:';
+          await ctx.reply(
+            `${evaluationText}\n\n${retryInstruction}`,
+            {
+              reply_markup: exitKb,
+            }
+          );
+          return;
+        }
+        feedback = evaluationText;
+        session.activeTutorAnswerAccepted = true;
+        session.activeTutorFeedback = [
+          evaluation.feedback,
+          ...evaluation.errors.map((error) => `${error.original} → ${error.correction}: ${error.explanation}`),
+        ].join('\n').slice(0, 1200);
       }
 
       if ((session.activeTutorQuestionCount || 1) >= 5) {
+        session.activeTutorAnswerAccepted = false;
         this.clearSession(telegramId);
         await ctx.reply(
-          lang === 'ru'
-            ? '🎉 Вы ответили на 5 вопросов! Выберите ИИ Учителя, чтобы начать новое занятие.'
-            : lang === 'en'
-              ? '🎉 You completed 5 questions! Choose AI Tutor to start a new lesson.'
-              : '🎉 5 ta savol yakunlandi! Yangi mashg‘ulot boshlash uchun AI Ustozni tanlang.',
+          `${feedback}\n\n${
+            lang === 'ru'
+              ? '🎉 Вы выполнили 5 письменных заданий на арабском! Выберите ИИ Учителя, чтобы начать новую практику.'
+              : lang === 'en'
+                ? '🎉 You completed 5 Arabic writing tasks! Choose AI Tutor to start a new practice.'
+                : '🎉 5 ta arabcha yozma mashq yakunlandi! Yangi mashg‘ulot boshlash uchun AI Ustozni tanlang.'
+          }`,
           { reply_markup: await BotKeyboards.getMainMenu(lang) }
         );
         return;
       }
 
-      const nextQuestion = await GeminiService.generateBookQuestion(
+      const nextQuestion = await GeminiService.generateBookWritingTask(
         session.activeTutorBookContent,
         lang,
+        session.activeTutorLevel,
+        (session.activeTutorQuestionCount || 1) + 1,
         session.activeTutorQuestion,
-        await this.getRecentBookQuestions(telegramId, groupId)
+        await this.getRecentBookQuestions(telegramId, groupId),
+        session.activeTutorFeedback
       );
+      if (this.getSession(telegramId) !== session) return;
       session.activeTutorQuestion = nextQuestion;
       session.activeTutorQuestionCount = (session.activeTutorQuestionCount || 1) + 1;
+      session.activeTutorAnswerAccepted = false;
+      session.activeTutorFeedback = undefined;
+      session.activeTutorQuestionDelivered = false;
       await this.saveTutorQuestion(telegramId, groupId, bookId, nextQuestion);
-      await ctx.reply(`${evaluation.feedback}\n\n📖 Keyingi savol:\n\n${nextQuestion}`, {
-        reply_markup: exitKb,
-      });
-    } catch (error: any) {
-      console.error('[AI Tutor] Kitob asosidagi javobni tekshirib bo‘lmadi:', error.message);
       await ctx.reply(
-        lang === 'ru'
-          ? 'Не удалось проверить ответ по книге. Попробуйте ещё раз позже.'
-          : lang === 'en'
-            ? 'Could not check the answer against the book. Please try again later.'
-            : 'Javobni kitob asosida tekshirib bo‘lmadi. Iltimos, keyinroq urinib ko‘ring.',
-        { reply_markup: exitKb }
+        `${feedback}\n\n${this.formatWritingTask(
+          nextQuestion,
+          session.activeTutorLevel || 'A1',
+          session.activeTutorQuestionCount,
+          lang,
+          true
+        )}`,
+        {
+          reply_markup: exitKb,
+        }
       );
+      session.activeTutorQuestionDelivered = true;
+    } catch (error: any) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error('[AI Tutor] Arabcha yozuvni tekshirish yoki mashq yaratish xatosi:', message);
+      if (session.activeTutorAnswerAccepted) {
+        await ctx.reply(
+          lang === 'ru'
+            ? 'Ответ принят, но следующий вопрос не удалось подготовить. Отправьте /resume, чтобы повторить.'
+            : lang === 'en'
+              ? 'Your answer was accepted, but the next question could not be prepared. Send /resume to retry.'
+              : 'Javobingiz qabul qilindi, lekin keyingi savol tayyorlanmadi. Qayta urinish uchun /resume yuboring.',
+          { reply_markup: exitKb }
+        );
+      } else {
+        await ctx.reply(
+          lang === 'ru'
+            ? 'Не удалось проверить ответ по книге. Попробуйте ещё раз позже.'
+            : lang === 'en'
+              ? 'Could not check the answer against the book. Please try again later.'
+              : 'Javobni kitob asosida tekshirib bo‘lmadi. Iltimos, keyinroq urinib ko‘ring.',
+          { reply_markup: exitKb }
+        );
+      }
     } finally {
       session.isProcessingTutorAnswer = false;
     }

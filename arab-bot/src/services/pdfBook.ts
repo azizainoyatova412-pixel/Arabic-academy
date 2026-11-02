@@ -1,5 +1,4 @@
 import fs from 'fs';
-import path from 'path';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { config } from '../config.js';
 
@@ -95,10 +94,10 @@ Javobni FAQAT toza JSON formatida quyidagicha qaytaring:
     }
 
     // Zaxira standart darslik mavzulari (Mabda ul-Qiroat / Durusul Lugha tizimi)
-    return this.getDefaultTopics(bookName);
+    return this.getDefaultTopics();
   }
 
-  public static getDefaultTopics(bookName?: string): BookTopic[] {
+  public static getDefaultTopics(_bookName?: string): BookTopic[] {
     return [
       {
         number: 1,

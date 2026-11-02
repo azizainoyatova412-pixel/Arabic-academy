@@ -30,9 +30,17 @@ export interface UserSessionState {
   activeTutorBookContent?: string;
   activeTutorQuestion?: string;
   activeTutorQuestionCount?: number;
+  activeTutorLevel?: string;
+  activeTutorAnswerAccepted?: boolean;
+  activeTutorFeedback?: string;
+  activeTutorQuestionDelivered?: boolean;
   isStartingTutor?: boolean;
   isGeneratingTutorQuestion?: boolean;
   isProcessingTutorAnswer?: boolean;
+  isStartingTest?: boolean;
+  isProcessingQuizAnswer?: boolean;
+  isFinishingQuiz?: boolean;
+  testQuestionToken?: string;
   testQuestions?: QuizQuestion[];
   testCurrentIndex?: number;
   testScore?: number;

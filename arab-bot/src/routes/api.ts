@@ -6,14 +6,14 @@ import fs from 'fs';
 import { PdfBookService } from '../services/pdfBook.js';
 
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
+  destination: (_req, _file, cb) => {
     const dir = path.join(process.cwd(), 'uploads', 'books');
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });
     }
     cb(null, dir);
   },
-  filename: (req, file, cb) => {
+  filename: (_req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
     cb(null, 'book-' + uniqueSuffix + path.extname(file.originalname));
   },
@@ -29,7 +29,7 @@ export const apiRouter = Router();
 // ==========================================
 // 1. STATISTIKA VA REYTING (Band 3 & 10)
 // ==========================================
-apiRouter.get('/stats', async (req: Request, res: Response) => {
+apiRouter.get('/stats', async (_req: Request, res: Response) => {
   try {
     const totalUsersRes = await db.query('SELECT COUNT(*) as count FROM users');
     const totalGroupsRes = await db.query('SELECT COUNT(*) as count FROM groups');
@@ -68,7 +68,7 @@ apiRouter.get('/stats', async (req: Request, res: Response) => {
 // ==========================================
 // 2. GURUHLAR NAZORATI (Band 10: Guruh yaratish, o'chirish, kod qo'yish)
 // ==========================================
-apiRouter.get('/groups', async (req: Request, res: Response) => {
+apiRouter.get('/groups', async (_req: Request, res: Response) => {
   try {
     const result = await db.query(
       `SELECT g.*, 
@@ -238,7 +238,7 @@ apiRouter.post('/groups/:id/topics', async (req: Request, res: Response) => {
 // ==========================================
 // 3. O'QUVCHILAR VA BAHOLASH (Kumulyativ jamlangan ballar, sana bo'yicha baholash)
 // ==========================================
-apiRouter.get('/system/time', (req: Request, res: Response) => {
+apiRouter.get('/system/time', (_req: Request, res: Response) => {
   const today = getTashkentDate();
   const d = new Date();
   const formatter = new Intl.DateTimeFormat('uz-UZ', {
@@ -254,7 +254,7 @@ apiRouter.get('/system/time', (req: Request, res: Response) => {
   });
 });
 
-apiRouter.get('/students', async (req: Request, res: Response) => {
+apiRouter.get('/students', async (_req: Request, res: Response) => {
   try {
     const today = getTashkentDate();
     const result = await db.query(
@@ -464,7 +464,7 @@ apiRouter.delete('/students/:id', async (req: Request, res: Response) => {
 // Ism | Guruh | To'lov holati (✅ To'lagan / ❌ To'lamagan) | [Holatni almashtirish tugmasi]
 // (Telegram ID butunlay olib tashlangan!)
 // ==========================================
-apiRouter.get('/payments', async (req: Request, res: Response) => {
+apiRouter.get('/payments', async (_req: Request, res: Response) => {
   try {
     const result = await db.query(
       `SELECT u.id, u.first_name, u.username, u.is_paid,
@@ -510,7 +510,7 @@ apiRouter.post('/payments/:userId/toggle', async (req: Request, res: Response) =
 // ==========================================
 // 5. TEST TIZIMI SOZLAMALARI (Band 5)
 // ==========================================
-apiRouter.get('/test-settings', async (req: Request, res: Response) => {
+apiRouter.get('/test-settings', async (_req: Request, res: Response) => {
   try {
     const resRow = await db.query('SELECT * FROM test_settings ORDER BY id DESC LIMIT 1');
     const settings = resRow.rows[0] || {
@@ -690,7 +690,7 @@ apiRouter.post('/test-settings/upload-book', upload.any(), async (req: Request, 
 // ==========================================
 // 6. O'TOLMAGAN MAVZULAR VA BILDIRISHNOMALAR (Band 1 talabi: soxta emas, faqat real va o'qildi tugmasi bilan)
 // ==========================================
-apiRouter.get('/failed-alerts', async (req: Request, res: Response) => {
+apiRouter.get('/failed-alerts', async (_req: Request, res: Response) => {
   try {
     const alerts = await db.query(
       `SELECT * FROM student_failed_alerts 
@@ -772,7 +772,7 @@ apiRouter.post('/failed-alerts/:id/restart', async (req: Request, res: Response)
 // ==========================================
 // 7. KITOBLAR VA DARSLIKLAR KUTUBXONASI (Band 2: Alohida Kitoblar bo'limi)
 // ==========================================
-apiRouter.get('/books', async (req: Request, res: Response) => {
+apiRouter.get('/books', async (_req: Request, res: Response) => {
   try {
     const booksRes = await db.query('SELECT * FROM books ORDER BY id DESC');
     const groupsRes = await db.query('SELECT id, name, book_name, book_pdf_path FROM groups');

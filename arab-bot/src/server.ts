@@ -30,7 +30,7 @@ app.post('/telegram/webhook', (req: Request, res: Response, next: NextFunction) 
 app.use('/api', apiRouter);
 
 // Health check
-app.get('/health', (req: Request, res: Response) => {
+app.get('/health', (_req: Request, res: Response) => {
   res.json({
     status: 'ok',
     timestamp: new Date().toISOString(),
@@ -39,7 +39,7 @@ app.get('/health', (req: Request, res: Response) => {
 });
 
 // Xatoliklarni ushlab qolish middleware (Server yiqilmasligi kafolati)
-app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
   console.error('[Express Global Error]:', err);
   res.status(500).json({
     success: false,
@@ -73,7 +73,7 @@ process.on('uncaughtException', (err) => {
   console.error('💥 [Global uncaughtException]:', err);
 });
 
-process.on('unhandledRejection', (reason, promise) => {
+process.on('unhandledRejection', (reason) => {
   console.error('💥 [Global unhandledRejection]:', reason);
 });
 

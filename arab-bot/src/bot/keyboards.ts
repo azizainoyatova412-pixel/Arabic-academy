@@ -150,7 +150,7 @@ export class BotKeyboards {
   /**
    * Test savoli variantlari (A, B, C, D)
    */
-  public static createQuizKeyboard(options: string[]): InlineKeyboard {
+  public static createQuizKeyboard(options: string[], questionToken: string): InlineKeyboard {
     const keyboard = new InlineKeyboard();
     const letters = ['A', 'B', 'C', 'D'];
 
@@ -159,7 +159,8 @@ export class BotKeyboards {
         .replace(/^(?:[A-DА-Дa-dа-д1-4][:.)\s-]+|[🅰️🅱️🅲️🅳️\u{1F170}-\u{1F189}]\s*)/u, '')
         .trim();
       const letter = letters[idx] || `${idx + 1}`;
-      keyboard.text(`${letter}) ${cleanOpt}`, `quiz_answer:${idx}`).row();
+      const optionLabel = Array.from(cleanOpt).slice(0, 58).join('');
+      keyboard.text(`${letter}) ${optionLabel}`, `quiz_answer:${questionToken}:${idx}`).row();
     });
 
     return keyboard;
