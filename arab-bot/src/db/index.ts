@@ -399,6 +399,23 @@ class DatabaseManager {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );`,
 
+      `CREATE TABLE IF NOT EXISTS academy_book_topic_plans (
+        book_id INTEGER PRIMARY KEY,
+        topics_json TEXT NOT NULL,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );`,
+
+      `CREATE TABLE IF NOT EXISTS academy_book_learning_progress (
+        telegram_id BIGINT NOT NULL,
+        academy_group_id INTEGER NOT NULL,
+        book_id INTEGER NOT NULL,
+        current_topic_index INTEGER NOT NULL DEFAULT 0,
+        previous_score INTEGER,
+        previous_topic_index INTEGER,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (telegram_id, academy_group_id, book_id)
+      );`,
+
       `CREATE TABLE IF NOT EXISTS user_study_progress (
         id ${idType},
         user_id INTEGER,
@@ -699,15 +716,15 @@ class DatabaseManager {
     const texts = [
       {
         key: 'welcome',
-        uz: "Assalomu alaykum va rahmatulloh! Arab tili o'quv botiga xush kelibsiz! 🌟\n\nBu yerda siz noldan professional darajagacha arab tilini o'rganishingiz, maxsus guruhlarga a'zo bo'lishingiz va video darslarni tomosha qilishingiz mumkin.",
+        uz: "Arab tili o'quv botiga xush kelibsiz! 🌟\n\nBu yerda siz noldan professional darajagacha arab tilini o'rganishingiz, maxsus guruhlarga a'zo bo'lishingiz va video darslarni tomosha qilishingiz mumkin.",
         ru: "Здравствуйте! Добро пожаловать в бот изучения арабского языка! 🌟\n\nЗдесь вы сможете изучить арабский язык с нуля до профессионального уровня, вступить в специальные группы и смотреть видеоуроки.",
         en: "Welcome to the Arabic Learning Bot! 🌟\n\nHere you can learn Arabic from scratch to an advanced level, join dedicated study groups, and watch video lessons."
       },
       {
         key: 'course_info_prompt',
-        uz: "📚 **Bizning kurslarimiz:**\n\n1️⃣ **Boshlang'ich Arab tili** (Alifbo, fonetika, o'qish)\n2️⃣ **Sarf va Nahv** (Grammatika va Qur'on matnlari)\n3️⃣ **Fusha So'zlashuv** (Ravon muloqot va audio darslar)\n\nKursga yozilish yoki ma'lumot olish uchun quyidagi tugmani bosing:",
-        ru: "📚 **Наши курсы:**\n\n1️⃣ **Начальный арабский** (Алфавит, фонетика, чтение)\n2️⃣ **Сарф и Нахв** (Грамматика и текст Корана)\n3️⃣ **Фусха Разговорный** (Свободное общение)\n\nНажмите кнопку ниже, чтобы записаться:",
-        en: "📚 **Our Courses:**\n\n1️⃣ **Beginner Arabic** (Alphabet, phonetics, reading)\n2️⃣ **Sarf & Nahw** (Grammar & Quranic analysis)\n3️⃣ **Fusha Conversation** (Fluent speaking)\n\nClick the button below to enroll:"
+        uz: "📚 **Bizning kurslarimiz:**\n\n1️⃣ **Boshlang'ich arab tili** (Alifbo, fonetika, o'qish)\n2️⃣ **Sarf va nahv** (Grammatika va gap tuzilishi)\n3️⃣ **Fusha so'zlashuv** (Ravon muloqot va kundalik iboralar)\n\nKursga yozilish yoki ma'lumot olish uchun quyidagi tugmani bosing:",
+        ru: "📚 **Наши курсы:**\n\n1️⃣ **Начальный арабский** (Алфавит, фонетика, чтение)\n2️⃣ **Сарф и Нахв** (Грамматика и структура предложений)\n3️⃣ **Разговорный фусха** (Свободное общение и повседневные выражения)\n\nНажмите кнопку ниже, чтобы записаться:",
+        en: "📚 **Our Courses:**\n\n1️⃣ **Beginner Arabic** (Alphabet, phonetics, reading)\n2️⃣ **Sarf & Nahw** (Grammar and sentence structure)\n3️⃣ **Fusha Conversation** (Fluent communication and everyday expressions)\n\nClick the button below to enroll:"
       },
       {
         key: 'btn_enroll',
@@ -736,15 +753,18 @@ class DatabaseManager {
     ];
 
     for (const item of texts) {
-      const exists = await this.query('SELECT id FROM system_translations WHERE key = $1', [item.key]);
+      const exists = await this.query(
+        'SELECT id, text_uz, text_ru, text_en FROM system_translations WHERE key = $1',
+        [item.key]
+      );
       if (exists.rows.length === 0) {
         await this.query(
           'INSERT INTO system_translations (key, text_uz, text_ru, text_en) VALUES ($1, $2, $3, $4)',
           [item.key, item.uz, item.ru, item.en]
         );
       } else if (
-        item.key === 'course_info_prompt' &&
-        /250\s*000|300\s*000|350\s*000|250,000|300,000|350,000/.test(
+        ['welcome', 'course_info_prompt'].includes(item.key) &&
+        /250\s*000|300\s*000|350\s*000|250,000|300,000|350,000|Qur.?an|Коран|Islam|ислам|rahmatulloh|Assalamu|Ассалам|السلام/i.test(
           `${exists.rows[0].text_uz} ${exists.rows[0].text_ru} ${exists.rows[0].text_en}`
         )
       ) {

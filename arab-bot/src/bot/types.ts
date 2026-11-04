@@ -1,4 +1,4 @@
-import { QuizQuestion } from '../services/gemini.js';
+import { BookTopicPlanItem, QuizQuestion } from '../services/gemini.js';
 
 export interface QuizAttemptRecord {
   question: string;
@@ -46,6 +46,10 @@ export interface UserSessionState {
   testScore?: number;
   isDailyTest?: boolean;
   testAcademyGroupId?: number;
+  testBookId?: number;
+  testBookTopics?: BookTopicPlanItem[];
+  testBookTopicIndex?: number;
+  testCefrLevel?: string;
   testAttempts?: QuizAttemptRecord[];
   lastQuizAttempts?: QuizAttemptRecord[];
   lastQuizLevelTitle?: string;
@@ -53,4 +57,5 @@ export interface UserSessionState {
   lastQuizTotal?: number;
   lastQuizPercentage?: number;
   lastQuizComment?: string;
+  lastQuizIsDailyTest?: boolean;
 }

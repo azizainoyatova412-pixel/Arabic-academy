@@ -1,6 +1,7 @@
 import fs from 'fs';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { config } from '../config.js';
+import { containsReligiousMaterial } from './contentPolicy.js';
 
 export interface BookTopic {
   number: number;
@@ -54,9 +55,10 @@ export class PdfBookService {
         const model = ai.getGenerativeModel({ model: 'gemini-3.5-flash-lite' });
 
         const excerpt = (bookText || '').slice(0, 15000);
-        const prompt = `Siz malakali arab tili metodistisiz.
+        const prompt = `Siz faqat arab tilini betaraf misollar bilan o‘rgatuvchi metodistsiz.
 Quyidagi arab tili darsligi asosida ketma-ket 1-mavzudan boshlab 10-15 ta asosiy dars mavzulari rejasini tuzing.
-Har bir mavzu aniq ketma-ketlikda (1, 2, 3...) bo'lsin.
+Kitobda mavjud bo‘lgan mavzular bilangina cheklaning; 10 tadan kam bo‘lsa, mavjudlarini qaytaring va yangisini o‘ylab qo‘shmang. Har bir mavzu aniq ketma-ketlikda (1, 2, 3...) bo'lsin.
+Diniy mavzu yoki matnni dars mazmuni sifatida ishlatmang, lekin bu kitobning boshqa boblaridagi arab tili grammatikasi, o‘qish, yozish va kundalik lug‘at mavzularini ajratishga to‘sqinlik qilmasin. Shunday bo‘limlarni chetlab o‘ting. Arab tilidagi matn bo‘lsa, mavzu nomi va izohni o‘zbekcha yozing. Til o‘rgatish mavzusi topilmasa bo‘sh massiv qaytaring.
 
 Kitob nomi: "${bookName}"
 Kitob matnidan namuna:
@@ -79,19 +81,28 @@ Javobni FAQAT toza JSON formatida quyidagicha qaytaring:
         if (start !== -1 && end !== -1) {
           text = text.slice(start, end + 1);
           const parsed = JSON.parse(text);
-          if (Array.isArray(parsed) && parsed.length >= 3) {
-            return parsed.map((item, idx) => ({
+          if (Array.isArray(parsed)) {
+            const topics = parsed.map((item, idx) => ({
               number: Number(item.number) || idx + 1,
               title: String(item.title || `${idx + 1}-dars`).trim(),
               summary: String(item.summary || '').trim(),
               rules: String(item.rules || '').trim(),
             }));
+            const safeTopics = topics.filter(
+              (topic) => !containsReligiousMaterial(JSON.stringify(topic))
+            );
+            if (safeTopics.length > 0) {
+              return safeTopics.map((topic, index) => ({ ...topic, number: index + 1 }));
+            }
+            if (bookText !== undefined) return [];
           }
         }
       } catch (e) {
         console.warn('⚠️ [Generate Topics Error]:', e);
       }
     }
+
+    if (bookText !== undefined) return [];
 
     // Zaxira standart darslik mavzulari (Mabda ul-Qiroat / Durusul Lugha tizimi)
     return this.getDefaultTopics();

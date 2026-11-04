@@ -75,7 +75,7 @@ const content = {
     goals: {
       eyebrow: 'Real maqsadlar',
       title: "Arab tilini o‘rganib nimalarga erishasiz?",
-      desc: "Arab tili dunyo bo‘ylab 300 milliondan ortiq insonlar uchun asosiy til. Islom madaniyati, ilmiy meros va xalqaro muloqot uchun asosiy vositadir.",
+      desc: "Arab tili dunyo bo‘ylab 300 milliondan ortiq insonlar so‘zlashadigan til. U ta’lim, ilm-fan, tarjima, xalqaro muloqot va kasbiy faoliyatda keng qo‘llanadi.",
       items: [
         {
           icon: '🎓',
@@ -95,7 +95,7 @@ const content = {
         {
           icon: '🤝',
           title: 'Elchixonalar, konsulliklar va xalqaro tashkilotlarda maslahatchi yoki mutaxassis',
-          desc: "BMT, Islom taraqqiyot banki kabi xalqaro tashkilotlarda faoliyat yuritish.",
+          desc: "BMT va boshqa xalqaro tashkilotlarda faoliyat yuritish.",
         },
       ],
     },
@@ -203,7 +203,7 @@ const content = {
     goals: {
       eyebrow: 'Real Goals',
       title: 'What can you achieve by learning Arabic?',
-      desc: 'Spoken by more than 300 million people worldwide. Arabic is the key to Islamic heritage, science and international communication.',
+      desc: 'Spoken by more than 300 million people worldwide, Arabic is widely used in education, science, translation, international communication, and professional work.',
       items: [
         { icon: '🎓', title: 'Arabic Language Teacher', desc: 'Become a professional Arabic educator teaching in schools, academies, or private lessons.' },
         { icon: '🌐', title: 'Translator / Interpreter', desc: 'Work as a professional translator from Arabic to English or other languages at an international level.' },
