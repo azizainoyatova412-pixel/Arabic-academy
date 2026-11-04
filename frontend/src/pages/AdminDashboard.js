@@ -1824,7 +1824,7 @@ function BooksSection() {
         <p style={{ margin: '-8px 0 18px', color: '#475569', fontSize: '0.92rem' }}>
           Yangi kitob yuklashdan oldin mavjud kitoblarni ko‘zdan kechiring, balki sizga keraklisi allaqachon mavjuddir — uni guruhga biriktiring, tamom!
         </p>
-        <form onSubmit={handleUpload} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '16px', alignItems: 'end' }}>
+        <form onSubmit={handleUpload} className="book-upload-form">
           <div className="admin-field" style={{ margin: 0 }}>
             <label>Kitob / Darslik nomi:</label>
             <input
@@ -1878,7 +1878,7 @@ function BooksSection() {
             <small>Yuqoridagi formadan foydalanib birinchi darslikni yuklang.</small>
           </div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '18px' }}>
+          <div className="books-library-grid">
             {books.map((b) => (
               <div
                 key={b.id}
