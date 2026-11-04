@@ -25,7 +25,7 @@ function normalizeQuestionText(question: string): string {
 }
 
 export function normalizeCefrLevel(value: unknown): string {
-  const match = String(value || '').toUpperCase().match(/\b(C2|C1|B2|B1|A2|A1)\b/);
+  const match = String(value || '').toUpperCase().match(/(?:^|[^A-Z0-9])(C2|C1|B2|B1|A2|A1)(?=$|[^A-Z0-9])/);
   return match?.[1] || 'A1';
 }
 
@@ -314,9 +314,10 @@ Javobni FAQAT toza JSON massiv ko'rinishida qaytaring:
         ? `\nOldingi topshiriqlarni mazmunan takrorlamang; yangi mavzu, janr yoki yozish maqsadini tanlang:\n${recentTasks.map((item) => `- ${item}`).join('\n')}`
         : '';
       const prompt = `Siz arab tili yozma nutqi bo‘yicha tajribali, CEFR mezonlariga tayangan ustozsiz.
-O‘quvchiga kitobdagi mavzu yoki lug‘atga bog‘liq, hayotiy va aniq bitta ARABCHA YOZISH TOPSHIRIG‘I tuzing.
+O‘quvchiga faqat kitobda berilgan mavzu, lug‘at va grammatikaga tayangan, hayotiy va aniq bitta ARABCHA YOZISH TOPSHIRIG‘I tuzing.
 O‘quvchi CEFR darajasi: ${level}. Bu mashg‘ulotdagi topshiriq raqami: ${taskNumber}/5.
 Darajaga mos hajm va murakkablik: ${levelGuidance[level]}
+Kitob matnida mavjud bo‘lmagan mavzu yoki yuqoriroq CEFR darajasiga xos grammatika, lug‘at va yozuv talablarini kiritmang. Daraja va kitob mazmuni o‘rtasida farq bo‘lsa, kitobdagi o‘tilgan materialdan chiqmagan holda topshiriqni shu darajaga mos soddalashtiring.
 Topshiriq ko‘rsatmasini ${language} tilida yozing, lekin javobni faqat arab yozuvida yozishni talab qiling. Lotincha transliteratsiyani ishlatmang; harakatlar o‘quvchi darajasiga mos ravishda ishlatilishi mumkin.
 Topshiriq turi darajaga mos bo‘lsin: sodda gaplardan xabar, kundalik yozuv, shaxsiy xat, fikr bayoni yoki insho tomon bosqichma-bosqich rivojlansin. Har safar boshqa janr yoki yondashuv tanlang.
 CEFR yozma imtihonlariga xos topshiriqni bajaring: vazifani tushunish, izchillik, lug‘at va grammatikani shu darajaga mos sinang; rasmiy imtihon natijasi yoki sertifikat va’da qilmang.
@@ -665,6 +666,7 @@ Javobni FAQAT toza JSON ko'rinishida qaytaring:
     excludedQuestions?: string[];
     lang?: string;
     difficulty?: 'easy' | 'medium' | 'hard';
+    cefrLevel?: string;
   }): Promise<QuizQuestion[]> {
     const apiKeys = this.getApiKeys();
     const requestedCount = Number.isFinite(options.count) ? Math.floor(options.count!) : 10;
@@ -685,11 +687,22 @@ Javobni FAQAT toza JSON ko'rinishida qaytaring:
     const excerpt = options.bookText.slice(0, 12000);
     const excludedQuestions = [...new Set((options.excludedQuestions || []).map((question) => question.trim()).filter(Boolean))]
       .slice(0, 30);
-    const levelInstruction = options.difficulty === 'hard'
-      ? "O'quvchi darajasi yuqori (B1-B2): matn mazmunini chuqur tushunish, qo'llanish, grammatik farqlar va kontekstli lug'atni tekshiring."
-      : options.difficulty === 'medium'
-        ? "O'quvchi darajasi o'rta (A2-B1): matn mazmuni, kundalik muloqot, asosiy grammatik tuzilmalar va kontekstli lug'atni tekshiring."
-        : "O'quvchi boshlang'ich (A1-A2): kitobdagi sodda matnlarni tushunish, kundalik iboralar, asosiy tuzilmalar va kontekstli lug'atni tekshiring.";
+    const level = options.cefrLevel ? normalizeCefrLevel(options.cefrLevel) : undefined;
+    const levelGuidance: Record<string, string> = {
+      A1: "Aynan A1 darajasi: kitobdagi tanish so'zlar, sodda iboralar va eng oddiy gaplarni tushunish hamda qo'llashni tekshiring.",
+      A2: "Aynan A2 darajasi: kitobdagi kundalik mavzular, qisqa matnlar va sodda grammatik tuzilmalarni tushunish hamda qo'llashni tekshiring.",
+      B1: "Aynan B1 darajasi: kitobdagi matnning asosiy mazmuni, kontekstdagi lug'at va o'rgatilgan grammatikani qo'llashni tekshiring.",
+      B2: "Aynan B2 darajasi: kitobdagi matn tafsilotlari, fikrlar orasidagi munosabat va o'rgatilgan grammatik farqlarni tekshiring.",
+      C1: "Aynan C1 darajasi: kitobdagi murakkabroq matnlarning ma'nosi, uslubi va o'rgatilgan til vositalarini chuqur tushunishni tekshiring.",
+      C2: "Aynan C2 darajasi: kitobdagi nozik ma'no farqlari, uslub va o'rgatilgan til vositalarini mukammal tushunishni tekshiring.",
+    };
+    const levelInstruction = level
+      ? levelGuidance[level]
+      : options.difficulty === 'hard'
+        ? "O'quvchi darajasi yuqori (B1-B2): matn mazmunini chuqur tushunish, qo'llanish, grammatik farqlar va kontekstli lug'atni tekshiring."
+        : options.difficulty === 'medium'
+          ? "O'quvchi darajasi o'rta (A2-B1): matn mazmuni, kundalik muloqot, asosiy grammatik tuzilmalar va kontekstli lug'atni tekshiring."
+          : "O'quvchi boshlang'ich (A1-A2): kitobdagi sodda matnlarni tushunish, kundalik iboralar, asosiy tuzilmalar va kontekstli lug'atni tekshiring.";
 
     const questions: QuizQuestion[] = [];
     const seenQuestions = new Set(excludedQuestions.map(normalizeQuestionText));
@@ -709,6 +722,7 @@ Quyidagi guruhga biriktirilgan kitob matnidan va o'quvchining darajasidan kelib 
 ${topicsStr}
 Savol turlari: ${typesStr}
 ${levelInstruction}
+Guruh darajasidan yuqori bo‘lgan grammatika, lug‘at yoki imtihon talablarini kiritmang. Savollarning javobi va o‘rganish mazmuni kitobda mavjud bo‘lsin.
 ${excludedInstruction}
 Kitob matnidan parcha:
 ${excerpt}

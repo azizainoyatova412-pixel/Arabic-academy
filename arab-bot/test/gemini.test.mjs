@@ -42,6 +42,8 @@ test('rejects malformed or ambiguous questions', () => {
 test('normalizes CEFR results and safely defaults missing levels', () => {
   assert.equal(normalizeCefrLevel('B2 Yuqori Daraja'), 'B2');
   assert.equal(normalizeCefrLevel('C1'), 'C1');
+  assert.equal(normalizeCefrLevel('Arab tili — A1 Guruhi'), 'A1');
+  assert.equal(normalizeCefrLevel('A1-guruh'), 'A1');
   assert.equal(normalizeCefrLevel('unknown'), 'A1');
 });
 

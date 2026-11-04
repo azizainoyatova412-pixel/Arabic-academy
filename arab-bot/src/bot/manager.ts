@@ -575,7 +575,7 @@ export class BotManager {
 
       try {
         const membership = await db.query(
-          'SELECT academy_group_id FROM users WHERE telegram_id = $1',
+          'SELECT academy_group_id, academy_group_name FROM users WHERE telegram_id = $1',
           [telegramId]
         );
         const groupId = Number(membership.rows[0]?.academy_group_id);
@@ -594,13 +594,7 @@ export class BotManager {
         session.activeTutorBookId = Number(ctx.match[1]);
         session.activeTutorGroupId = groupId;
         session.activeTutorBookTitle = book.title;
-        const levelResult = await db.query(
-          `SELECT level FROM user_tests
-           WHERE telegram_id = $1 AND academy_group_id = $2
-           ORDER BY created_at DESC LIMIT 1`,
-          [telegramId, groupId]
-        );
-        session.activeTutorLevel = normalizeCefrLevel(levelResult.rows[0]?.level);
+        session.activeTutorLevel = normalizeCefrLevel(membership.rows[0]?.academy_group_name);
         const bookContent = book.text.slice(0, 16000);
         session.activeTutorBookContent = bookContent;
         const excludedTasks = await this.getRecentBookQuestions(telegramId, groupId);
@@ -1417,7 +1411,6 @@ private async renderAllGroupsStatsCard(
       return;
     }
     if (session.isStartingTest) {
-      await ctx.reply('⏳ Test tayyorlanmoqda. Iltimos, biroz kuting.');
       return;
     }
     if (session.state === 'taking_test') {
@@ -1430,7 +1423,7 @@ private async renderAllGroupsStatsCard(
       const waitMsg = await ctx.reply("⏳ Guruhingiz kitobi asosida test tayyorlanmoqda...", { parse_mode: 'HTML' });
       waitMessageId = waitMsg.message_id;
       const userResult = await db.query(
-        'SELECT academy_group_id FROM users WHERE telegram_id = $1',
+        'SELECT academy_group_id, academy_group_name FROM users WHERE telegram_id = $1',
         [telegramId]
       );
       const groupId = Number(userResult.rows[0]?.academy_group_id);
@@ -1441,23 +1434,14 @@ private async renderAllGroupsStatsCard(
 
       const book = await getAcademyGroupBook(groupId, telegramId);
       const excludedQuestions = await this.getRecentBookQuestions(telegramId, groupId);
-      const latestResult = await db.query(
-        `SELECT level FROM user_tests
-         WHERE telegram_id = $1 AND academy_group_id = $2
-         ORDER BY created_at DESC LIMIT 1`,
-        [telegramId, groupId]
-      );
-      const lastLevel = String(latestResult.rows[0]?.level || '').toUpperCase();
-      const difficulty = lastLevel === 'B2'
-        ? 'hard'
-        : lastLevel === 'B1' ? 'medium' : 'easy';
+      const groupLevel = normalizeCefrLevel(userResult.rows[0]?.academy_group_name);
       const questions = await GeminiService.generateHardTestQuestions({
         bookText: book.text,
         topicsRange: 'all',
         count: 10,
         excludedQuestions,
         lang,
-        difficulty,
+        cefrLevel: groupLevel,
       });
 
       session.state = 'taking_test';
@@ -1472,6 +1456,16 @@ private async renderAllGroupsStatsCard(
     } catch (error: any) {
       const message = error instanceof Error ? error.message : String(error);
       console.error('Kitob asosidagi testni tayyorlab bo‘lmadi:', message);
+      if (session.state === 'taking_test') {
+        session.state = 'idle';
+        session.testQuestions = undefined;
+        session.testAttempts = undefined;
+        session.testCurrentIndex = 0;
+        session.testScore = 0;
+        session.testQuestionToken = undefined;
+        session.testAcademyGroupId = undefined;
+        session.isDailyTest = false;
+      }
       if (waitMessageId && ctx.chat) {
         try {
           await ctx.api.editMessageText(
@@ -1520,7 +1514,8 @@ private async renderAllGroupsStatsCard(
         });
         return;
       } catch (err) {
-        console.warn('Test savoli kutish xabariga joylanmadi, yangi xabar yuboriladi:', err);
+        console.warn('Test savoli kutish xabariga joylanmadi:', err);
+        throw err;
       }
     }
 
