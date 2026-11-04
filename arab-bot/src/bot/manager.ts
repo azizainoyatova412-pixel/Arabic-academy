@@ -23,6 +23,7 @@ import {
   getAcademyStudentMembership,
   getAcademyStudentStats,
   submitAcademyReview,
+  syncAcademyStats,
   verifyAcademyGroupCode,
 } from '../services/academySync.js';
 
@@ -536,12 +537,23 @@ export class BotManager {
       const firstName = ctx.from?.first_name || '';
       const username = ctx.from?.username || '';
 
-      await db.query(
-        `INSERT INTO users (telegram_id, username, first_name, full_name, language_code, status, is_paid)
-         VALUES ($1, $2, $3, $3, 'uz', 'active', FALSE)
-         ON CONFLICT (telegram_id) DO UPDATE SET last_active = CURRENT_TIMESTAMP, first_name = EXCLUDED.first_name, username = EXCLUDED.username`,
-        [telegramId, username, firstName]
-      ).catch(() => {});
+      try {
+        await db.query(
+          `INSERT INTO users (telegram_id, username, first_name, full_name, language_code, status, is_paid)
+           VALUES ($1, $2, $3, $3, 'uz', 'active', FALSE)
+           ON CONFLICT (telegram_id) DO UPDATE SET last_active = CURRENT_TIMESTAMP, first_name = EXCLUDED.first_name, username = EXCLUDED.username`,
+          [telegramId, username, firstName]
+        );
+        if (config.academyApiUrl && config.academySyncSecret) {
+          void syncAcademyStats().catch((error) => {
+            console.warn('[Academy Sync] /start dan keyin bot statistikasi yuborilmadi:', error);
+          });
+        }
+      } catch (error) {
+        console.error('[Bot] /start foydalanuvchisini bazaga yozib bo‘lmadi:', error);
+        await ctx.reply('Botdagi profilingizni yuklashda xatolik yuz berdi. Iltimos, birozdan keyin /start ni qayta yuboring.');
+        return;
+      }
 
       let linkedGroup: { id: number; name: string } | null;
       try {
@@ -1911,6 +1923,11 @@ private async renderAllGroupsStatsCard(
     session.lastQuizLevelTitle = levelTitle;
     session.lastQuizComment = comment;
     session.lastQuizIsDailyTest = Boolean(session.isDailyTest);
+    if (config.academyApiUrl && config.academySyncSecret) {
+      void syncAcademyStats().catch((error) => {
+        console.warn('[Academy Sync] Test yakunlangach bot statistikasi yuborilmadi:', error);
+      });
+    }
 
     session.state = 'idle';
     session.testQuestions = undefined;

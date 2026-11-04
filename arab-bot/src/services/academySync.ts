@@ -213,7 +213,7 @@ export async function getAcademyGroupBook(
 
 export async function syncAcademyStats(): Promise<void> {
   const [users, groups, tests, gradedStudents] = await Promise.all([
-    db.query("SELECT COUNT(*) AS count FROM users WHERE status = 'active'"),
+    db.query('SELECT COUNT(*) AS count FROM users'),
     db.query('SELECT COUNT(*) AS count FROM groups WHERE is_active = TRUE'),
     db.query('SELECT COUNT(*) AS count FROM user_tests'),
     db.query('SELECT COUNT(*) AS count FROM users WHERE grade IS NOT NULL AND grade > 0'),
